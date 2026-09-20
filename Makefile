@@ -14,7 +14,12 @@ $(PROJECTS):
 	$(MAKE) -C $@
 
 test:
-	@for p in $(PROJECTS); do printf '%-16s' "$$p"; $(MAKE) -s -C $$p test 2>&1 | tail -n 1 || exit 1; done
+	@fail=0; for p in $(PROJECTS); do \
+		printf '%-16s' "$$p"; \
+		out=$$($(MAKE) -s -C $$p test 2>&1); rc=$$?; \
+		echo "$$out" | tail -n 1; \
+		if [ $$rc -ne 0 ]; then fail=1; echo "$$out" | grep -E "FAIL|error" | head -n 20; fi; \
+	done; exit $$fail
 
 install uninstall clean:
 	@for p in $(PROJECTS); do $(MAKE) -s -C $$p $@ || exit 1; done
