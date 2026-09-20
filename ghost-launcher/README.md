@@ -164,3 +164,25 @@ of the last run, plus arcade-wide totals and a chart of runs over the last 14 da
 Nothing is uploaded until you say yes. On first launch the launcher asks "Share scores online?" (default No; Esc means No);
 press **O** on the game list to change your answer later. The answer is the `enabled=` line in
 `~/.config/ghost-launcher/online.conf`. What is sent when it is on: arcade name, game, mode, score, date and a random per-install ID.
+
+## Update notices
+
+The launcher tells you when a newer Ghost Arcade has been pushed to GitHub: a teal
+**UPDATE AVAILABLE** pill appears on the game list, and **V** opens the details (your
+build, the newest commit and its title, when it last checked, and the two commands
+that update you). **R** on that screen checks again immediately.
+
+How it works: the build remembers which git commit it was made from. At start-up the
+launcher runs `ghost-sync --check-update` in the background, which asks GitHub's public
+API for the recent commits on `main` (one anonymous request, at most every six hours)
+and writes the answer to `~/.local/share/ghost-launcher/update.txt`. The launcher only
+reads that file; it never touches the network itself.
+
+- It **never downloads or installs anything**. Updating is always you running
+  `git pull && make install`.
+- Nothing about you is sent, and it works whether or not you share scores online.
+- If your build was made from commits that are not on GitHub (your own work in
+  progress), it says so rather than nagging you to update.
+- `check_updates=0` in `~/.config/ghost-launcher/online.conf` turns it off;
+  `update_repo=owner/name` points it at a fork.
+- `ghost-sync --check-update-now` does the same from a terminal.

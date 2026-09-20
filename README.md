@@ -20,7 +20,8 @@ classic idea: original code, art, sound and music, and no borrowed names or asse
 | **Girderclimb** | Swing, reel, let go. The fire is climbing |
 
 **Ghost Launcher** is the arcade hall: attract-mode cabinets, per-game stats and
-trophies, a daily challenge, and optional online leaderboards.
+trophies, a daily challenge, optional online leaderboards, and a notice when a newer
+version lands here on GitHub.
 
 ## Build and install
 

@@ -53,5 +53,7 @@ void Launch_InstallAcknowledge(void);
  * by the time the player looks at them. Silently does nothing if the
  * helper isn't installed. */
 void Launch_SyncDetached(void);
+/* Asks GitHub right now whether a newer version exists (same detached helper). */
+void Launch_CheckUpdateNow(void);
 
 #endif

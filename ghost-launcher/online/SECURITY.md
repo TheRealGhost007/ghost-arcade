@@ -34,6 +34,16 @@ What an attacker with the key *can* do: submit made-up scores under made-up name
 within the limits below. That is true of every game that runs on the player's own
 computer. It is a moderation problem, not a break-in.
 
+## The update check
+
+`ghost-sync` makes one other kind of request: an anonymous GET to GitHub's public API
+to see whether `main` has moved past the commit the build was made from. No key and no
+player data are sent. GitHub's reply is parsed as hostile too (strings are skipped
+whole, so a commit message cannot fake a commit; the title shown in the launcher is cut
+to printable ASCII; the repository name must match `owner/name` so it cannot bend the
+URL). It only ever produces a notice: nothing is downloaded, and nothing is installed
+unless the player runs `git pull && make install` themselves.
+
 ## What the public key can do on the server (schema.sql, version 2)
 
 | Action | Result |

@@ -11,6 +11,7 @@
 #include "stats.h"
 #include "runstats.h"
 #include "../sync/syncdata.h"
+#include "build_commit.h" /* generated: BUILD_SOURCE_DIR, where this build's git checkout lives */
 #include "profile.h"
 #include "scores.h"
 #include "gamepad.h" /* after raylib.h: routes IsKeyDown/IsKeyPressed through the controller too */
@@ -33,6 +34,7 @@ typedef enum {
     UI_PROFILE,
     UI_TROPHIES,
     UI_ONLINE,
+    UI_UPDATE,
 } UIState;
 
 /* Order matters: the XDG install location is checked before a bare
@@ -152,6 +154,10 @@ int main(void) {
     UIState uiState = UI_LIST;
     int selected = 0;
     int trophyGame = 0;
+    UpdateState updateState;
+    Update_Load(&updateState);
+    Render_SetUpdateNotice(updateState.status == UPDATE_BEHIND ? updateState.behind : 0);
+    float updateReloadTimer = 0.0f;
     SyncConfig syncCfg;
     SyncConfig_Load(&syncCfg);
     bool onlineChoice = syncCfg.enabled, onlineFirstTime = !syncCfg.decided;
@@ -248,6 +254,7 @@ int main(void) {
             bool trophiesPressed = IsKeyPressed(KEY_H);
             bool dailyPressed = IsKeyPressed(KEY_D);
             if (IsKeyPressed(KEY_O)) { onlineChoice = syncCfg.enabled; uiState = UI_ONLINE; }
+            if (IsKeyPressed(KEY_V)) uiState = UI_UPDATE;
             bool profilePressed = IsKeyPressed(KEY_U);
             bool shiftHeld = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
 
@@ -379,6 +386,29 @@ int main(void) {
                 if (IsKeyPressed(KEY_RIGHT)) trophyGame = (trophyGame + 1) % manifest.count;
             }
             Render_Achievements(&manifest, trophyGame);
+            continue;
+        }
+
+        /* ghost-sync writes update.txt in the background: pick it up when it lands. */
+        updateReloadTimer += GetFrameTime();
+        if (updateReloadTimer > 5.0f) {
+            updateReloadTimer = 0.0f;
+            Update_Load(&updateState);
+            Render_SetUpdateNotice(updateState.status == UPDATE_BEHIND ? updateState.behind : 0);
+        }
+
+        if (uiState == UI_UPDATE) {
+            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_V)) uiState = UI_LIST;
+            if (IsKeyPressed(KEY_R)) { Launch_CheckUpdateNow(); updateReloadTimer = 3.0f; }
+            /* Show the checkout this build came from, with the home folder as ~ */
+            static char sourceDir[300] = "";
+            if (!sourceDir[0]) {
+                const char *home = getenv("HOME");
+                size_t hl = home ? strlen(home) : 0;
+                if (hl > 1 && strncmp(BUILD_SOURCE_DIR, home, hl) == 0 && BUILD_SOURCE_DIR[hl] == '/') snprintf(sourceDir, sizeof(sourceDir), "~%s", BUILD_SOURCE_DIR + hl);
+                else snprintf(sourceDir, sizeof(sourceDir), "%s", BUILD_SOURCE_DIR[0] ? BUILD_SOURCE_DIR : "the folder you cloned ghost-arcade into");
+            }
+            Render_Update(&updateState, sourceDir);
             continue;
         }
 

@@ -98,7 +98,12 @@ void Launch_CreditStillRunning(double now, PlayStats *stats) {
     }
 }
 
-void Launch_SyncDetached(void) {
+static void SpawnSync(const char *flag);
+
+void Launch_SyncDetached(void) { SpawnSync("--check-update"); }
+void Launch_CheckUpdateNow(void) { SpawnSync("--check-update-now"); }
+
+static void SpawnSync(const char *flag) {
     pid_t pid = fork();
     if (pid < 0) return;
 
@@ -115,13 +120,13 @@ void Launch_SyncDetached(void) {
             dup2(devnull, STDOUT_FILENO);
             dup2(devnull, STDERR_FILENO);
         }
-        execlp("ghost-sync", "ghost-sync", "--quiet", (char *)NULL);
+        execlp("ghost-sync", "ghost-sync", "--quiet", flag, (char *)NULL);
 
         const char *home = getenv("HOME");
         if (home && home[0] != '\0') {
             char fallback[600];
             snprintf(fallback, sizeof(fallback), "%s/.local/bin/ghost-sync", home);
-            execl(fallback, "ghost-sync", "--quiet", (char *)NULL);
+            execl(fallback, "ghost-sync", "--quiet", flag, (char *)NULL);
         }
         _exit(127);
     }

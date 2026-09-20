@@ -5,6 +5,7 @@
 #include "manifest.h"
 #include "stats.h"
 #include "runstats.h"
+#include "../sync/updatecheck.h"
 #include "profile.h"
 #include "scores.h"
 #include "launch.h"
@@ -78,5 +79,10 @@ void Render_Achievements(const Manifest *m, int selected);
 /* The opt-in question for the online leaderboard. choice is the highlighted
  * answer (true = share); firstTime changes the wording of the footer. */
 void Render_OnlineAsk(bool choice, bool firstTime);
+
+/* Update notice. The list screen shows a pill while `behind` > 0 (0 hides it). */
+void Render_SetUpdateNotice(int behind);
+/* The details screen: this build, the newest on GitHub, and how to update. */
+void Render_Update(const UpdateState *u, const char *sourceDir);
 
 #endif

@@ -2,6 +2,7 @@
 #include "safefile.h"
 #include "syncdata.h"
 #include "online_config.h"
+#include "updatecheck.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +55,8 @@ bool Sync_DataDir(char *out, size_t outSize) {
 void SyncConfig_Load(SyncConfig *cfg) {
     cfg->enabled = false;
     cfg->decided = false;
+    cfg->checkUpdates = true;
+    snprintf(cfg->updateRepo, sizeof(cfg->updateRepo), "%s", UPDATE_DEFAULT_REPO);
     snprintf(cfg->url, sizeof(cfg->url), "%s", ONLINE_DEFAULT_URL);
     snprintf(cfg->key, sizeof(cfg->key), "%s", ONLINE_DEFAULT_KEY);
 
@@ -74,6 +77,8 @@ void SyncConfig_Load(SyncConfig *cfg) {
         char *key = TrimInPlace(trimmed);
         char *value = TrimInPlace(eq + 1);
         if (strcmp(key, "enabled") == 0) { cfg->enabled = (atoi(value) != 0); cfg->decided = true; }
+        else if (strcmp(key, "check_updates") == 0) cfg->checkUpdates = (atoi(value) != 0);
+        else if (strcmp(key, "update_repo") == 0 && Update_IsRepo(value)) snprintf(cfg->updateRepo, sizeof(cfg->updateRepo), "%s", value);
         else if (strcmp(key, "url") == 0 && value[0]) snprintf(cfg->url, sizeof(cfg->url), "%s", value);
         else if (strcmp(key, "key") == 0 && value[0]) snprintf(cfg->key, sizeof(cfg->key), "%s", value);
     }

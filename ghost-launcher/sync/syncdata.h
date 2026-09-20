@@ -22,6 +22,8 @@
 typedef struct {
     bool enabled;   /* online sharing is OPT-IN: off until the player says yes */
     bool decided;   /* online.conf has an enabled= line, i.e. the player has been asked */
+    bool checkUpdates;      /* check_updates=0 switches the GitHub update check off */
+    char updateRepo[80];    /* update_repo=owner/name; defaults to the official repository */
     char url[SYNC_URL_LEN];
     char key[SYNC_KEY_LEN];
 } SyncConfig;

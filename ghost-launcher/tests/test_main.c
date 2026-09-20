@@ -24,6 +24,7 @@
 #include "../src/runstats.h"
 #include "../src/adminlock.h"
 #include "../src/sha256.h"
+#include "../sync/updatecheck.h"
 #include <time.h>
 #include "prefs.h"
 
@@ -539,6 +540,77 @@ static void test_runstats(void) {
     CHECK(s.runs == 0, "runstats: a bad slug is refused");
 }
 
+#define SHA_A "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+#define SHA_B "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+#define SHA_C "cccccccccccccccccccccccccccccccccccccccc"
+#define SHA_T "1111111111111111111111111111111111111111"
+#define SHA_P "2222222222222222222222222222222222222222"
+
+/* One commit the way GitHub sends it: the commit hash, then a tree hash and a parent hash that must NOT be counted. */
+#define COMMIT_JSON(sha, msg) "{\"sha\":\"" sha "\",\"node_id\":\"C_x\",\"commit\":{\"author\":{\"name\":\"n\",\"date\":\"2026-09-20T00:00:00Z\"}," \
+    "\"message\":\"" msg "\",\"tree\":{\"sha\":\"" SHA_T "\",\"url\":\"u\"}},\"parents\":[{\"sha\":\"" SHA_P "\",\"url\":\"u\"}]}"
+
+static void test_updatecheck(void) {
+    CHECK(Update_IsSha(SHA_A) && !Update_IsSha("abc") && !Update_IsSha(NULL) && !Update_IsSha("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+          && !Update_IsSha("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/"), "update: a sha is exactly 40 lowercase hex");
+    CHECK(Update_IsRepo("TheRealGhost007/ghost-arcade") && Update_IsRepo("a/b"), "update: owner/name accepted");
+    CHECK(!Update_IsRepo("noslash") && !Update_IsRepo("a/b/c") && !Update_IsRepo("/b") && !Update_IsRepo("a/") && !Update_IsRepo("a/../b")
+          && !Update_IsRepo("a/b?x=1") && !Update_IsRepo("a b/c") && !Update_IsRepo("evil.com/x#") && !Update_IsRepo(NULL), "update: anything that could bend the URL is refused");
+
+    UpdateState u;
+    const char *three = "[" COMMIT_JSON(SHA_C, "Newest thing\\n\\nbody text") "," COMMIT_JSON(SHA_B, "Middle") "," COMMIT_JSON(SHA_A, "Oldest") "]";
+    CHECK(Update_ParseCommits(three, SHA_C, &u) && u.status == UPDATE_CURRENT && u.behind == 0 && strcmp(u.latest, SHA_C) == 0, "update: built from the newest commit = current");
+    CHECK(strcmp(u.title, "Newest thing") == 0, "update: title is the first line of the newest message");
+    CHECK(Update_ParseCommits(three, SHA_A, &u) && u.status == UPDATE_BEHIND && u.behind == 2, "update: two commits behind (tree and parent hashes are not counted)");
+    CHECK(Update_ParseCommits(three, SHA_B, &u) && u.behind == 1, "update: one behind");
+    CHECK(Update_ParseCommits(three, SHA_T, &u) && u.status == UPDATE_UNKNOWN, "update: a tree hash is not a commit");
+    CHECK(Update_ParseCommits(three, "0123456789abcdef0123456789abcdef01234567", &u) && u.status == UPDATE_UNKNOWN && strcmp(u.latest, SHA_C) == 0, "update: a build GitHub has never seen = unknown, not 'update available'");
+    CHECK(Update_ParseCommits(three, "", &u) && u.status == UPDATE_UNKNOWN, "update: a build with no commit = unknown");
+
+    /* Pretty-printed JSON parses the same. */
+    const char *pretty = "[\n  {\n    \"sha\": \"" SHA_B "\",\n    \"node_id\": \"x\",\n    \"commit\": { \"message\": \"Pretty\" }\n  },\n  {\n    \"sha\" : \"" SHA_A "\" ,\n    \"node_id\" : \"y\"\n  }\n]";
+    CHECK(Update_ParseCommits(pretty, SHA_A, &u) && u.behind == 1 && strcmp(u.title, "Pretty") == 0, "update: whitespace between tokens is fine");
+
+    /* A commit message that tries to look like structure, and to smuggle escape codes. */
+    const char *hostile = "[" COMMIT_JSON(SHA_B, "evil \\\"sha\\\":\\\"" SHA_A "\\\",\\\"node_id\\\": \\u001b[2J\\u0007 \\u00e9 end") "," COMMIT_JSON(SHA_A, "real") "]";
+    CHECK(Update_ParseCommits(hostile, SHA_A, &u) && u.behind == 1, "update: a fake commit inside a message string is not counted");
+    bool clean = u.title[0] != '\0';
+    for (const char *p = u.title; *p; p++) if ((unsigned char)*p < 32 || (unsigned char)*p > 126) clean = false;
+    CHECK(clean && strlen(u.title) < UPDATE_TITLE_LEN, "update: the title keeps no control, escape or non-ASCII bytes");
+
+    CHECK(!Update_ParseCommits("[]", SHA_A, &u) && !Update_ParseCommits("", SHA_A, &u) && !Update_ParseCommits(NULL, SHA_A, &u), "update: empty replies are failures");
+    CHECK(!Update_ParseCommits("{\"message\":\"API rate limit exceeded\"}", SHA_A, &u), "update: an error object is a failure");
+    Update_ParseCommits("[{\"sha\":\"" SHA_B "\",\"node_id\":\"x\",\"commit\":{\"message\":\"cut off mid str", SHA_A, &u);
+    CHECK(strcmp(u.latest, SHA_B) == 0 && u.status == UPDATE_UNKNOWN, "update: a reply cut off mid-string does not crash or invent a result");
+    char big[5000];
+    memset(big, '"', sizeof(big) - 1); big[sizeof(big) - 1] = 0;
+    CHECK(!Update_ParseCommits(big, SHA_A, &u), "update: a wall of quotes is survived");
+
+    /* State file. */
+    UpdateState s = {0}, back;
+    Update_Load(&back);
+    CHECK(back.status == UPDATE_UNKNOWN && back.checkedAt == 0, "update: no file yet = unknown");
+    s.status = UPDATE_BEHIND; s.behind = 3; s.checkedAt = 1789000000;
+    snprintf(s.current, sizeof(s.current), "%s", SHA_A); snprintf(s.latest, sizeof(s.latest), "%s", SHA_C); snprintf(s.title, sizeof(s.title), "Hello = world");
+    CHECK(Update_Save(&s), "update: state saves");
+    Update_Load(&back);
+    CHECK(back.status == UPDATE_BEHIND && back.behind == 3 && strcmp(back.current, SHA_A) == 0 && strcmp(back.latest, SHA_C) == 0
+          && strcmp(back.title, "Hello = world") == 0 && back.checkedAt == 1789000000, "update: state round-trips, '=' in a title included");
+    WriteFile("data/ghost-launcher/update.txt", "status=behind\nbehind=-5\nlatest=not-a-sha\ntitle=\x1b[31mred\nchecked=-9\n");
+    Update_Load(&back);
+    CHECK(back.status == UPDATE_UNKNOWN && back.behind == 0 && back.latest[0] == '\0' && back.checkedAt == 0 && strchr(back.title, 27) == NULL, "update: a tampered state file is not believed");
+
+    SyncConfig cfg;
+    remove_online_conf_for_test();
+    SyncConfig_Load(&cfg);
+    CHECK(cfg.checkUpdates && strcmp(cfg.updateRepo, UPDATE_DEFAULT_REPO) == 0, "update: on by default, official repository");
+    WriteFile("config/ghost-launcher/online.conf", "check_updates=0\nupdate_repo=evil.example/x/../y\n");
+    SyncConfig_Load(&cfg);
+    CHECK(!cfg.checkUpdates && strcmp(cfg.updateRepo, UPDATE_DEFAULT_REPO) == 0, "update: can be switched off; a malformed repo is ignored");
+    remove_online_conf_for_test();
+    { char p[900]; snprintf(p, sizeof(p), "%s/data/ghost-launcher/update.txt", gTmpRoot); remove(p); }
+}
+
 static void test_adminlock(void) {
     char hex[65];
     Sha256_Hex("abc", 3, hex);
@@ -668,6 +740,7 @@ int main(void) {
     test_validators();
     test_tuning_and_prefs();
     test_adminlock();
+    test_updatecheck();
     test_safefile();
     test_howto();
     test_runstats();

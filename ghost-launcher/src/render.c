@@ -1,4 +1,5 @@
 #include "render.h"
+#include <time.h>
 #include "winscale.h"
 #include "prefs.h"
 #include "achievements.h"
@@ -938,6 +939,22 @@ static float sScroll = 0.0f;
 static int sLastSelected = -1;
 static float sSinceSelect = 10.0f;
 
+static int sUpdateBehind = 0;
+void Render_SetUpdateNotice(int behind) { sUpdateBehind = behind > 0 ? behind : 0; }
+
+static void DrawUpdatePill(void) {
+    if (sUpdateBehind <= 0) return;
+    char buf[64];
+    snprintf(buf, sizeof(buf), sUpdateBehind == 1 ? "UPDATE AVAILABLE" : "%d UPDATES AVAILABLE", sUpdateBehind);
+    int w = PMeasure(buf, TYPE_S) + 16;
+    float pulse = Prefs_Get()->reducedFlashing ? 1.0f : 0.75f + 0.25f * sinf((float)GetTime() * 3.0f);
+    int x = WINDOW_WIDTH - 24 - w; /* right side: the left has the hall's EXIT sign */
+    DrawRectangle(x, 52, w, 20, Mix(kCabinetDark, kTeal, 0.35f * pulse));
+    DrawRectangle(x, 52, 4, 20, kTeal);
+    PText(buf, x + 10, 58, TYPE_S, kWarmWhite);
+    PTextRight("V to view", TYPE_S, x - 10, 58, kTextDim);
+}
+
 void Render_List(const Manifest *m, int selected, const bool *installed, const GameCard *card,
                  const char *arcadeName, bool adminUnlocked, const char *errorMsg, float dt, float coinT) {
     if (selected != sLastSelected) {
@@ -979,6 +996,7 @@ void Render_List(const Manifest *m, int selected, const bool *installed, const G
 
     DrawVignette();
     DrawHeader(arcadeName, adminUnlocked);
+    DrawUpdatePill();
     DrawCloseButton();
 
     if (m->count == 0) {
@@ -1190,6 +1208,67 @@ void Render_Achievements(const Manifest *m, int selected) {
         y += 56;
     }
     PText("Left/Right change game    Esc goes back", 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+    Win_EndFrame();
+}
+
+void Render_Update(const UpdateState *u, const char *sourceDir) {
+    BeginScreen("Updates");
+    char line[200];
+    int y = 120;
+
+    if (u->status == UPDATE_BEHIND) {
+        snprintf(line, sizeof(line), u->behind == 1 ? "A newer version is on GitHub." : "%d newer versions are on GitHub.", u->behind);
+        PText(line, 80, y, TYPE_M, kYellow);
+    } else if (u->status == UPDATE_CURRENT) {
+        PText("You have the newest version.", 80, y, TYPE_M, kTeal);
+    } else {
+        PText("No answer yet.", 80, y, TYPE_M, kWarmWhite);
+    }
+    y += 44;
+
+    PText("This build", 80, y, TYPE_S, kTextDim);
+    snprintf(line, sizeof(line), "%.7s", u->current[0] ? u->current : "unknown");
+    PText(line, 300, y, TYPE_S, kText);
+    y += 26;
+    PText("Newest on GitHub", 80, y, TYPE_S, kTextDim);
+    snprintf(line, sizeof(line), "%.7s", u->latest[0] ? u->latest : "unknown");
+    PText(line, 300, y, TYPE_S, u->status == UPDATE_BEHIND ? kYellow : kText);
+    y += 26;
+    if (u->title[0]) {
+        PText("Latest change", 80, y, TYPE_S, kTextDim);
+        snprintf(line, sizeof(line), "%.52s", u->title);
+        PText(line, 300, y, TYPE_S, kText);
+        y += 26;
+    }
+    PText("Last checked", 80, y, TYPE_S, kTextDim);
+    if (u->checkedAt > 0) {
+        long long ago = (long long)time(NULL) - u->checkedAt;
+        if (ago < 0) ago = 0;
+        if (ago < 120) snprintf(line, sizeof(line), "just now");
+        else if (ago < 7200) snprintf(line, sizeof(line), "%lld minutes ago", ago / 60);
+        else if (ago < 172800) snprintf(line, sizeof(line), "%lld hours ago", ago / 3600);
+        else snprintf(line, sizeof(line), "%lld days ago", ago / 86400);
+    } else snprintf(line, sizeof(line), "never");
+    PText(line, 300, y, TYPE_S, kText);
+    y += 44;
+
+    if (u->status == UPDATE_BEHIND) {
+        PText("To update, run this in a terminal:", 80, y, TYPE_S, kTextDim);
+        y += 26;
+        snprintf(line, sizeof(line), "cd %.80s", (sourceDir && sourceDir[0]) ? sourceDir : "~/Work/ghost-arcade");
+        DrawRectangle(80, y - 8, WINDOW_WIDTH - 160, 58, kCabinetDark);
+        PText(line, 96, y, TYPE_S, kTeal);
+        PText("git pull && make install", 96, y + 24, TYPE_S, kTeal);
+        y += 72;
+        PText("Nothing is downloaded or installed until you do that.", 80, y, TYPE_S, kTextDim);
+    } else if (u->status == UPDATE_UNKNOWN) {
+        PText("Either GitHub has not been reached yet, or this build was made", 80, y, TYPE_S, kTextDim); y += 22;
+        PText("from changes that are not on GitHub (your own work in progress).", 80, y, TYPE_S, kTextDim);
+    }
+
+    PText("The check is one anonymous request to GitHub, at most every six hours.", 80, WINDOW_HEIGHT - 96, TYPE_S, kTextDim);
+    PText("check_updates=0 in ~/.config/ghost-launcher/online.conf turns it off.", 80, WINDOW_HEIGHT - 74, TYPE_S, kTextDim);
+    PText("R checks again now    Esc goes back", 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
     Win_EndFrame();
 }
 
