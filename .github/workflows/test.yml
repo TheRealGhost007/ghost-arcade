@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  headless-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Every game's rules core and the launcher's data layer are raylib-free,
+      # so the test suites need nothing but a C compiler.
+      - name: Run every test suite
+        run: make test
+
+      - name: Run them again under AddressSanitizer and UBSan
+        run: make test CC="gcc -fsanitize=address,undefined -fno-sanitize-recover=undefined"
