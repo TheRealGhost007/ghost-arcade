@@ -23,20 +23,37 @@ classic idea: original code, art, sound and music, and no borrowed names or asse
 trophies, a daily challenge, optional online leaderboards, and a notice when a newer
 version lands here on GitHub.
 
-## Build and install
+## Install
+
+    git clone https://github.com/TheRealGhost007/ghost-arcade.git
+    cd ghost-arcade
+    ./install.sh
+
+That builds everything, runs the tests, and installs the eleven games and Ghost Launcher
+for your user only (`~/.local`; no root, nothing outside your home folder). Then run
+`ghost-launcher`, or find **Ghost Launcher** in your app menu.
+
+- **Arch, Omarchy, Manjaro, EndeavourOS:** if anything is missing the installer offers to
+  run `sudo pacman -S --needed base-devel raylib curl git` for you.
+- **Debian, Ubuntu, Fedora and others:** they do not package raylib 6 yet. The installer
+  prints the exact packages to install and the four commands that build raylib once.
+- **Update:** `./install.sh --update` (the launcher tells you when there is one).
+- **Remove:** `./install.sh --uninstall`. Your saves, scores and settings are kept.
+
+Prefer to read a script before running it? It is short: [`install.sh`](install.sh).
+Releases are listed on the [releases page](https://github.com/TheRealGhost007/ghost-arcade/releases);
+cloning as above always gives you the newest one.
+
+### Building by hand
 
 You need `gcc`, `make`, `pkg-config`, **raylib 6** and `libcurl` (only for the
-launcher's score sync). On Arch: `sudo pacman -S base-devel raylib curl`.
+launcher's score sync).
 
     make            # build everything
     make test       # every headless test suite (needs no display)
     make install    # into ~/.local/bin and ~/.local/share
 
-Each folder also builds on its own (`cd skyraid && make run`). Start with
-`ghost-launcher`, or run any game directly.
-
-The launcher's catalog can install a game for you if this repository lives at
-`~/Work/ghost-arcade`; anywhere else, `make install` does the same job.
+Each folder also builds on its own (`cd skyraid && make run`).
 
 ## Shared across every game
 

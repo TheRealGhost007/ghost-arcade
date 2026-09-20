@@ -179,7 +179,7 @@ and writes the answer to `~/.local/share/ghost-launcher/update.txt`. The launche
 reads that file; it never touches the network itself.
 
 - It **never downloads or installs anything**. Updating is always you running
-  `git pull && make install`.
+  `./install.sh --update` (which is `git pull` followed by a build and install).
 - Nothing about you is sent, and it works whether or not you share scores online.
 - If your build was made from commits that are not on GitHub (your own work in
   progress), it says so rather than nagging you to update.

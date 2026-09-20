@@ -1258,7 +1258,7 @@ void Render_Update(const UpdateState *u, const char *sourceDir) {
         snprintf(line, sizeof(line), "cd %.80s", (sourceDir && sourceDir[0]) ? sourceDir : "~/Work/ghost-arcade");
         DrawRectangle(80, y - 8, WINDOW_WIDTH - 160, 58, kCabinetDark);
         PText(line, 96, y, TYPE_S, kTeal);
-        PText("git pull && make install", 96, y + 24, TYPE_S, kTeal);
+        PText("./install.sh --update", 96, y + 24, TYPE_S, kTeal);
         y += 72;
         PText("Nothing is downloaded or installed until you do that.", 80, y, TYPE_S, kTextDim);
     } else if (u->status == UPDATE_UNKNOWN) {
