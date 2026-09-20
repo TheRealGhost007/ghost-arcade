@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Ghost Launcher
+GenericName=Retro Game Launcher
+Comment=Launches custom retro games
+Exec=ghost-launcher
+Icon=ghost-launcher
+Terminal=false
+Categories=Game;
+Keywords=launcher;games;retro;arcade;
+StartupNotify=true

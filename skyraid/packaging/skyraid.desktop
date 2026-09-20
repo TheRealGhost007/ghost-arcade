@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Skyraid
+GenericName=Fixed Shooter
+Comment=Hold the line against a marching formation that speeds up as it thins
+Exec=skyraid
+Icon=skyraid
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=invaders;shooter;arcade;retro;space;
+StartupNotify=true

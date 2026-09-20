@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Coilrush
+GenericName=Snake Game
+Comment=A lightweight, native grid snake game with classic, wrap and maze modes
+Exec=coilrush
+Icon=coilrush
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=snake;arcade;retro;nibbles;maze;
+StartupNotify=true

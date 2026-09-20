@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Brickburst
+GenericName=Brick Breaker
+Comment=A lightweight, native brick-breaking game with powerups and twelve levels
+Exec=brickburst
+Icon=brickburst
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=breakout;bricks;paddle;arcade;retro;
+StartupNotify=true

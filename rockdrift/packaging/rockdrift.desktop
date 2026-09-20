@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Rockdrift
+GenericName=Space Shooter
+Comment=Vector-line space rocks: inertia, wrapping, splitting asteroids and two kinds of saucer
+Exec=rockdrift
+Icon=rockdrift
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=asteroids;space;vector;arcade;retro;
+StartupNotify=true

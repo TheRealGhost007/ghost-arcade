@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Ghostmaze
+GenericName=Maze Chase
+Comment=You are the ghost; four lanterns hunt you through the maze
+Exec=ghostmaze
+Icon=ghostmaze
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=maze;chase;ghost;arcade;retro;
+StartupNotify=true

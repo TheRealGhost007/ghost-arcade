@@ -1,0 +1,15 @@
+# build output
+build/
+build-*/
+*.o
+*.d
+
+# the owner's admin-mode fingerprint: never commit (see ghost-launcher/README.md)
+admin.local.mk
+
+# leftovers
+*.tmp
+*.bak
+*.log
+.cache/
+compile_commands.json

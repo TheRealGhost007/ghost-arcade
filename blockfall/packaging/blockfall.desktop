@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Blockfall
+GenericName=Falling Block Puzzle
+Comment=A lightweight, native falling-block puzzle game
+Exec=blockfall
+Icon=blockfall
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=puzzle;blocks;arcade;falling;stacking;
+StartupNotify=true

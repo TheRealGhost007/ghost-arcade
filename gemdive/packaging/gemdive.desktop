@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Gemdive
+GenericName=Cave Digger
+Comment=Tunnel through dirt, collect the gems, reach the exit, and do not get crushed
+Exec=gemdive
+Icon=gemdive
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=boulder;dig;gems;arcade;retro;
+StartupNotify=true

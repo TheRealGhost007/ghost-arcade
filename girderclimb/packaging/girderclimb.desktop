@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Girderclimb
+GenericName=Platformer
+Comment=Climb the girders, jump the cursed barrels, and reach the top
+Exec=girderclimb
+Icon=girderclimb
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=platformer;climb;barrels;arcade;retro;
+StartupNotify=true

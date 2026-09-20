@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Lanehop
+GenericName=Road Crossing Game
+Comment=A hare crosses five lanes of traffic and five of river to reach its burrows
+Exec=lanehop
+Icon=lanehop
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=frogger;crossing;hop;arcade;retro;
+StartupNotify=true

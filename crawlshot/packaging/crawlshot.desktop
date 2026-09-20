@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Crawlshot
+GenericName=Fixed Shooter
+Comment=Shoot a segmented caterpillar down through a toadstool field, and mind the spider
+Exec=crawlshot
+Icon=crawlshot
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=centipede;shooter;caterpillar;arcade;retro;
+StartupNotify=true

@@ -1,0 +1,15 @@
+# Ghost Launcher default game catalog: name|exec|icon|description|install-from
+# Paths may start with ~/ for your home directory.
+# This file is copied to your personal catalog on first run
+# ($XDG_CONFIG_HOME/ghost-launcher/games.txt) -- edit that copy, not this one.
+Blockfall|~/.local/bin/blockfall|~/.local/share/blockfall/assets/icons/blockfall.png|A falling-block puzzle game|~/Work/ghost-arcade/blockfall
+Coilrush|~/.local/bin/coilrush|~/.local/share/coilrush/assets/icons/coilrush.png|Snake with classic, wrap and maze modes|~/Work/ghost-arcade/coilrush
+Brickburst|~/.local/bin/brickburst|~/.local/share/brickburst/assets/icons/brickburst.png|Paddle, ball, bombs and twelve walls of bricks|~/Work/ghost-arcade/brickburst
+Skyraid|~/.local/bin/skyraid|~/.local/share/skyraid/assets/icons/skyraid.png|Hold the line against the marching formation|~/Work/ghost-arcade/skyraid
+Ghostmaze|~/.local/bin/ghostmaze|~/.local/share/ghostmaze/assets/icons/ghostmaze.png|You are the ghost. He has a bell.|~/Work/ghost-arcade/ghostmaze
+Rockdrift|~/.local/bin/rockdrift|~/.local/share/rockdrift/assets/icons/rockdrift.png|Vector-line space rocks with real inertia|~/Work/ghost-arcade/rockdrift
+Lanehop|~/.local/bin/lanehop|~/.local/share/lanehop/assets/icons/lanehop.png|Five lanes of traffic, five of river, one hare|~/Work/ghost-arcade/lanehop
+Crawlshot|~/.local/bin/crawlshot|~/.local/share/crawlshot/assets/icons/crawlshot.png|Twelve segments come down. Shoot them before they reach you.|~/Work/ghost-arcade/crawlshot
+Moondrop|~/.local/bin/moondrop|~/.local/share/moondrop/assets/icons/moondrop.png|Land it gently. Fuel is the only life you get.|~/Work/ghost-arcade/moondrop
+Gemdive|~/.local/bin/gemdive|~/.local/share/gemdive/assets/icons/gemdive.png|Dive deeper for gems. Mind the boulders.|~/Work/ghost-arcade/gemdive
+Girderclimb|~/.local/bin/girderclimb|~/.local/share/girderclimb/assets/icons/girderclimb.png|Swing. Reel. Let go. The fire is climbing.|~/Work/ghost-arcade/girderclimb

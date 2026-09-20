@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Moondrop
+GenericName=Lunar Lander
+Comment=Land on procedural moon terrain with limited fuel: vector lines, real physics
+Exec=moondrop
+Icon=moondrop
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=lander;space;vector;arcade;retro;
+StartupNotify=true
