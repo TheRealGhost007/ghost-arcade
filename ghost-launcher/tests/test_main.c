@@ -284,6 +284,18 @@ static void test_config(void) {
     { char p[900]; snprintf(p, sizeof(p), "%s/config/ghost-launcher/online.conf", gTmpRoot); FILE *ff = fopen(p, "r"); char ln[200];
       while (ff && fgets(ln, sizeof(ln), ff)) if (strncmp(ln, "enabled", 7) == 0) enabledLines++; if (ff) fclose(ff); }
     CHECK(enabledLines == 1, "config: never more than one enabled= line");
+
+    /* A hand-edited file with a few comments is longer than eight lines;
+     * toggling the choice in the launcher must not drop the lines past
+     * that, which is where a custom url/key would typically sit. */
+    WriteFile("config/ghost-launcher/online.conf",
+              "# Ghost Arcade online settings\n# line 2\n# line 3\n# line 4\n# line 5\n# line 6\n# line 7\n# line 8\n"
+              "check_updates=0\nupdate_repo=someone/fork\nurl=https://custom.example\nkey=k-custom\nenabled=0\n");
+    CHECK(SyncConfig_SaveEnabled(true), "config: choice saves on a long file");
+    SyncConfig_Load(&cfg);
+    CHECK(cfg.enabled && strcmp(cfg.url, "https://custom.example") == 0 && strcmp(cfg.key, "k-custom") == 0
+          && !cfg.checkUpdates && strcmp(cfg.updateRepo, "someone/fork") == 0,
+          "config: every setting past the eighth line survives toggling the choice");
     remove_online_conf_for_test();
 }
 

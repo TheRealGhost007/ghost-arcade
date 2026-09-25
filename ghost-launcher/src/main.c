@@ -212,6 +212,17 @@ int main(void) {
             if (errorMsgTimer <= 0.0f) errorMsg[0] = '\0';
         }
 
+        /* ghost-sync writes update.txt in the background a few seconds
+         * after start-up; re-read it on every screen. This used to sit
+         * below the list screen's early `continue`, so the banner only
+         * appeared after visiting another screen or restarting. */
+        updateReloadTimer += dt;
+        if (updateReloadTimer > 5.0f) {
+            updateReloadTimer = 0.0f;
+            Update_Load(&updateState);
+            Render_SetUpdateNotice(updateState.status == UPDATE_BEHIND ? updateState.behind : 0);
+        }
+
         if (CloseButtonClicked()) {
             shouldQuit = true;
             continue;
@@ -390,13 +401,6 @@ int main(void) {
         }
 
         /* ghost-sync writes update.txt in the background: pick it up when it lands. */
-        updateReloadTimer += GetFrameTime();
-        if (updateReloadTimer > 5.0f) {
-            updateReloadTimer = 0.0f;
-            Update_Load(&updateState);
-            Render_SetUpdateNotice(updateState.status == UPDATE_BEHIND ? updateState.behind : 0);
-        }
-
         if (uiState == UI_UPDATE) {
             if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_V)) uiState = UI_LIST;
             if (IsKeyPressed(KEY_R)) { Launch_CheckUpdateNow(); updateReloadTimer = 3.0f; }

@@ -98,13 +98,27 @@ bool SyncConfig_SaveEnabled(bool enabled) {
     if (!XdgDir("XDG_CONFIG_HOME", ".config", dir, sizeof(dir))) return false;
     snprintf(path, sizeof(path), "%s/online.conf", dir);
 
-    /* Keep whatever else is in the file (url=, key=, comments). */
-    static char kept[8][600];
-    int keptCount = 0;
-    FILE *f = fopen(path, "r");
-    if (f) {
+    /* Rewrite the file with a single enabled= line first and every other
+     * line copied through unchanged. The old fixed buffer kept at most
+     * eight lines, so a hand-edited file with a few comments silently
+     * lost whatever came after them, typically url= and key=. Copying
+     * straight from the original into the temp file has no such cap. */
+    char parent[512];
+    snprintf(parent, sizeof(parent), "%s", dir);
+    char *slash = strrchr(parent, '/');
+    if (slash) { *slash = '\0'; mkdir(parent, 0755); }
+    mkdir(dir, 0755);
+
+    FILE *in = fopen(path, "r");
+    FILE *out = SafeFile_Open(path); /* writes path.tmp; the original stays readable */
+    if (!out) {
+        if (in) fclose(in);
+        return false;
+    }
+    fprintf(out, "enabled=%d\n", enabled ? 1 : 0);
+    if (in) {
         char line[600];
-        while (fgets(line, sizeof(line), f) && keptCount < 8) {
+        while (fgets(line, sizeof(line), in)) {
             char copy[600];
             snprintf(copy, sizeof(copy), "%s", line);
             char *t = TrimInPlace(copy);
@@ -113,23 +127,11 @@ bool SyncConfig_SaveEnabled(bool enabled) {
                 *eq = '\0';
                 if (strcmp(TrimInPlace(t), "enabled") == 0) continue;
             }
-            snprintf(kept[keptCount++], sizeof(kept[0]), "%s", line);
+            fputs(line, out);
         }
-        fclose(f);
+        fclose(in);
     }
-    /* the directory may not exist yet: make it one level at a time */
-    char parent[512];
-    snprintf(parent, sizeof(parent), "%s", dir);
-    char *slash = strrchr(parent, '/');
-    if (slash) { *slash = '\0'; mkdir(parent, 0755); }
-    mkdir(dir, 0755);
-
-    f = SafeFile_Open(path);
-    if (!f) return false;
-    fprintf(f, "enabled=%d\n", enabled ? 1 : 0);
-    for (int i = 0; i < keptCount; i++) fputs(kept[i], f);
-    SafeFile_Close(f);
-    return true;
+    return SafeFile_Close(out);
 }
 
 static bool LooksLikeUuid(const char *s) {
