@@ -7,7 +7,7 @@ COMMON_DIR ?= ../ghost-common
 # The ui* modules are the opt-in input reader, back stack and button kit
 # (only Blockfall builds them for now); gamepad.h's key macros are no longer
 # used: the reader reads the pad as real buttons.
-COMMON_MODULES := rng ghostlink keynames sfx ui musicsynth song music prefs runlog achievements winscale tuning tuningui safefile howto \
+COMMON_MODULES := rng ghostlink keynames keynames_check sfx ui musicsynth song music prefs runlog achievements winscale tuning tuningui safefile howto \
 	uiinput uiinput_rl uikeymap uinav uikit uikitdraw
 
 TARGET := $(BUILD_DIR)/blockfall
@@ -32,8 +32,8 @@ DEPS := $(OBJECTS:.o=.d)
 # which the game itself does not use yet), the back stack, the play keys,
 # what the menus decide, what happens around a run (the pause menu, the
 # results card, the block wipe), Settings' tabs and their rules, block
-# patterns and How to play's demos. keynames.c only uses raylib's key
-# numbers (a header), so the tests can check every name it stores.
+# patterns and How to play's demos. keynames.c carries raylib's key
+# numbers itself (no raylib needed), so the tests can check every name it stores.
 # (ghost-common's ghostlink.c comes in through tests/shared_ghostlink.c.)
 CORE_SOURCES := $(COMMON_DIR)/rng.c $(COMMON_DIR)/safefile.c $(COMMON_DIR)/prefs.c \
 	$(COMMON_DIR)/uiinput.c $(COMMON_DIR)/uikeymap.c $(COMMON_DIR)/uinav.c $(COMMON_DIR)/uikit.c $(COMMON_DIR)/uitextfield.c \

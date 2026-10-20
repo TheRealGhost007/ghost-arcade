@@ -4,7 +4,7 @@ BUILD_DIR := build
 TEST_DIR := tests
 # Code shared by every Ghost Arcade game (rng, the launcher data contract, ...).
 COMMON_DIR ?= ../ghost-common
-COMMON_MODULES := ghostlink keynames sfx ui musicsynth song prefs winscale safefile howto achievements tuning daily
+COMMON_MODULES := ghostlink keynames keynames_check sfx ui musicsynth song prefs winscale safefile howto achievements tuning daily
 
 TARGET := $(BUILD_DIR)/chipforge
 TEST_TARGET := $(BUILD_DIR)/chipforge-tests

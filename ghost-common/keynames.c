@@ -1,7 +1,21 @@
 #include "keynames.h"
-#include "raylib.h"
 #include <string.h>
 #include <stddef.h>
+
+/* raylib's key codes are GLFW's, written out here so this file also builds
+ * where raylib is not installed (the headless test suites, CI). When raylib
+ * is there, the block at the end of this file proves the numbers match. */
+enum {
+    KEY_NULL = 0,
+    KEY_A = 65, KEY_B, KEY_C, KEY_D, KEY_E, KEY_F, KEY_G, KEY_H, KEY_I, KEY_J, KEY_K, KEY_L, KEY_M,
+    KEY_N, KEY_O, KEY_P, KEY_Q, KEY_R, KEY_S, KEY_T, KEY_U, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z,
+    KEY_ZERO = 48, KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN, KEY_EIGHT, KEY_NINE,
+    KEY_SPACE = 32, KEY_APOSTROPHE = 39, KEY_COMMA = 44, KEY_PERIOD = 46, KEY_SLASH = 47, KEY_SEMICOLON = 59,
+    KEY_ESCAPE = 256, KEY_ENTER = 257, KEY_TAB = 258, KEY_BACKSPACE = 259,
+    KEY_RIGHT = 262, KEY_LEFT = 263, KEY_DOWN = 264, KEY_UP = 265,
+    KEY_LEFT_SHIFT = 340, KEY_LEFT_CONTROL = 341, KEY_LEFT_ALT = 342,
+    KEY_RIGHT_SHIFT = 344, KEY_RIGHT_CONTROL = 345, KEY_RIGHT_ALT = 346,
+};
 
 typedef struct {
     const char *name;
