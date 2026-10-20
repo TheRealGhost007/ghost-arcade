@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Ghost Arcade installer: builds the eleven games and Ghost Launcher from this
-# checkout and installs them for the current user (~/.local). No root needed,
+# Ghost Arcade installer: builds the eleven games, Chipforge and Ghost Launcher
+# from this checkout and installs them for the current user (~/.local). No root needed,
 # and nothing outside your home folder is touched.
 #
 #   ./install.sh              build, test and install everything
@@ -34,9 +34,9 @@ die()  { printf '\033[1;31mxx\033[0m  %s\n' "$*" >&2; exit 1; }
 [ -f ghost-launcher/Makefile ] && [ -d ghost-common ] || die "Run this from inside the ghost-arcade folder."
 
 if [ "$MODE" = uninstall ]; then
-    say "Removing Ghost Arcade programs (saves, scores and settings are kept)"
+    say "Removing Ghost Arcade programs (saves, scores, songs and settings are kept)"
     make -s uninstall
-    say "Done. To remove your data too: rm -rf ~/.local/share/{ghost-launcher,blockfall,coilrush,brickburst,skyraid,ghostmaze,rockdrift,lanehop,crawlshot,moondrop,gemdive,girderclimb} ~/.config/{ghost-launcher,ghost-arcade}"
+    say "Done. To remove your data too: rm -rf ~/.local/share/{ghost-arcade,ghost-launcher,chipforge,blockfall,coilrush,brickburst,skyraid,ghostmaze,rockdrift,lanehop,crawlshot,moondrop,gemdive,girderclimb} ~/.config/{ghost-launcher,ghost-arcade}"
     exit 0
 fi
 
@@ -90,7 +90,7 @@ if [ "$MODE" = update ]; then
 fi
 
 jobs=$(nproc 2>/dev/null || echo 2)
-say "Building eleven games and the launcher ($jobs jobs)"
+say "Building the eleven games, Chipforge and Ghost Launcher ($jobs jobs)"
 make -s -j"$jobs"
 
 if [ "$RUN_TESTS" -eq 1 ]; then

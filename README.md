@@ -23,14 +23,17 @@ classic idea: original code, art, sound and music, and no borrowed names or asse
 trophies, a daily challenge, optional online leaderboards, and a notice when a newer
 version lands here on GitHub.
 
+**Chipforge** is the music maker: a chiptune tracker that writes the songs the games
+play, with an importer that turns a recording into one. See [`chipforge/`](chipforge/).
+
 ## Install
 
     git clone https://github.com/TheRealGhost007/ghost-arcade.git
     cd ghost-arcade
     ./install.sh
 
-That builds everything, runs the tests, and installs the eleven games and Ghost Launcher
-for your user only (`~/.local`; no root, nothing outside your home folder). Then run
+That builds everything, runs the tests, and installs the eleven games, Chipforge and
+Ghost Launcher for your user only (`~/.local`; no root, nothing outside your home folder). Then run
 `ghost-launcher`, or find **Ghost Launcher** in your app menu.
 
 - **Arch, Omarchy, Manjaro, EndeavourOS:** if anything is missing the installer offers to
@@ -65,10 +68,23 @@ Each folder also builds on its own (`cd skyraid && make run`).
 
 All of that lives in `ghost-common/`, which each game compiles in directly.
 
+## Make your own music
+
+Every game ships with a procedural chiptune, but you can replace it. **Chipforge**
+(`chipforge`, or *Chipforge* in the launcher) is a small four-track tracker in the
+house style: bass, arp, lead and drums, 64 steps a pattern, played by the same synth the
+games use, so what you hear in the editor is what the game plays. Write a tune on the
+piano keys or import a recording (WAV, OGG or MP3: it listens for the beat and
+makes a very literal cover you can then tidy), press **Ctrl+G** to give it to a game,
+and that game plays it from its next launch. Songs are plain text files
+(`~/.local/share/ghost-arcade/music/*.gsong`); the assignments live in
+`~/.config/ghost-arcade/music.ini`.
+
 ## Layout
 
     ghost-common/     shared code: UI, audio, music synth, input, saves, scores, tuning
     ghost-launcher/   the launcher, the ghost-sync score uploader, the database schema
+    chipforge/        the music maker: tracker, importer, the .gsong library
     <game>/           src/ (a raylib-free rules core + rendering), tests/, assets/, tools/
 
 Each game keeps its rules in a core with no raylib in it, so the tests drive real game

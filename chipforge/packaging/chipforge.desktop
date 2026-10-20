@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Chipforge
+GenericName=Music Maker
+Comment=Make the chiptunes your Ghost Arcade games play
+Exec=chipforge %f
+Icon=chipforge
+Terminal=false
+Categories=AudioVideo;Audio;Music;
+Keywords=chiptune;tracker;music;retro;arcade;
+MimeType=audio/x-wav;audio/ogg;audio/mpeg;
+StartupNotify=true
