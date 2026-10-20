@@ -18,5 +18,8 @@ void Win_EndFrame(void);
 void Win_SetOverlay(void (*draw)(void));
 bool Win_IsFullscreen(void);
 int Win_LogicalWidth(void);
+/* Frames presented so far. A loop iteration that ends without one has not
+ * let raylib poll input, so keys pressed then still read as pressed. */
+unsigned long Win_FrameCount(void);
 
 #endif

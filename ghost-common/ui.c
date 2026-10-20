@@ -194,21 +194,30 @@ void Ui_DrawMenu(const UiMenu *m, float dt) {
     if (m->tagline) Ui_TextCentered(m->tagline, UI_T8, cx, 168, sTheme.dim);
 
     /* Vertically centre the item block in the space between the tagline and
-     * the footer, whatever the item count. */
+     * the footer, whatever the item count. A list too long for the usual
+     * 48 px pitch is packed tighter (bar and all) rather than run into the
+     * tagline and the stat line; six items, the games' menus, keep 48. */
     int blurbCount = 0;
     for (int i = 0; m->blurbs && i < m->itemCount; i++) if (m->blurbs[i]) blurbCount++;
-    int blockH = m->itemCount * 48 + blurbCount * 18;
-    int itemY = 200 + ((sWinH - 130) - 200 - blockH) / 2 + 12;
+    int space = (sWinH - 130) - 200;
+    int pitch = 48;
+    if (m->itemCount > 0 && m->itemCount * pitch + blurbCount * 18 > space) {
+        pitch = (space - blurbCount * 18) / m->itemCount;
+        if (pitch < 24) pitch = 24;
+    }
+    int barH = pitch - 8 < 40 ? pitch - 8 : 40;
+    int blockH = m->itemCount * pitch + blurbCount * 18;
+    int itemY = 200 + (space - blockH) / 2 + (barH - 16) / 2;
 
     for (int i = 0; i < m->itemCount; i++) {
         bool sel = (i == m->selected);
-        if (sel) SelectionBar(cx - 170, itemY - 12, 340, 40);
+        if (sel) SelectionBar(cx - 170, itemY - (barH - 16) / 2, 340, barH);
         Ui_TextCentered(m->items[i], UI_T16, cx, itemY, sel ? sTheme.light : sTheme.text);
         if (m->blurbs && m->blurbs[i]) {
             Ui_TextCentered(m->blurbs[i], UI_T8, cx, itemY + 34, sTheme.dim);
             itemY += 18;
         }
-        itemY += 48;
+        itemY += pitch;
     }
 
     if (m->statLine) Ui_TextCentered(m->statLine, UI_T8, cx, sWinH - 112, sTheme.dim);
@@ -296,7 +305,12 @@ void Ui_DrawSettingsTitled(const char *title, const char *note, const char *hint
         }
         rowY += rowH;
     }
-    if (sTop > 0) Ui_TextCentered("more above", UI_T8, sWinW / 2, firstY - 22, sTheme.faint);
+    /* With a note under the title, the hint would sit on the note's line
+     * (firstY - 22 is its baseline), so it moves to that line's right end. */
+    if (sTop > 0) {
+        if (note && note[0]) Ui_TextRight("more above", UI_T8, right, 98, sTheme.faint);
+        else Ui_TextCentered("more above", UI_T8, sWinW / 2, firstY - 22, sTheme.faint);
+    }
     if (sTop + visible < count) Ui_TextCentered("more below", UI_T8, sWinW / 2, sWinH - 38, sTheme.faint);
 
     Ui_TextCentered(hint ? hint : "Up/Down move    Enter changes    Left/Right adjust    Esc back",

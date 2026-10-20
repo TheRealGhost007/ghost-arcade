@@ -4,7 +4,7 @@ BUILD_DIR := build
 TEST_DIR := tests
 # Code shared by every Ghost Arcade game (rng, the launcher data contract, ...).
 COMMON_DIR ?= ../ghost-common
-COMMON_MODULES := rng ghostlink keynames sfx ui musicsynth music prefs gamepad runlog achievements winscale tuning tuningui safefile howto daily
+COMMON_MODULES := rng ghostlink keynames sfx ui musicsynth song music prefs gamepad runlog achievements winscale tuning tuningui safefile howto daily
 
 TARGET := $(BUILD_DIR)/brickburst
 TEST_TARGET := $(BUILD_DIR)/brickburst-tests

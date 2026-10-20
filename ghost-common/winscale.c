@@ -70,7 +70,11 @@ void Win_BeginFrame(void) {
     if (sReady) BeginTextureMode(sRT);
 }
 
+static unsigned long sFrames = 0;
+unsigned long Win_FrameCount(void) { return sFrames; }
+
 void Win_EndFrame(void) {
+    sFrames++;
     if (sReady) {
         if (sOverlay) sOverlay();
         EndTextureMode();

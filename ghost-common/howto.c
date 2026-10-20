@@ -10,8 +10,8 @@
 static const HowTo kHowTos[] = {
     {"blockfall", "Blockfall",
      "Stack the falling pieces so complete rows vanish. Pick a mode and a board size before you start; Power mode adds bombs, lasers and more.",
-     {{"Left / Right", "Slide the piece"}, {"Up", "Rotate"}, {"Down", "Soft drop"}, {"Space", "Hard drop"}, {"C", "Hold a piece"}, {"P", "Pause"}, {"Esc", "Back to the menu"}, {NULL, NULL}},
-     "Clear several rows at once, and chain them, for far more points than one at a time."},
+     {{"Left / Right", "Slide the piece"}, {"Up", "Rotate"}, {"Z", "Rotate left"}, {"Down", "Soft drop"}, {"Space", "Hard drop"}, {"C", "Hold a piece"}, {"P / Esc", "Pause menu"}, {"R", "Restart (asks first)"}, {NULL, NULL}},
+     "Clear several rows at once, and chain them, for far more points than one at a time. Settings changes every key and pad button."},
     {"coilrush", "Coilrush",
      "Steer the snake to the food and grow. Hit a wall (in Classic and Maze) or your own body and the run ends.",
      {{"Arrows / WASD", "Steer"}, {"P", "Pause"}, {"R", "Restart"}, {"Esc", "Back to the menu"}, {NULL, NULL}},
@@ -52,6 +52,10 @@ static const HowTo kHowTos[] = {
      "Climb the burning tower with a grapple. Swing from ring to ring and reach the top before the fire catches you.",
      {{"Space", "Fire or let go of the grapple"}, {"Up / Down", "Reel in / let out"}, {"Left / Right", "Pump your swing"}, {"X", "Jump from a ledge"}, {"P", "Pause"}, {"Esc", "Back to the menu"}, {NULL, NULL}},
      "Letting go keeps your speed, so let go at the top of a swing. Flags are checkpoints."},
+    {"chipforge", "Chipforge",
+     "Write a chiptune on the tracker, import a recording or let Chipforge write one from a mood, then give it to a game. Every game plays its assigned song instead of its built-in theme.",
+     {{"Z..M / Q..P", "Enter notes (F4 keeps them in key)"}, {"F10", "Play along"}, {"Space", "Play / stop"}, {"Shift+Space", "Loop this pattern"}, {"Ctrl+S", "Save"}, {"Ctrl+G", "Give it to a game"}, {"Ctrl+F", "Fill this track"}, {"Ctrl+Z", "Undo"}, {NULL, NULL}},
+     "Games bring the lead and drums in as the action heats up, so keep the bass and arp tracks able to stand alone."},
 };
 
 int HowTo_Count(void) { return (int)(sizeof(kHowTos) / sizeof(kHowTos[0])); }
