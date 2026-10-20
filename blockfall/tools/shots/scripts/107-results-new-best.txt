@@ -1,0 +1,68 @@
+#! env SHOTS_WIPE=1
+# A new best: a hard drop still held as the stack tops out does nothing for
+# 0.4 s; a press after that jumps to the end, where NEW BEST stamps in gold
+# with confetti and the new-best jingle (and "Old best 24 680"). Play again
+# (Enter, or R) starts the same board afresh with the block wipe.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game score 30000
+wait 2
+mark sounds
+down SPACE
+wait 2
+expect game phase GAMEOVER
+expect sounds sfx:6
+expect app card:newbest 1
+expect app card:best Old best 24 680
+expect app card:rank #1 on this machine    World: would be #4
+# held, and a tap of Enter, inside the first 0.4 s: nothing
+wait 8
+tap ENTER
+wait 8
+up SPACE
+wait 2
+expect app resultsdone 0
+expect app results on
+# after it: a press jumps to the end, NEW BEST stamps with its jingle
+wait 6
+mark sounds
+tap SPACE
+wait 1
+expect app resultsdone 1
+expect sounds jingle:NEW_BEST
+shot 107-new-best-skipped
+wait 8
+shot 107-new-best-confetti
+expect app focus Play again
+tap ENTER
+wait 2
+expect app results off
+expect game phase PLAYING
+expect game score 0
+expect app wipe 1
+shot 107-play-again-wipe
+wait 20
+expect app wipe 0

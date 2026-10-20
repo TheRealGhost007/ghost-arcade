@@ -1,0 +1,20 @@
+#! env SHOTS_SETUP=0,1,14,20 SHOTS_TUNED=1
+# A tuned (F2) playtest is never recorded, so passing the best says nothing.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 #############.
+game row 1 ####.#####.##.
+game piece I 1 11
+game score 15250
+# let the count-up reach it first
+wait 30
+mark sounds
+tap SPACE
+wait 2
+expect view passed 0
+expect sounds sfx:2,sfx:3
+expect hud callouts none

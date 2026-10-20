@@ -1,0 +1,82 @@
+#! env SHOTS_OWNER=1 SHOTS_SETUP=0,5,12,22
+# The Scores browser: [ ] or pad X turn the board, Left/Right or LB/RB the
+# mode tab, pad Y the period. The picker lists the presets and the size set
+# up in Play setup; Sprint's old points rows are its last board, "(old)".
+# Zen's faint tab says why it is empty, and the classic table shows the best
+# from before it existed (save.dat). (Scores only showed Play setup's board;
+# Zen was missing; the period had no button.)
+wait 10
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 5
+expect screen SCORES
+expect scores mode Marathon
+expect scores board Custom 12x22
+expect app boards 10x20|14x20|8x26|18x30|6x14|12x22
+tap RIGHT_BRACKET
+wait 3
+expect scores board Classic 10x20
+expect scores count 1
+expect scores oldbest 24680
+shot 34-scores-classic
+tap RIGHT_BRACKET
+wait 3
+expect scores board Wide 14x20
+expect scores count 1
+expect scores oldbest 0
+pad on
+wait 2
+pad tap X
+wait 3
+expect scores board Tall 8x26
+expect scores count 0
+pad tap RB
+wait 3
+expect scores mode Sprint 40
+expect scores board Tall 8x26
+pad tap LB
+wait 3
+expect scores mode Marathon
+pad tap Y
+wait 3
+expect scores period 1
+shot 34-scores-this-week
+pad tap Y
+wait 2
+pad tap Y
+wait 2
+expect scores period 0
+tap RIGHT
+wait 3
+expect scores mode Sprint 40
+expect scores count 0
+expect app boards 10x20|14x20|8x26|18x30|6x14|12x22|10x20old
+tap LEFT_BRACKET
+tap LEFT_BRACKET
+tap LEFT_BRACKET
+wait 3
+expect scores mode Sprint (old)
+expect scores board Classic 10x20
+expect scores count 1
+shot 34-scores-sprint-old
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 3
+expect scores mode Zen
+expect scores board Classic 10x20
+expect scores count 0
+shot 34-scores-zen
+tap LEFT_BRACKET
+wait 3
+expect scores board Custom 12x22
+tap LEFT
+wait 2
+tap UP
+wait 3
+expect scores mode Power
+expect scores world 1
+expect scores board Custom 12x22
+shot 34-scores-custom-world

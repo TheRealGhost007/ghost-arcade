@@ -1,0 +1,36 @@
+#! after-file .config/blockfall/config.ini reduced_motion=1
+# Motion (Full or Reduced) on Settings' Look tab, saved at once; Reduced
+# cuts the slides at once. Held Down repeats through the rows.
+wait 60
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen SETTINGS
+tap TAB
+tap TAB
+wait 2
+expect app settab Look
+expect app setrow Ghost piece
+hold DOWN 40
+wait 2
+expect app setrow Piece motion
+tap DOWN
+wait 2
+expect app setrow Motion
+shot 61-settings-motion-full
+tap RIGHT
+wait 2
+expect app motion reduced
+expect file .config/blockfall/config.ini reduced_motion=1
+shot 61-settings-motion-reduced
+tap ESCAPE
+expect screen MENU
+expect app slide 0
+tap UP
+tap UP
+tap UP
+tap ENTER
+expect screen SETUP
+expect app slide 0

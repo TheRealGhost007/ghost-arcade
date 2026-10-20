@@ -1,0 +1,28 @@
+#! env SHOTS_SETUP=1,0,10,20
+# Sprint: early, late (38/40 lines) and the finish
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Sprint
+# Sprint's Best is a time on Sprint 40; the old points rows are not one
+expect view unit time
+expect view best 0
+shot 05-sprint-early
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 ###.#####.
+game row 3 .##..###..
+game piece I 1 7
+game lines 38
+game elapsed 83.5
+game score 6120
+wait 30
+shot 05-sprint-late
+tap SPACE
+wait 4
+expect game phase GAMEOVER
+expect game won 1
+shot 05-sprint-clear

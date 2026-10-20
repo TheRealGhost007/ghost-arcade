@@ -1,0 +1,28 @@
+#! env SHOTS_SETUP=1,0,10,20
+# Sprint's main number is the lines left (32 px), with the clock under it;
+# its Best is a time (none yet on Sprint 40 here).
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Sprint
+expect hud place side
+shot 78-sprint-early
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 ###.#####.
+game row 3 .##..###..
+game piece I 1 7
+game lines 33
+game level 4
+game elapsed 72.4
+game score 5120
+wait 3
+shot 78-sprint-lines-left-7
+tap SPACE
+wait 2
+expect game lines 35
+expect hud callouts DOUBLE
+shot 78-sprint-double-lines-left-5

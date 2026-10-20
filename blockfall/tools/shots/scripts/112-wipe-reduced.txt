@@ -1,0 +1,15 @@
+#! env SHOTS_WIPE=1 SHOTS_MOTION=reduced
+# With Motion: Reduced there is no wipe: a plain cut into and out of a run.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+expect app wipe 0
+shot 112-in-cut
+wait 5
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+expect screen MENU
+expect app wipe 0

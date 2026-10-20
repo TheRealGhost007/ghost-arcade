@@ -1,0 +1,28 @@
+#! env SHOTS_FLASH=1 SHOTS_MOTION=reduced
+# Phase 6 with Reduced flashing and Motion: Reduced: the cap waiting for a
+# key holds steady (its outline never fades; with full flashing it pulses),
+# and the lit row's plate jumps to the next row instead of gliding.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect screen SETTINGS
+tap ENTER
+wait 2
+expect awaiting 1
+shot 131-capture-steady-a
+expect pixels 256 190 2 12 above 200
+wait 7
+shot 131-capture-steady-b
+expect pixels 256 190 2 12 above 200
+wait 11
+shot 131-capture-steady-c
+expect pixels 256 190 2 12 above 200
+tap ESCAPE
+wait 2
+tap DOWN
+shot 131-plate-jumped
+expect pixels 20 220 4 20 above 150
+expect pixels 20 186 4 20 below 100

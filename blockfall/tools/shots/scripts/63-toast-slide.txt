@@ -1,0 +1,29 @@
+#! env SHOTS_NOACH=1
+# A trophy earned in a run is announced on the menu: the toast slides in,
+# and after four seconds slides back out (it used to vanish).
+wait 20
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+tap SPACE
+wait 2
+game score 1
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 2
+expect app dialog Leave this run?
+tap RIGHT
+tap ENTER
+wait 3
+wait 3
+expect screen MENU
+expect app toast First Stack
+shot 63-toast-in
+wait 240
+shot 63-toast-sliding-out
+expect app toast First Stack
+wait 20
+expect app toast 

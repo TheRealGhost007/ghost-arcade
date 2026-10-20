@@ -1,0 +1,86 @@
+#! env SHOTS_SETUP=1,0,10,20
+# Play setup with the kit: it opens on last time's mode (Sprint); the mouse
+# lights rows without changing the mode, a click picks one; the board
+# picker's arrows and LB/RB, [ and ]; Width held speeds up after a second;
+# the Scores button, and Back to it from Scores.
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+expect app focus Sprint
+expect app mode Sprint
+expect app depth 2
+# the mouse over Ultra: lit, but the mode stays Sprint until a click
+mouse 150 225
+wait 3
+expect app look:Ultra hover
+expect app mode Sprint
+shot 55-hover-ultra
+click 150 225
+wait 6
+expect app mode Ultra
+expect screen SETUP
+shot 55-clicked-ultra
+# the board picker's right arrow, clicked
+click 580 224
+wait 12
+expect app board Wide 14x20
+shot 55-board-arrow
+# the wheel over Height
+mouse 250 420
+wheel 2
+wait 4
+expect app board Custom 14x22
+# LB/RB and [ ]: the board from anywhere (Custom 14x22 now)
+pad on
+pad tap LB
+wait 3
+expect app board Tiny 6x14
+pad tap RB
+wait 3
+expect app board Custom 14x22
+tap LEFT_BRACKET
+wait 3
+expect app board Tiny 6x14
+tap RIGHT_BRACKET
+tap RIGHT_BRACKET
+tap RIGHT_BRACKET
+wait 12
+expect app board Wide 14x20
+shot 55-board-wide
+# Width held: 14 down to 6 (and no further), faster after a second
+tap UP
+wait 3
+expect app focus Width
+hold LEFT 80
+wait 10
+expect app board Custom 6x20
+shot 55-width-held
+# Scores for this board, and back
+tap DOWN
+tap DOWN
+wait 4
+expect app focus Scores for this board
+tap ENTER
+wait 10
+expect screen SCORES
+expect scores mode Ultra
+expect scores board Custom 6x20
+expect app depth 3
+expect app under SETUP
+tap ESCAPE
+wait 10
+expect screen SETUP
+expect app focus Scores for this board
+shot 55-back-from-scores
+# the Start button with pad A
+tap DOWN
+wait 4
+expect app focus Start
+pad tap A
+wait 3
+expect screen PLAYING
+expect game mode Ultra
+expect game w 6
+expect game h 20
+expect game pieces 0

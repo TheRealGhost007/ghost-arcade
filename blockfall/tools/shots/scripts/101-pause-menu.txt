@@ -1,0 +1,134 @@
+#! env SHOTS_SETUP=0,0,10,20
+#! after-file .config/blockfall/config.ini ghost_piece=0
+#! after-file .config/blockfall/config.ini volume=80
+#! after-file .config/ghost-arcade/prefs.ini music_volume=60
+#! after-file .config/ghost-arcade/prefs.ini screen_shake=0
+#! after-file .config/blockfall/config.ini audio_enabled=1
+# The pause menu: Esc opens it, the screen dims over 0.12 s and the card
+# slides up 24 px; Resume is picked first and the focus bar glides. Settings
+# is a quick panel saved at once (effects and music volume, sound, ghost,
+# screen shake); How to play opens over the run and comes back to the menu;
+# the window losing focus opens it with a note. The mouse works too.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 20
+expect screen PLAYING
+tapshot ESCAPE 101-pause-f1
+expect app pause open
+expect game phase PAUSED
+wait 2
+shot 101-pause-f4
+wait 4
+shot 101-pause-f9
+expect app focus Resume
+shot 101-pause-menu
+tap DOWN
+shot 101-pause-glide-f1
+wait 6
+expect app focus Restart
+shot 101-pause-restart-focused
+mark sounds
+tap DOWN
+tap DOWN
+tap DOWN
+expect sounds tick:0,tick:0,tick:0
+expect app focus Quit to menu
+tap DOWN
+expect app focus Resume
+# Settings: the quick panel
+tap UP
+tap UP
+tap UP
+expect app focus Settings
+tap ENTER
+wait 3
+expect app pausepage settings
+expect app focus Effects volume
+shot 101-quick-panel
+tap RIGHT
+wait 2
+expect file .config/blockfall/config.ini volume=80
+tap DOWN
+tap LEFT
+wait 2
+expect file .config/ghost-arcade/prefs.ini music_volume=60
+tap DOWN
+tap ENTER
+wait 2
+expect file .config/blockfall/config.ini audio_enabled=0
+tap ENTER
+wait 2
+expect file .config/blockfall/config.ini audio_enabled=1
+tap DOWN
+tap LEFT
+wait 2
+expect app ghost 0
+expect file .config/blockfall/config.ini ghost_piece=0
+tap DOWN
+tap ENTER
+wait 2
+expect file .config/ghost-arcade/prefs.ini screen_shake=0
+shot 101-quick-panel-changed
+tap DOWN
+expect app focus Done
+tap ENTER
+wait 3
+expect app pausepage main
+expect app focus Settings
+# Esc from the panel goes back to the list too
+tap ENTER
+wait 2
+tap ESCAPE
+wait 2
+expect app pausepage main
+expect app pause open
+# How to play, over the run; back to the menu
+tap DOWN
+tap ENTER
+wait 5
+expect screen HOWTO
+tap ESCAPE
+wait 5
+expect screen PLAYING
+expect app pause open
+expect game phase PAUSED
+expect app focus How to play
+# Resume: the ghost is gone (switched off above)
+tap UP
+tap UP
+tap UP
+expect app focus Resume
+tap ENTER
+wait 3
+expect app pause closed
+game clear
+game piece T 0 3
+wait 2
+shot 101-ghost-off
+# The window loses focus: the menu opens with a note
+focus off
+wait 3
+expect app pause open
+expect view focuslost 1
+focus on
+wait 6
+shot 101-pause-focus-lost
+# The mouse: hover lights a button, a click on Resume resumes on release
+mouse 310 400
+wait 2
+mouse 310 410
+wait 2
+expect app hover Settings
+shot 101-pause-hover
+mouse 310 310
+wait 2
+mdown left
+wait 2
+expect app look:Resume pressed
+expect app pause open
+mup left
+wait 2
+expect app pause closed
+expect game phase PLAYING

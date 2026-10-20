@@ -1,0 +1,16 @@
+# Sprint 40 on the world board reads as times, fastest first, with the gap in
+# seconds (the shared screen would print 9 994 179).
+wait 10
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 5
+tap RIGHT
+wait 3
+tap UP
+wait 3
+expect scores mode Sprint 40
+expect scores world 1
+expect scores count 2
+shot 35-scores-world-sprint40

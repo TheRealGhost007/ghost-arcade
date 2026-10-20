@@ -1,0 +1,104 @@
+# Classic marathon (10x20): early, hold, a late stack, a quad, a single
+# line clear mid-animation, level up, pause and game over.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game mode Marathon
+shot 04-marathon-early-first-frame
+wait 45
+shot 04-marathon-early-falling
+tap C
+wait 2
+shot 04-marathon-hold-used
+tap LEFT
+tap LEFT
+tap SPACE
+wait 2
+shot 04-marathon-hold-after-drop
+# a late game: a stack with a well in the right column
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 #########.
+game row 4 ##.######.
+game row 5 .#..####..
+game row 6 ......#...
+game piece I 1 7
+game next T
+game score 18450
+game level 9
+game lines 89
+wait 20
+shot 04-marathon-late-before-quad
+tap SPACE
+shot 04-marathon-quad-frame1
+expect pixels 40 536 300 120 white 220
+wait 3
+shot 04-marathon-quad-frame5
+wait 8
+shot 04-marathon-quad-frame14
+wait 30
+shot 04-marathon-quad-banner-held
+expect game lines 93
+expect game level 10
+# a single line clear that levels up
+game clear
+game row 0 #########.
+game row 1 ###.#####.
+game row 2 .##..##...
+game piece I 1 7
+game lines 99
+game level 10
+wait 2
+tap SPACE
+wait 2
+shot 04-marathon-single-clear-mid-animation
+wait 6
+shot 04-marathon-single-clear-later
+wait 24
+shot 04-marathon-levelup-banner
+expect game level 11
+# pause
+tap P
+wait 2
+expect game phase PAUSED
+shot 04-marathon-paused
+tap P
+wait 2
+# game over: a stack up to the spawn rows
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game score 15020
+wait 2
+tap SPACE
+wait 3
+expect game phase GAMEOVER
+shot 04-marathon-gameover
+wait 60
+shot 04-marathon-gameover-later
+tap ESCAPE
+wait 10
+expect screen MENU
+shot 04-menu-after-run

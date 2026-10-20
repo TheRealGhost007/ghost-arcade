@@ -1,0 +1,93 @@
+# The end of a run: the piece that could not come in blinks red, the rows go
+# grey from the bottom up, then the results card drops in over the dimmed
+# screen (centred on the window), the score counts up with rising ticks and
+# the card says how far the best is, the run's place here and in the world,
+# and the run in numbers. Play again is picked first. Scores opens on the
+# run's board with its new row blinking, and Back comes back to the card.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game score 15020
+game lines 47
+wait 2
+mark sounds
+tap SPACE
+expect game phase GAMEOVER
+expect sounds sfx:6
+expect app results on
+expect app card:title GAME OVER
+expect app card:big 15020
+expect app card:best Best 24 680, 9 660 to go
+expect app card:rank #3 on this machine    World: would be #6
+expect app card:stat0 Lines=47
+expect file .local/share/ghost-launcher/scores/blockfall.txt marathon|TRG|15020|
+shot 106-end-f2
+wait 4
+shot 106-end-f7
+wait 22
+shot 106-end-rows-f30
+wait 24
+shot 106-end-rows-f55
+wait 2
+shot 106-card-drop-f58
+wait 6
+shot 106-card-in-f64
+mark sounds
+wait 20
+shot 106-count-up-f85
+expect app resultsdone 0
+wait 20
+expect app resultsdone 1
+expect app shown 15020
+expect app focus Play again
+shot 106-results-final
+# Scores: the run's board, its row blinking (then marked); Back to the card
+tap DOWN
+wait 2
+expect app focus Scores
+tap ENTER
+wait 4
+expect screen SCORES
+expect scores mode Marathon
+expect scores board Classic 10x20
+expect scores blink 2
+shot 106-scores-blink-lit
+wait 15
+shot 106-scores-blink-off
+tap ESCAPE
+wait 4
+expect screen PLAYING
+expect app results on
+expect app focus Scores
+shot 106-back-on-card
+# Change setup: Play setup, with Back to the menu under it
+tap LEFT
+wait 2
+expect app focus Change setup
+tap ENTER
+wait 4
+expect screen SETUP
+expect app depth 2
+expect app under MENU

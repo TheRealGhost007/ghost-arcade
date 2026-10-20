@@ -13,6 +13,8 @@ static float ComputeFallInterval(int level) {
     return v;
 }
 
+float Game_FallInterval(int level) { return ComputeFallInterval(level); }
+
 static void Bag_Refill(Bag *bag) {
     for (int i = 0; i < PIECE_COUNT; i++) bag->bag[i] = (PieceType)i;
     for (int i = PIECE_COUNT - 1; i > 0; i--) {
@@ -47,7 +49,25 @@ static void Place(Game *g) {
     g->fallTimer = 0.0f;
     g->lockTimer = 0.0f;
     g->lockResets = 0;
+    g->lowestRow = g->py;
     g->grounded = false;
+}
+
+/* The stack reached the top: a piece that cannot come in (a spawn, or a
+ * swap from Hold) or one that locked partly above the visible well. Zen has
+ * no losing, so it sweeps the stack away and play carries on with the same
+ * piece; every other mode ends. */
+static void TopOut(Game *g) {
+    if (g->cfg.mode == MODE_ZEN) {
+        Board_Init(&g->board, g->cfg.width, g->cfg.height);
+        g->zenResets++;
+        g->justZenReset = true;
+        g->combo = -1;
+        g->stats.combo = -1;
+        Place(g);
+    } else {
+        g->phase = GS_GAMEOVER;
+    }
 }
 
 static void SpawnNext(Game *g) {
@@ -59,17 +79,25 @@ static void SpawnNext(Game *g) {
     g->holdUsed = false;
     Place(g);
 
-    if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py)) {
-        if (g->cfg.mode == MODE_ZEN) {
-            /* Zen has no losing: the stack is swept away and play carries on. */
-            Board_Init(&g->board, g->cfg.width, g->cfg.height);
-            g->zenResets++;
-            g->justZenReset = true;
-            g->combo = -1;
-            Place(g);
-        } else {
-            g->phase = GS_GAMEOVER;
-        }
+    if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py)) TopOut(g);
+}
+
+/* Any block in the rows above the visible well: solid, but never drawn. */
+static bool HiddenRowsUsed(const Board *b) {
+    for (int y = 0; y < BOARD_HIDDEN; y++)
+        for (int x = 0; x < b->w; x++)
+            if (b->cells[y][x] != CELL_EMPTY) return true;
+    return false;
+}
+
+/* A step down to a row lower than any this piece has been on gives the
+ * lock delay back in full, resets included (the guideline's extended
+ * placement): the only thing that refreshes the fifteen. */
+static void NoteDescent(Game *g) {
+    if (g->py > g->lowestRow) {
+        g->lowestRow = g->py;
+        g->lockResets = 0;
+        g->lockTimer = 0.0f;
     }
 }
 
@@ -77,12 +105,15 @@ static float EffectiveFallInterval(const Game *g) {
     return g->fallInterval * (g->slowTimer > 0.0f ? SLOW_FACTOR : 1.0f);
 }
 
-/* Fires the power-up carried by the block that just locked at (x, y). */
-static void ApplyPower(Game *g, PowerUp p, int x, int y) {
+/* Fires the power-up carried by the block that just locked, at (x, y) on the
+ * board as it is after the line clear. Returns how many rows the whole board
+ * moved down (a Sweep), so the landing hint can follow the piece. */
+static int ApplyPower(Game *g, PowerUp p, int x, int y) {
     g->lastPower = p;
     g->lastPowerX = x;
     g->lastPowerY = y;
     g->lastPowerRemoved = 0;
+    g->stats.powers++;
     g->score += 150; /* for picking one up */
     switch (p) {
         case PU_BOMB: {
@@ -103,37 +134,66 @@ static void ApplyPower(Game *g, PowerUp p, int x, int y) {
             int n = Board_RemoveBottomRows(&g->board, 3);
             g->lastPowerRemoved = n;
             g->score += 200;
-            break;
+            /* The block went down with the board, unless it was in the rows that went. */
+            if (y + 3 < Board_TotalH(&g->board)) g->lastPowerY = y + 3;
+            return 3;
         }
         default: break;
     }
+    return 0;
+}
+
+/* The run's counters (the results card), on every board alike: the combo
+ * and back-to-back are counted the way modern scoring counts them, whether
+ * or not this board pays for them. */
+static void CountClear(RunStats *st, int cleared) {
+    if (cleared <= 0) {
+        st->combo = -1;
+        return;
+    }
+    if (cleared > 4) cleared = 4;
+    st->clears[cleared]++;
+    st->combo++;
+    if (st->combo > st->bestCombo) st->bestCombo = st->combo;
+    if (cleared == 4 && st->lastQuad) st->backToBacks++;
+    st->lastQuad = cleared == 4;
 }
 
 static void LockAndAdvance(Game *g) {
     Board_LockPiece(&g->board, g->current, g->rotation, g->px, g->py);
+    g->piecesLocked++;
+    g->lockBoard = g->board; /* presentation only: what the clear replays from */
 
     g->lastLockType = g->current;
     g->lastLockRotation = g->rotation;
     g->lastLockX = g->px;
     g->lastLockY = g->py;
 
-    if (g->curPower != PU_NONE) {
+    /* Where the power block landed, before the clear moves anything. */
+    PowerUp power = g->curPower;
+    int powerX = 0, powerY = 0;
+    if (power != PU_NONE) {
         Cell cells[CELLS_PER_PIECE];
         Tetromino_GetCells(g->current, g->rotation, cells);
         int idx = g->curPowerCell % CELLS_PER_PIECE;
-        ApplyPower(g, g->curPower, g->px + cells[idx].x, g->py + cells[idx].y);
+        powerX = g->px + cells[idx].x;
+        powerY = g->py + cells[idx].y;
     }
 
     int cleared = Board_ClearLines(&g->board, g->lastClearRows);
     g->lastClearCount = cleared;
     g->justLocked = true;
+    CountClear(&g->stats, cleared);
 
     if (cleared > 0) {
         static const int kScoreTable[5] = {0, 100, 300, 500, 800};
         long points = (long)kScoreTable[cleared] * g->level;
         if (g->cfg.modernScoring) {
             /* a quad after a quad pays half again as much */
-            if (cleared == 4 && g->backToBack) points += points / 2;
+            if (cleared == 4 && g->backToBack) {
+                points += points / 2;
+                g->lastWasB2B = true;
+            }
             g->backToBack = (cleared == 4);
             g->combo++;
             g->lastCombo = g->combo;
@@ -152,6 +212,20 @@ static void LockAndAdvance(Game *g) {
         g->combo = -1;
     }
 
+    /* Power-ups fire after the clear, so the rows the piece completed still
+     * count (a Laser or Bomb used to spoil them). A power block in a row that
+     * cleared fires where it was; one above the cleared rows fires where it
+     * fell to. */
+    if (power != PU_NONE) {
+        bool inCleared = false;
+        int below = 0;
+        for (int i = 0; i < cleared && i < 4; i++) {
+            if (g->lastClearRows[i] == powerY) inCleared = true;
+            else if (g->lastClearRows[i] > powerY) below++;
+        }
+        g->lastLockY += ApplyPower(g, power, powerX, inCleared ? powerY : powerY + below);
+    }
+
     if (g->score > g->highScore) g->highScore = g->score;
     if (g->level > g->highLevel) g->highLevel = g->level;
     if (g->linesCleared > g->highLines) g->highLines = g->linesCleared;
@@ -164,6 +238,14 @@ static void LockAndAdvance(Game *g) {
         g->won = true;
         g->phase = GS_GAMEOVER;
         return;
+    }
+
+    /* Lock-out: a piece that locked partly above the visible well (an upward
+     * kick can lift it there) tops out like a blocked spawn, so nothing solid
+     * ever sits where it cannot be seen. */
+    if (HiddenRowsUsed(&g->board)) {
+        TopOut(g);
+        if (g->phase == GS_GAMEOVER) return;
     }
 
     /* GS_GAMEOVER may be set here by SpawnNext if the new piece can't fit;
@@ -241,6 +323,7 @@ void Game_Restart(Game *g, uint64_t seed) {
 
     g->hold = (PieceType)-1;
     g->combo = -1;
+    g->stats.combo = -1;
     g->timeLeft = cfg.mode == MODE_ULTRA ? ULTRA_SECONDS : 0.0f;
     g->level = 1;
     g->linesCleared = 0;
@@ -270,12 +353,17 @@ void Game_Update(Game *g, float dt) {
     bool canFall = Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py + 1);
     if (canFall) {
         g->grounded = false;
-        g->lockTimer = 0.0f;
+        /* In the air the lock timer holds instead of starting over, so a
+         * kick that lifts a landed piece buys no time (it used to: tapping
+         * rotate kept a piece alive for ever). With the resets spent it runs
+         * in the air too, and the piece locks the moment it is back down. */
+        if (g->lockResets >= MAX_LOCK_RESETS) g->lockTimer += dt;
         if (g->freezeTimer <= 0.0f) g->fallTimer += dt; /* Freeze: gravity waits */
         float interval = EffectiveFallInterval(g);
         if (g->fallTimer >= interval) {
             g->fallTimer -= interval;
             g->py += 1;
+            NoteDescent(g);
             if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py + 1)) {
                 g->grounded = true;
             }
@@ -318,6 +406,8 @@ bool Game_SoftDrop(Game *g) {
         g->py += 1;
         g->score += 1;
         g->fallTimer = 0.0f;
+        g->justSoftDropped = true;
+        NoteDescent(g);
         return true;
     }
     return false;
@@ -385,10 +475,12 @@ bool Game_Hold(Game *g) {
         g->holdPower = outPower;
         g->holdPowerCell = outCell;
         Place(g);
-        if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py)) g->phase = GS_GAMEOVER;
+        /* Zen sweeps here too: it promises no game over. */
+        if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py)) TopOut(g);
     }
     g->holdUsed = true;
     g->justHeld = true;
+    g->stats.holds++;
     return true;
 }
 
@@ -409,6 +501,7 @@ void Game_ConsumeFrameFlags(Game *g) {
     g->justLocked = false;
     g->justRotated = false;
     g->justMoved = false;
+    g->justSoftDropped = false;
     g->lastWasLevelUp = false;
     g->lastClearCount = 0;
     g->justHeld = false;
@@ -416,4 +509,5 @@ void Game_ConsumeFrameFlags(Game *g) {
     g->justZenReset = false;
     g->lastCombo = 0;
     g->lastComboBonus = 0;
+    g->lastWasB2B = false;
 }

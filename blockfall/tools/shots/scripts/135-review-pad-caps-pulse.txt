@@ -1,0 +1,43 @@
+# Phase 6 review: How to play's captions show the pad's buttons after pad
+# use; the cap waiting for a key pulses with full flashing.
+wait 10
+tap DOWN
+tap ENTER
+wait 12
+expect screen HOWTO
+pad on
+pad tap RB
+wait 3
+pad tap LB
+wait 3
+expect app howtopage Basics
+expect app hints pad
+shot 135-basics-pad-caps
+pad tap RB
+wait 3
+shot 135-hold-pad-caps
+pad tap B
+wait 3
+expect screen MENU
+tap DOWN
+tap DOWN
+tap ENTER
+wait 12
+expect screen SETTINGS
+tap ENTER
+wait 2
+expect awaiting 1
+shot 135-pulse-0
+wait 6
+shot 135-pulse-6
+wait 6
+shot 135-pulse-12
+wait 6
+shot 135-pulse-18
+wait 6
+shot 135-pulse-24
+wait 6
+shot 135-pulse-30
+tap ESCAPE
+wait 2
+expect awaiting 0

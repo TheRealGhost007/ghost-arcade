@@ -1,0 +1,69 @@
+#! env SHOTS_SETUP=0,5,6,36
+# The narrowest well (6x36, 96 px): the level-up banner and the pause card
+# stay inside it, and the end card is centred on the window. (They ran off
+# the left edge and over the panel's Score and Level.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #####.
+game row 1 ##.##.
+game piece I 1 3
+game lines 9
+wait 2
+tap SPACE
+wait 10
+shot 36-narrow-levelup
+expect pixels 142 56 32 580 below 60
+expect pixels 0 56 36 580 below 60
+tap P
+wait 3
+shot 36-narrow-paused
+# The hints do not fit 96 px even at 8 px, so they get a card that stays
+# inside the window (the old PAUSED ran off its left edge).
+expect pixels 0 56 8 580 below 60
+tap P
+wait 2
+game clear
+game row 0 #####.
+game row 1 ##.###
+game row 2 #.####
+game row 3 ###.##
+game row 4 .#####
+game row 5 ####.#
+game row 6 #.####
+game row 7 ###.##
+game row 8 ##.###
+game row 9 #.##.#
+game row 10 ####.#
+game row 11 #.####
+game row 12 ###.##
+game row 13 ##.###
+game row 14 #.##.#
+game row 15 ####.#
+game row 16 #.####
+game row 17 ###.##
+game row 18 ##.###
+game row 19 #.##.#
+game row 20 ####.#
+game row 21 #.####
+game row 22 ###.##
+game row 23 ##.###
+game row 24 #.##.#
+game row 25 ####.#
+game row 26 #.####
+game row 27 ###.##
+game row 28 ##.###
+game row 29 #.##.#
+game row 30 ####.#
+game row 31 #.####
+game row 32 ###.##
+game piece O 0 1
+game score 2380
+wait 2
+tap SPACE
+wait 3
+expect game phase GAMEOVER
+shot 36-narrow-gameover

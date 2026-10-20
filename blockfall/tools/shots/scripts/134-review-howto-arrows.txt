@@ -1,0 +1,55 @@
+# Phase 6 review probe: Right taps on How to play's tabs, soon after it
+# opens and later, from the menu and from the pause menu. Within one run of
+# the program How to play reopens on the page it was left on: left on Modes
+# from the menu, it opens on Modes from the pause menu.
+wait 10
+tap DOWN
+tap ENTER
+wait 5
+expect screen HOWTO
+tap RIGHT
+wait 3
+expect app howtopage Hold and next
+tap RIGHT
+tap RIGHT
+wait 3
+expect app howtopage Modes
+tap ESCAPE
+wait 3
+expect screen MENU
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+tap ESCAPE
+wait 3
+expect app pause open
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 5
+expect screen HOWTO
+expect app howtopage Modes
+shot 134-howto-reopens-on-modes
+tap RIGHT
+wait 3
+expect app howtopage Power-ups
+wait 60
+tap RIGHT
+wait 3
+expect app howtopage Basics
+tap RIGHT
+tap RIGHT
+wait 3
+expect app howtopage Scoring
+pad on
+pad tap LB
+wait 3
+expect app howtopage Hold and next
+tap ESCAPE
+wait 3
+expect screen PLAYING
+expect app pause open

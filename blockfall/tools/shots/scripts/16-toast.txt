@@ -1,0 +1,38 @@
+#! env SHOTS_NOACH=1
+# A finished run earns achievements: the toast on the menu
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game score 2600
+game level 5
+wait 2
+tap SPACE
+wait 30
+shot 16-gameover-new-best-check
+tap ESCAPE
+wait 6
+shot 16-menu-toast-sliding
+wait 30
+shot 16-menu-toast

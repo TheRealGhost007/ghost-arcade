@@ -1,0 +1,89 @@
+#! env SHOTS_SETUP=1,0,10,20
+# Sprint is ranked by time on the Sprint 40 board, a finished Sprint plays one
+# sound as it ends (it played the game-over sting and up to five more at
+# once; a new best's jingle now waits for the results card's stamp), and an
+# unfinished Sprint never goes on a board. The old points rows stay.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect view unit time
+expect view best 0
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 ###.#####.
+game row 3 .##..###..
+game piece I 1 7
+game lines 38
+game elapsed 83.5
+game score 6120
+wait 30
+shot 29-sprint-late
+mark sounds
+tap SPACE
+wait 4
+expect game phase GAMEOVER
+expect game won 1
+expect sounds jingle:LEVEL_UP
+expect view newbest 1
+expect app results on
+expect app card:title SPRINT CLEAR
+expect app card:big 8402
+expect app card:newbest 1
+expect file .local/share/ghost-launcher/scores/blockfall.txt sprint40|TRG|99915
+expect file .local/share/ghost-launcher/scores/blockfall.txt sprint|TRG|7620|
+# the card counts up, then NEW BEST stamps with its jingle
+wait 96
+mark sounds
+wait 10
+expect sounds jingle:NEW_BEST
+expect app resultsdone 1
+expect app card:best No best before this one
+shot 29-sprint-clear-new-best
+# A slower finish: R plays again from the card; the cleared sting alone, no
+# stamp, and the best time on the card.
+tap R
+wait 3
+expect game phase PLAYING
+expect app results off
+expect view unit time
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 ###.#####.
+game row 3 .##..###..
+game piece I 1 7
+game lines 38
+game elapsed 150
+game score 9000
+wait 2
+mark sounds
+tap SPACE
+wait 4
+expect game won 1
+expect sounds jingle:LEVEL_UP
+expect view newbest 0
+expect app card:newbest 0
+wait 110
+expect app resultsdone 1
+shot 29-sprint-clear-slower
+# An unfinished Sprint, left from the pause menu (it asks: the run has
+# points), goes on no board.
+tap R
+wait 3
+tap SPACE
+wait 2
+game score 55555
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 2
+expect app dialogbody A Sprint left before 40 lines is not ranked.
+tap RIGHT
+tap ENTER
+wait 5
+expect screen MENU
+expect nofile .local/share/ghost-launcher/scores/blockfall.txt |55555|

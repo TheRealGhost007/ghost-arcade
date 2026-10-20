@@ -1,0 +1,16 @@
+# F2 tuning panel over play, and the TUNED marker after a change
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 5
+tap F2
+wait 3
+shot 15-tuning-panel
+tap RIGHT
+tap RIGHT
+wait 2
+shot 15-tuning-changed
+tap F2
+wait 3
+shot 15-tuned-marker-in-play

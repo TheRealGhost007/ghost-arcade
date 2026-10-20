@@ -1,0 +1,57 @@
+#! env SHOTS_SETUP=4,0,10,20
+# Phase 4: Hold and Next in motion (Power mode, so a Bomb rides along). The held
+# piece flies from the well into the Hold box in 0.12 s, Next's old preview
+# slides out as the new one slides in (0.10 s), and Hold's edge flashes once
+# when the next piece makes it ready again.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game mode Power
+game clear
+game piece L 1 4 8
+game power Bomb 2
+game next T
+game nextpower none
+game hold none
+wait 10
+# into an empty Hold: the L flies into the box, the next piece comes in, Next slides
+mark sounds
+tapshot C 96-hold-f1
+expect feel flight 1
+expect feel slide 1
+expect game hold L
+expect game current T
+expect sounds sfx:1
+wait 2
+shot 96-hold-f4
+expect feel flight 1
+expect feel slide 1
+wait 3
+shot 96-hold-f8
+expect feel flight 0
+expect feel slide 0
+wait 10
+# the next piece makes hold ready again: the box's edge flashes once
+tapshot SPACE 96-ready-f1
+expect feel ready 1
+expect feel slide 1
+wait 2
+shot 96-ready-f4
+expect feel ready 1
+wait 6
+shot 96-ready-f11
+expect feel ready 0
+wait 10
+# a swap flies too, and Next stays where it is
+tapshot C 96-swap-f1
+expect feel flight 1
+expect feel slide 0
+expect game current L
+wait 2
+shot 96-swap-f4
+wait 10
+shot 96-swap-done
+expect feel flight 0

@@ -1,0 +1,49 @@
+#! env SHOTS_NOACH=1
+# R before anything lands is not a run: 25 taps leave no runs.log line, no run
+# count and no trophy. (Each tap used to count; 25 earned Regular.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+tap R
+wait 5
+expect nofile .local/share/blockfall/runs.log |
+expect nofile .local/share/ghost-launcher/achievements/blockfall.txt r0|
+# A real run, ended by R, still counts: R asks first (it has points).
+tap SPACE
+wait 2
+tap R
+wait 3
+expect app dialog Restart this run?
+expect nofile .local/share/blockfall/runs.log |marathon|
+tap RIGHT
+tap ENTER
+wait 3
+expect game pieces 0
+expect file .local/share/blockfall/runs.log |marathon|
+expect file .local/share/ghost-launcher/achievements/blockfall.txt r0|

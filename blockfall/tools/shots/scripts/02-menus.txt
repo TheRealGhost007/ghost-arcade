@@ -1,0 +1,122 @@
+# The menu and every screen it reaches (keyboard)
+wait 20
+shot 02-menu
+tap DOWN
+wait 2
+shot 02-menu-howto-selected
+tap ENTER
+wait 3
+expect screen HOWTO
+shot 02-howto
+tap ESCAPE
+wait 3
+tap DOWN
+wait 3
+tap ENTER
+wait 5
+expect screen SCORES
+shot 02-scores-local-marathon
+tap UP
+wait 3
+shot 02-scores-world-marathon
+tap T
+wait 3
+shot 02-scores-world-week
+tap T
+wait 3
+shot 02-scores-world-today
+tap T
+tap DOWN
+wait 3
+tap RIGHT
+wait 3
+expect scores mode Sprint 40
+shot 02-scores-local-sprint
+# the old points rows are Sprint's last board, "(old)"
+tap LEFT_BRACKET
+wait 3
+expect scores mode Sprint (old)
+expect scores board Classic 10x20
+shot 02-scores-local-sprint-old
+tap RIGHT_BRACKET
+wait 3
+tap RIGHT
+wait 3
+expect scores mode Ultra
+shot 02-scores-local-ultra
+tap RIGHT
+wait 3
+expect scores mode Power
+shot 02-scores-local-power
+tap RIGHT
+wait 3
+expect scores mode Zen
+shot 02-scores-local-zen
+tap LEFT
+wait 3
+tap UP
+wait 3
+expect scores mode Power
+expect scores world 1
+shot 02-scores-world-power
+tap RIGHT
+wait 3
+expect screen SCORES
+tap ESCAPE
+wait 3
+tap DOWN
+wait 3
+tap ENTER
+wait 3
+expect screen SETTINGS
+expect app settab Controls
+shot 02-settings-top
+tap ENTER
+wait 3
+expect awaiting 1
+shot 02-settings-awaiting-key
+tap ESCAPE
+wait 3
+expect awaiting 0
+# 3.0.0: the old list became tabs; Sound has the effects volume
+tap TAB
+tap TAB
+tap TAB
+wait 3
+expect app settab Sound
+expect app setrow Effects volume
+shot 02-settings-volume-row
+tap TAB
+wait 3
+expect app settab Game
+shot 02-settings-game
+tap ESCAPE
+wait 3
+tap DOWN
+wait 3
+tap ENTER
+wait 3
+expect screen UPDATES
+shot 02-updates-top
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 3
+shot 02-updates-scrolled
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 3
+shot 02-updates-bottom
+tap ESCAPE
+wait 3
+tap DOWN
+wait 3
+shot 02-menu-quit-selected

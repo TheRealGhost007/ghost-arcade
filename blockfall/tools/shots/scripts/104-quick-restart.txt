@@ -1,0 +1,92 @@
+#! env SHOTS_QUICKR=1
+# Settings' R restarts: At once: R restarts a run with points without
+# asking; the pad's View button and the pause menu's Restart button still
+# ask (decision 5: "View restart (asks first)").
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen SETTINGS
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap DOWN
+wait 2
+expect app setrow R restarts
+shot 104-settings-r-at-once
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+tap SPACE
+wait 2
+game score 5000
+tap R
+wait 3
+expect app dialog none
+expect app pause closed
+expect game score 0
+tap SPACE
+wait 2
+game score 5000
+pad on
+pad tap VIEW
+wait 3
+# the pad's View button always asks, whatever R does
+expect app dialog Restart this run?
+expect app pause open
+expect game score 5000
+shot 104-view-asks
+pad tap B
+wait 3
+expect app dialog none
+expect app pause closed
+expect game score 5000
+# while R still restarts at once
+tap R
+wait 3
+expect app dialog none
+expect game score 0
+tap SPACE
+wait 2
+game score 5000
+tap ESCAPE
+wait 2
+tap DOWN
+tap ENTER
+wait 3
+expect app dialog Restart this run?
+# and in Settings it can be set back to Asks first (saved at once)
+tap ESCAPE
+wait 2
+tap UP
+tap UP
+expect app focus Quit to menu
+tap ENTER
+wait 2
+tap RIGHT
+tap ENTER
+wait 3
+expect screen MENU
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+# Settings opens on the tab it was left on (Game), on its first row
+expect app settab Game
+tap DOWN
+wait 2
+expect app setrow R restarts
+tap ENTER
+wait 2
+expect app quickrestart 0
+expect file .config/blockfall/config.ini quick_restart=0

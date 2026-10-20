@@ -1,0 +1,15 @@
+# Esc or pad B on the main menu: the first press moves the bar to Quit (with
+# a soft tick), a second press quits. (One press used to quit.)
+wait 40
+pad on
+wait 2
+mark sounds
+pad tap B
+wait 10
+expect app focus Quit
+expect sounds tick:0
+expect screen MENU
+shot 54-back-moves-to-quit
+pad tap B
+wait 10
+quits

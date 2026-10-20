@@ -1,0 +1,69 @@
+# Phase 6: How to play with moving examples. Five pages (Left/Right, the
+# pad's LB/RB, the < > buttons, a click on a tab); each has a small well
+# playing the real rules, and the key it presses lights up on the page.
+# Modes and Power-ups: Up/Down or a click pick what the well plays. Enter on
+# the last page goes back.
+wait 10
+tap DOWN
+tap ENTER
+wait 3
+expect screen HOWTO
+expect app howtopage Basics
+expect app howtofirst 0
+wait 30
+shot 127-basics
+wait 148
+expect app demopress 6
+shot 127-basics-hard-drop
+tap RIGHT
+wait 50
+expect app howtopage Hold and next
+# the S is in Hold, the I is falling and Next shows the O that comes after it
+expect app demohold S
+expect app democurrent I
+expect app demonext O
+shot 127-hold
+pad on
+pad tap RB
+wait 110
+expect app howtopage Scoring
+expect app democallout QUAD +800
+shot 127-scoring-quad
+wait 150
+expect app democallout BACK-TO-BACK +1 250
+expect app democlears 4,4
+shot 127-scoring-b2b
+pad tap RB
+wait 4
+expect app howtopage Modes
+pad tap DOWN
+wait 60
+expect app demovariant Sprint
+shot 127-modes-sprint
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+wait 60
+expect app demovariant Power
+shot 127-modes-power
+# the mouse: a tab, a row, the < > buttons
+click 499 116
+wait 3
+expect app howtopage Power-ups
+click 300 203
+wait 50
+expect app demovariant Laser
+expect app democallout LASER
+shot 127-power-laser
+click 400 254
+wait 3
+expect app demovariant Slow
+click 48 116
+wait 3
+expect app howtopage Modes
+click 571 116
+wait 3
+expect app howtopage Power-ups
+tap ENTER
+wait 3
+expect screen MENU

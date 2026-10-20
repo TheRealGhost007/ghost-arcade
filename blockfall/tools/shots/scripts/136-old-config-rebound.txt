@@ -1,0 +1,58 @@
+#! env SHOTS_OLDCONFIG=1 SHOTS_CONFIG=left-J,left2-NONE,right-L,right2-NONE,soft_drop-K,soft_drop2-NONE,rotate-I,rotate2-NONE,hard_drop-ESCAPE,hold-H,pause-O,restart-T,quit-N
+# Phase 6: a 2.1.0 config.ini with every key moved off its default (the
+# second keys cleared, Esc swapped onto Hard drop, Back on N: not Space,
+# which picks menu items and is mended off Pause on load, 138) loads
+# unchanged: Settings shows each key as the file has it, not the default,
+# Rotate left takes the free Z, Feel stays Standard, and in a run the card
+# names them, I turns, H holds and Esc drops.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect screen SETTINGS
+expect app key:Move_left:1 J
+expect app key:Move_left:2 NONE
+expect app key:Move_right:1 L
+expect app key:Move_right:2 NONE
+expect app key:Soft_drop:1 K
+expect app key:Soft_drop:2 NONE
+expect app key:Rotate_right:1 I
+expect app key:Rotate_right:2 NONE
+expect app key:Hard_drop:1 ESCAPE
+expect app key:Hold:1 H
+expect app key:Pause:1 O
+expect app key:Pause:2 N
+expect app key:Restart:1 T
+expect app key:Rotate_left:1 Z
+expect app das 170
+expect app arr 35
+expect app softdrop normal
+shot 136-old-config-rebound
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect view card J L|K|I|Z|Esc|H|O N|T
+game clear
+game piece T 0 3
+wait 2
+tap I
+wait 2
+expect game rotation 1
+tap H
+wait 2
+expect game hold T
+expect game pieces 0
+tap ESCAPE
+wait 3
+expect game pieces 1
+expect game phase PLAYING
+shot 136-rebound-in-play

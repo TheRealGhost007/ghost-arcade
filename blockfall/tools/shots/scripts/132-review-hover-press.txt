@@ -1,0 +1,140 @@
+# Phase 6 review: the mouse's hover and pressed looks on a Settings tab, a
+# cap and a toggle; How to play's tab and arrow hover and press; and Enter
+# or pad A on How to play's last page, opened from the pause menu, goes back
+# to the pause menu and never acts in the run.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 12
+expect screen SETTINGS
+mouse 240 117
+wait 3
+shot 132-tab-hover
+mdown left
+wait 2
+shot 132-tab-pressed
+mup left
+wait 3
+expect app settab Feel
+click 100 117
+wait 3
+expect app settab Controls
+mouse 470 400
+wait 3
+mdown left
+wait 2
+expect app look:Hold_pad pressed
+shot 132-cap-pressed
+mup left
+wait 3
+expect awaiting 1
+expect app capture pad:Hold:1
+shot 132-cap-capture-by-mouse
+tap ESCAPE
+wait 2
+expect awaiting 0
+click 330 120
+wait 3
+expect app settab Look
+mouse 460 262
+wait 3
+mdown left
+wait 2
+expect app look:Block_patterns pressed
+shot 132-toggle-pressed
+mup left
+wait 3
+expect app patterns 1
+tap ESCAPE
+wait 3
+expect screen MENU
+# How to play: tab hover, arrow hover and press
+tap UP
+tap UP
+tap ENTER
+wait 12
+expect screen HOWTO
+mouse 330 116
+wait 3
+shot 132-howto-tab-hover
+mouse 571 116
+wait 3
+shot 132-howto-arrow-hover
+mdown left
+wait 2
+shot 132-howto-arrow-pressed
+mup left
+wait 3
+expect app howtopage Hold and next
+tap ESCAPE
+wait 3
+expect screen MENU
+# From the pause menu: How to play opens on the page it was left on (Hold
+# and next, above); Enter on the last page goes back to the pause menu and
+# never acts in the run
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+tap ESCAPE
+wait 3
+expect app pause open
+tap DOWN
+tap DOWN
+tap DOWN
+expect app focus How to play
+tap ENTER
+wait 5
+expect screen HOWTO
+expect app howtopage Hold and next
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 3
+expect app howtopage Power-ups
+shot 132-howto-over-pause
+hold ENTER 10
+wait 3
+expect screen PLAYING
+expect app pause open
+expect game phase PAUSED
+expect game pieces 0
+expect game filled 0
+shot 132-back-to-pause
+# the pad: A on the last page, B on a page
+pad on
+pad tap A
+wait 5
+expect screen HOWTO
+expect app howtopage Power-ups
+pad hold A 10
+wait 3
+expect screen PLAYING
+expect app pause open
+expect game pieces 0
+pad tap A
+wait 5
+expect screen HOWTO
+pad tap LB
+wait 3
+expect app howtopage Modes
+pad tap B
+wait 3
+expect screen PLAYING
+expect app pause open
+expect game pieces 0
+expect game filled 0
+# Resume with Enter held: nothing drops
+tap UP
+tap UP
+tap UP
+expect app focus Resume
+hold ENTER 10
+wait 2
+expect app pause closed
+expect game pieces 0
+expect game filled 0

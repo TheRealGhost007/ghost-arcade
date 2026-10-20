@@ -1,0 +1,32 @@
+# Rebind Rotate to X: the in-game control list and the pause/game-over hints still name the defaults
+# (3.0.0: the Controls tab; Rotate right is its fifth row)
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Rotate right
+tap ENTER
+wait 2
+tap X
+wait 3
+shot 17-settings-rotate-rebound
+expect file .config/blockfall/config.ini rotate=X
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+wait 2
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+shot 17-play-legend-after-rebind

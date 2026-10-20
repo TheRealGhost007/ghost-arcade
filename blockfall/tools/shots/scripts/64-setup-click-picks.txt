@@ -1,0 +1,35 @@
+#! env SHOTS_SETUP=1,0,10,20
+# A click on a mode that is not the chosen one only picks it, even when the
+# pointer rested there while the keys moved the bar (the click used to move
+# the mode with the bar on the press, so its release then started the run);
+# a click on the chosen one starts. The pointer never picks a mode by itself.
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+expect app mode Sprint
+mouse 150 225
+wait 3
+expect app focus Ultra
+expect app mode Sprint
+tap UP
+wait 3
+expect app focus Sprint
+expect app mode Sprint
+mark sounds
+click
+wait 6
+expect screen SETUP
+expect app mode Ultra
+expect sounds tick:0
+shot 64-clicked-ultra-after-keys
+# the keys still move the mode with the bar
+tap DOWN
+wait 3
+expect app focus Zen
+expect app mode Zen
+# and a click on the chosen one (Zen, the pointer moved onto it) starts
+click 150 265
+wait 4
+expect screen PLAYING
+expect game mode Zen

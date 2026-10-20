@@ -1,0 +1,95 @@
+# The main menu's buttons: every focus with the gliding bar, a frame in the
+# middle of a glide, a press held (pressed look) and its flash, hover with the
+# mouse, a click, Up wrapping to Quit, and the pad's hints after pad use.
+wait 60
+expect app focus Start game
+expect app look:Start_game focused
+shot 53-focus-start
+tap DOWN
+shot 53-glide-frame1
+wait 1
+shot 53-glide-frame2
+wait 8
+expect app focus How to play
+shot 53-focus-howto
+tap DOWN
+wait 8
+shot 53-focus-scores
+tap DOWN
+wait 8
+shot 53-focus-settings
+tap DOWN
+wait 8
+shot 53-focus-updates
+tap DOWN
+wait 8
+expect app focus Quit
+shot 53-focus-quit
+tap DOWN
+wait 8
+expect app focus Start game
+tap UP
+wait 8
+expect app focus Quit
+tap DOWN
+wait 8
+# Enter held: the button shows pressed and nothing happens until it is let go
+down ENTER
+wait 3
+expect app look:Start_game pressed
+expect screen MENU
+shot 53-start-pressed
+up ENTER
+wait 1
+expect screen SETUP
+tap ESCAPE
+wait 12
+# The mouse: hover lights a button (the focus follows the pointer), a click acts on release
+mouse 300 320
+wait 2
+expect app device mouse
+expect app look:Scores hover
+expect app focus Scores
+shot 53-hover-scores
+mouse 300 280
+wait 2
+shot 53-hover-howto
+mdown left
+wait 2
+expect app look:How_to_play pressed
+expect screen MENU
+shot 53-mouse-pressed
+mup left
+wait 2
+expect screen HOWTO
+tap ESCAPE
+wait 12
+# a press dragged off acts on nothing
+mouse 300 410
+mdown left
+mouse 300 600
+mup left
+wait 2
+expect screen MENU
+# the pad: hints become pad buttons
+pad on
+wait 2
+pad tap DOWN
+wait 10
+expect app hints pad
+shot 53-pad-hints
+# holding Down repeats (0.4 s, then about ten a second): from Start game,
+# the press and three repeats in 40 frames land on Updates
+pad tap UP
+wait 4
+expect app focus Updates
+pad tap B
+wait 4
+expect app focus Quit
+expect screen MENU
+tap DOWN
+wait 4
+expect app focus Start game
+hold DOWN 40
+wait 2
+expect app focus Updates

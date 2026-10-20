@@ -1,0 +1,29 @@
+# Screens slide in 16 px: from the right going forward, from the left going
+# back, in 0.14 s; the text moves on whole pixels. Input never waits for it.
+wait 60
+tap ENTER
+expect screen SETUP
+expect app slide 16
+shot 56-forward-frame2
+wait 3
+shot 56-forward-frame5
+wait 8
+expect app slide 0
+shot 56-forward-done
+tap ESCAPE
+expect screen MENU
+expect app slide -12
+shot 56-back-frame2
+wait 3
+shot 56-back-frame5
+wait 8
+expect app slide 0
+# a press during the slide acts at once
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+expect screen UPDATES
+tap DOWN
+expect app scroll 48

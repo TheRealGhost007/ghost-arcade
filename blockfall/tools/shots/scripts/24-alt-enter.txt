@@ -1,0 +1,26 @@
+# Alt+Enter is the fullscreen key and nothing else. (On the menu it also
+# opened the selected item; with Quit selected it quit.)
+wait 10
+expect screen MENU
+tap ALT ENTER
+wait 5
+expect screen MENU
+expect fullscreen 1
+shot 24-after-alt-enter-on-menu
+# Quit selected: Alt+Enter does not quit.
+tap UP
+wait 2
+tap ALT ENTER
+wait 5
+expect screen MENU
+expect fullscreen 0
+# Play setup: it does not start the run.
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+expect screen SETUP
+tap ALT ENTER
+wait 5
+expect screen SETUP
+expect fullscreen 1

@@ -1,0 +1,36 @@
+#! env SHOTS_WIPE=1
+# The block wipe into and out of a run: the new screen is drawn at once and
+# a wall of blocks clears over it row by row from the top, each row lit and
+# then zipping out from the middle, 0.25 s in all. Nothing waits for it: a
+# hard drop during the wipe drops. Leaving a run wipes into the menu.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+expect app wipe 1
+shot 111-in-f1
+wait 3
+shot 111-in-f5
+wait 4
+shot 111-in-f10
+tap SPACE
+wait 1
+expect game pieces 1
+expect app wipe 1
+wait 3
+expect app wipe 0
+shot 111-in-done
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 2
+tap RIGHT
+tap ENTER
+expect screen MENU
+expect app wipe 1
+shot 111-out-f1
+wait 6
+shot 111-out-f7
+wait 12
+expect app wipe 0

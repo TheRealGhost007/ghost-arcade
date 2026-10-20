@@ -1,0 +1,87 @@
+# Phase 6: Settings with tabs. Tab, Shift+Tab, the pad's LB/RB, Left/Right
+# on the tab bar and a click all change the tab; every tab is shot with the
+# keyboard's focus on its first row, and a mouse hover lights a control (not
+# a row) and puts its row's sentence on the help line.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect screen SETTINGS
+expect app settab Controls
+expect app setrow Move left
+expect app focus Move left key
+shot 120-controls
+tap TAB
+wait 3
+expect app settab Feel
+expect app setrow Presets
+shot 120-feel
+tap TAB
+wait 3
+expect app settab Look
+shot 120-look
+tap TAB
+wait 3
+expect app settab Sound
+shot 120-sound
+tap TAB
+wait 3
+expect app settab Game
+shot 120-game
+tap TAB
+wait 3
+expect app settab Controls
+tap SHIFT TAB
+wait 3
+expect app settab Game
+# Up from the first row: the tab bar; Left and Right change the tab there
+tap UP
+wait 2
+expect app setrow Tabs
+shot 120-tabs-focused
+tap LEFT
+wait 2
+expect app settab Sound
+expect app setrow Tabs
+tap DOWN
+wait 2
+expect app setrow Effects volume
+# the pad: LB and RB
+pad on
+pad tap RB
+wait 3
+expect app settab Game
+pad tap LB
+pad tap LB
+wait 3
+expect app settab Look
+expect app hints pad
+shot 120-look-pad-hints
+# a click on a tab, a hover on a control
+click 100 120
+wait 3
+expect app settab Controls
+mouse 470 400
+wait 3
+expect app hover Hold pad
+expect app look:Hold_pad hover
+shot 120-hover-cap
+mouse 400 210
+wait 3
+click 330 120
+wait 3
+expect app settab Look
+mouse 460 262
+wait 3
+expect app look:Block_patterns hover
+shot 120-hover-toggle
+# Esc goes back to the menu, which remembers nothing of the tab but Settings does
+tap ESCAPE
+wait 3
+expect screen MENU
+tap ENTER
+wait 3
+expect screen SETTINGS
+expect app settab Look

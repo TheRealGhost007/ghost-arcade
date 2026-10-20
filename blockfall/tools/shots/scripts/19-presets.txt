@@ -1,0 +1,42 @@
+#! env SHOTS_SETUP=0,2,8,26
+# The Tall (8x26) and Huge (18x30) presets in play (Esc opens the pause menu;
+# Quit to menu leaves a run with no points at once)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 30
+# Tall has no scores yet: the panel says No best yet (it said Best 0)
+expect view best 0
+shot 19-tall-early
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+tap ENTER
+wait 2
+tap DOWN
+tap RIGHT
+wait 2
+tap UP
+tap ENTER
+wait 30
+expect game w 18
+shot 19-huge-preset-early
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+tap ENTER
+wait 2
+tap DOWN
+tap LEFT
+tap LEFT
+wait 2
+tap UP
+tap ENTER
+wait 30
+expect game w 14
+shot 19-wide-preset-early

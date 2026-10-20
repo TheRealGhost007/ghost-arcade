@@ -1,0 +1,17 @@
+# M mutes and - / = change volume in play: nothing on screen says so
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+tap M
+wait 2
+shot 21-after-mute
+tap MINUS
+tap MINUS
+tap MINUS
+wait 2
+shot 21-after-volume-down
+tap F3
+wait 2
+shot 21-fps-overlay

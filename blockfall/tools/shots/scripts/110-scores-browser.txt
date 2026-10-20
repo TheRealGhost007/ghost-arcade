@@ -1,0 +1,82 @@
+#! env SHOTS_SETUP=2,5,12,22
+# The Scores browser with the mouse, and Play this board. The picker lists
+# every size with rows on this machine (here a custom 7x30 and 12x22) after
+# the presets. A click on a tab, the board's arrows, This machine | World and
+# the periods; the wheel over the board turns it; Play this board starts a
+# run in that mode on that board (it becomes Play setup's).
+write .local/share/blockfall/scores.txt ultra-7x30|TRG|3100|2026-10-10\nultra-12x22|TRG|2500|2026-10-11\nultra-12x22|Arcade|900|2026-10-12\n
+wait 10
+tap DOWN
+tap DOWN
+tap ENTER
+wait 5
+expect screen SCORES
+expect scores mode Marathon
+expect app boards 10x20|14x20|8x26|18x30|6x14|12x22
+# Ultra by a click on its tab
+mouse 350 120
+wait 2
+expect app look:Ultra hover
+shot 110-tab-hover
+click 350 120
+wait 3
+expect scores mode Ultra
+expect app boards 10x20|14x20|8x26|18x30|6x14|7x30|12x22
+expect scores board Custom 12x22
+expect scores count 2
+shot 110-ultra-custom
+# the board's left arrow, then the wheel over it
+click 60 160
+wait 3
+expect scores board Custom 7x30
+expect scores count 1
+mouse 240 160
+wait 1
+wheel 1
+wait 3
+expect scores board Custom 12x22
+wheel -2
+wait 3
+expect scores board Tiny 6x14
+wheel 2
+wait 3
+expect scores board Custom 12x22
+# World by a click: custom sizes are not on it
+click 210 198
+wait 3
+expect scores world 1
+expect scores count 0
+shot 110-custom-world
+click 90 198
+wait 3
+expect scores world 0
+# the periods: This week, then Today, by clicks
+click 457 198
+wait 3
+expect scores period 1
+click 545 198
+wait 3
+expect scores period 2
+shot 110-today
+click 365 198
+wait 3
+expect scores period 0
+# Zen's faint tab
+click 557 120
+wait 3
+expect scores mode Zen
+shot 110-zen
+# Play this board: Ultra on Custom 12x22
+click 350 120
+wait 3
+mouse 310 628
+wait 2
+expect app look:Play_this_board hover
+click 310 628
+wait 4
+expect screen PLAYING
+expect game mode Ultra
+expect game w 12
+expect game h 22
+expect file .config/blockfall/config.ini setup_mode=2
+expect file .config/blockfall/config.ini setup_width=12

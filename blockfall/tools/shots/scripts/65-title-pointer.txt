@@ -1,0 +1,16 @@
+# The title drop on launch: the pointer drifting over the window does not
+# cut it (a window that opens under the pointer would, every launch), a
+# click does.
+wait 4
+expect app drop 1
+mouse 320 400
+wait 1
+expect app drop 1
+mouse 330 410
+wait 2
+expect app drop 1
+shot 65-title-pointer-moved
+click 30 470
+wait 1
+expect app drop 0
+expect screen MENU

@@ -1,0 +1,37 @@
+#! env SHOTS_SETUP=0,1,14,20
+# Wide 14x20 marathon (modern scoring): a combo and a back-to-back quad
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game w 14
+shot 09-wide-early
+game clear
+game row 0 #############.
+game row 1 ####.########.
+game row 2 ##.#####.#....
+game piece I 1 11
+game combo 1
+game score 4200
+game lines 12
+game level 2
+wait 2
+tap SPACE
+wait 3
+shot 09-combo-clear-frame4
+wait 20
+shot 09-combo-banner
+expect game combo 2
+game clear
+game row 0 #############.
+game row 1 #############.
+game row 2 #############.
+game row 3 #############.
+game row 4 ###.#######...
+game piece I 1 11
+game b2b 1
+wait 2
+tap SPACE
+wait 20
+shot 09-b2b-quad

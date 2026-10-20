@@ -1,0 +1,9 @@
+#! env SHOTS_MOTION=reduced
+# With Motion set to Reduced the title is simply there: no drop, and the
+# focus bar jumps instead of gliding.
+wait 3
+expect app motion reduced
+expect app drop 0
+shot 52-title-reduced
+tap DOWN
+shot 52-bar-jumps-frame1

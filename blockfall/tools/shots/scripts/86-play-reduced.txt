@@ -1,0 +1,24 @@
+#! env SHOTS_SETUP=0,1,14,20 SHOTS_MOTION=reduced SHOTS_FLASH=1
+# Motion: Reduced and Reduced flashing: callouts and popups hold still (no
+# rise), the level-up pips light at once, nothing flashes white.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 #############.
+game row 1 #############.
+game row 2 #############.
+game row 3 #############.
+game row 4 ###.#######...
+game piece I 1 11
+game lines 8
+game combo 1
+wait 2
+tap SPACE
+shot 86-reduced-frame1
+expect pixels 40 296 336 240 nowhite 200
+wait 5
+shot 86-reduced-frame6
+expect hud callouts QUAD|COMBO 2|LEVEL 2

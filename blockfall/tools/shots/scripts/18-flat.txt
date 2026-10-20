@@ -1,0 +1,46 @@
+#! env SHOTS_SETUP=0,5,24,12
+# The flattest board (24x12): the panel goes into a strip across the top
+# (22 px cells, not 14), the level-up callout stays in the well, and the
+# end card is centred on the window.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+shot 18-flat-early
+expect hud place strip
+expect hud cell 22
+expect hud card 1
+game clear
+game row 0 #######################.
+game row 1 ####.##################.
+game row 2 ###...##..#####...####..
+game piece I 1 21
+game lines 9
+wait 2
+tap SPACE
+wait 20
+shot 18-flat-levelup-banner
+expect hud callouts LEVEL 2
+# the callout sits in the 264 px well, not below it: the gap between the
+# well's frame (bottom at 424) and the controls card (divider at 434) is clear
+expect pixels 36 425 548 9 below 60
+game clear
+game row 0 #######################.
+game row 1 ####.###################
+game row 2 #.######################
+game row 3 ######.#################
+game row 4 ##.#####################
+game row 5 ########.###############
+game row 6 ###.####################
+game row 7 #######.################
+game row 8 .#######################
+game row 9 #####.##.#.#.#.#.#.#.#.#
+game piece O 0 10
+wait 2
+tap SPACE
+wait 3
+expect game phase GAMEOVER
+shot 18-flat-gameover
+# the end card is centred on the window: nothing over the BLOCKFALL header
+expect pixels 230 0 60 14 below 60

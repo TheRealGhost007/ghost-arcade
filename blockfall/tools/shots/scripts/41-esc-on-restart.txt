@@ -1,0 +1,45 @@
+#! env SHOTS_CONFIG=restart-ESCAPE,quit-R
+# A config.ini from 2.1.0, where rebinding Back to menu to Restart's key R
+# swapped Esc onto Restart. It loads as it was: Esc restarts in play (asking
+# first, as the run has points), as Settings and the card say, and R opens
+# the pause menu.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect view card Left Right|Down|Up|Z|Space|C|P R|Esc
+tap SPACE
+wait 2
+game score 5000
+wait 2
+# R opens the pause menu (it is Back); P resumes.
+tap R
+wait 3
+expect game phase PAUSED
+expect app pause open
+expect game score 5000
+shot 41-pause-r-leaves
+tap P
+wait 3
+expect game phase PLAYING
+# Esc is Restart now: it asks first (the run has points), never pauses into
+# the menu; Restart starts a fresh run.
+tap ESCAPE
+wait 3
+expect app dialog Restart this run?
+expect app dialogbody It counts for 5 000 on Classic 10x20.
+tap RIGHT
+tap ENTER
+wait 3
+expect app pause closed
+expect game phase PLAYING
+expect game score 0
+expect game pieces 0
+# A run with no points leaves at once: R, Quit to menu.
+tap R
+wait 2
+tap UP
+tap ENTER
+wait 5
+expect screen MENU

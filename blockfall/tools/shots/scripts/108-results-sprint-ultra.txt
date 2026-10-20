@@ -1,0 +1,70 @@
+#! env SHOTS_SETUP=1,0,10,20
+# A Sprint clear bursts the rows upward in their own colours, bottom first,
+# then SPRINT CLEAR (violet) with the time counting up as the big number. At
+# Ultra's time up the rows dim and TIME UP (gold) comes in. Each plays one
+# sound as it ends: the cleared sting.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 ###.#####.
+game row 3 .##..###..
+game row 4 #.##.####.
+game row 5 .###.####.
+game piece I 1 7
+game lines 38
+game elapsed 72.0
+game score 6120
+wait 2
+mark sounds
+tap SPACE
+wait 1
+expect game won 1
+expect sounds jingle:LEVEL_UP
+expect app card:title SPRINT CLEAR
+wait 18
+shot 108-sprint-rows-f20
+expect feel bits >0
+wait 12
+shot 108-sprint-rows-f32
+wait 30
+shot 108-sprint-card-f62
+wait 50
+expect app resultsdone 1
+shot 108-sprint-results
+# Ultra: the clock runs out
+tap ESCAPE
+wait 6
+expect screen MENU
+tap ENTER
+wait 3
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+expect game mode Ultra
+game clear
+game row 0 #########.
+game row 1 ##.#######
+game row 2 ####.#####
+game row 3 #.########
+game score 4200
+game timeleft 0.1
+game elapsed 119.9
+mark sounds
+wait 8
+expect game won 1
+expect sounds jingle:LEVEL_UP
+expect app card:title TIME UP
+wait 22
+shot 108-ultra-dim-f30
+wait 30
+shot 108-ultra-card-f60
+wait 50
+expect app resultsdone 1
+expect app card:stat4 Time=2:00
+shot 108-ultra-results

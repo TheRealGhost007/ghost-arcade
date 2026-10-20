@@ -1,0 +1,22 @@
+# The run pauses when the window loses focus, says why, and stays paused when
+# focus comes back. (It kept falling with nobody playing, the pad dead.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 5
+focus off
+wait 3
+expect game phase PAUSED
+expect view focuslost 1
+shot 26-focus-lost
+wait 600
+expect game phase PAUSED
+expect game filled 0
+focus on
+wait 3
+expect game phase PAUSED
+tap P
+wait 3
+expect game phase PLAYING
+expect view focuslost 0

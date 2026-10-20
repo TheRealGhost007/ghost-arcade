@@ -1,0 +1,24 @@
+#! env SHOTS_SETUP=2,0,10,20
+# Ultra: early, late (seconds left) and time up
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Ultra
+shot 06-ultra-early
+game clear
+game row 0 ####.#####
+game row 1 #.########
+game row 2 ######..##
+game row 3 ..#####...
+game score 9480
+game lines 31
+game level 4
+game timeleft 9
+wait 30
+shot 06-ultra-late
+game timeleft 1
+wait 80
+expect game phase GAMEOVER
+shot 06-ultra-timeup

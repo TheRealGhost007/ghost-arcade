@@ -1,0 +1,165 @@
+#! env SHOTS_SETUP=0,0,10,20 SHOTS_SNAP=1
+# Phase 4 with Piece motion: Snap: the piece moves cell by cell (no slide in, no
+# glide, no pop) while the rest of the motion stays. Then Settings: Piece motion
+# back to Smooth and Ready, go on, each saved at once.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+# the run's first piece slides in half a cell from the top and fills in
+shot 95-spawn-f2
+expect feel dy 0
+expect feel fill 1.00
+wait 4
+shot 95-spawn-done
+expect feel dy 0
+expect feel fill 1.00
+# a tap glides over 0.04 s, at most half a cell behind
+game clear
+game piece T 0 3 6
+wait 2
+tapshot RIGHT 95-tap-f1
+expect feel dx 0
+expect game px 4
+shot 95-tap-f2
+expect feel dx 0
+shot 95-tap-f3
+expect feel dx 0
+# auto-repeat snaps (the initial press, then at 0.17 s and every 0.035 s)
+down LEFT
+wait 10
+shot 95-das-f11
+expect feel dx 0
+expect game px 2
+shot 95-das-f12
+expect feel dx 0
+shot 95-das-f13
+expect feel dx 0
+expect game px 1
+up LEFT
+wait 4
+# soft drop snaps and leaves streaks
+tapshot DOWN 95-softdrop-f1
+expect feel dy 0
+expect feel streak 1
+wait 6
+# a turn pops 2 px for two frames
+mark sounds
+tapshot UP 95-turn-f1
+expect feel pop 0
+expect sounds sfx:1
+shot 95-turn-f2
+expect feel pop 0
+shot 95-turn-f3
+expect feel pop 0
+# a turn that cannot be made ticks dully
+game clear
+game row 0 ####.#####
+game row 1 ####.#####
+game row 2 ####.#####
+game row 3 ####.#####
+game row 4 ####.#####
+game row 5 ####.#####
+game piece I 1 2 20
+wait 2
+mark sounds
+tap UP
+wait 1
+expect sounds pitched:1
+expect game rotation 1
+wait 70
+# the ghost: outline and a light fill; the rows it would complete marked at both edges
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 ####.####.
+game piece I 1 7
+wait 3
+shot 95-ghost-rows
+expect feel ghost 1
+# a piece on the ground darkens as its lock delay runs out
+game clear
+game piece T 0 3 22
+wait 22
+shot 95-lock-shade
+wait 15
+# a hard drop: smear, two-frame squash, landing flash, dust thrown sideways (inside the well)
+game clear
+game row 0 ##......##
+game piece T 0 3 4
+wait 2
+tapshot SPACE 95-harddrop-f1
+expect feel smear 1
+expect feel squash 1
+expect feel impact 1
+expect feel bits >0
+expect pixels 130 596 90 60 white 220
+shot 95-harddrop-f2
+expect feel squash 1
+shot 95-harddrop-f3
+expect feel squash 0
+expect pixels 0 56 36 600 below 60
+expect pixels 345 56 30 600 below 60
+expect pixels 40 661 300 25 below 60
+wait 4
+shot 95-harddrop-f8
+expect feel smear 0
+wait 20
+# a natural lock settles with a brighter bevel, no flash
+game clear
+game row 0 #########.
+game row 1 #########.
+game piece O 0 3 20
+wait 33
+shot 95-natural-lock
+expect feel bevel 1
+expect feel impact 0
+expect game pieces 4
+wait 30
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 2
+expect app dialog Leave this run?
+tap RIGHT
+tap ENTER
+wait 3
+wait 7
+expect screen MENU
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen SETTINGS
+expect app piecemotion snap
+expect app readygo off
+tap TAB
+tap TAB
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Piece motion
+shot 95-settings-piece-snap
+tap RIGHT
+wait 2
+expect app piecemotion smooth
+expect file .config/blockfall/config.ini piece_snap=0
+shot 95-settings-piece-smooth
+tap TAB
+tap TAB
+tap DOWN
+tap DOWN
+wait 2
+expect app settab Game
+expect app setrow Ready, go
+shot 95-settings-ready-off
+tap ENTER
+wait 2
+expect app readygo on
+expect file .config/blockfall/config.ini ready_go=1
+shot 95-settings-ready-on
+#! after-file .config/blockfall/config.ini piece_snap=0

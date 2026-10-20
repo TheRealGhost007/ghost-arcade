@@ -1,0 +1,48 @@
+# Settings and How to play on the pad: the d-pad repeats in Settings, and
+# How to play's Back button goes back. On the Scores
+# browser the pad turns the boards with X and the tabs with LB/RB (or the
+# d-pad), and Y changes the period.
+wait 60
+pad on
+wait 2
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap A
+wait 3
+expect screen SETTINGS
+pad hold DOWN 40
+wait 2
+expect app setrow Rotate right
+pad tap B
+wait 3
+expect screen MENU
+pad tap UP
+pad tap A
+wait 3
+expect screen SCORES
+pad tap X
+wait 3
+expect scores board Wide 14x20
+pad tap Y
+wait 3
+expect scores period 1
+shot 62-scores-pad-hints
+pad tap RB
+wait 3
+expect scores mode Sprint 40
+pad tap LB
+wait 3
+expect scores mode Marathon
+pad tap RIGHT
+wait 3
+expect scores mode Sprint 40
+pad tap B
+wait 3
+pad tap UP
+pad tap A
+wait 3
+expect screen HOWTO
+click 60 26
+wait 3
+expect screen MENU

@@ -1,0 +1,117 @@
+#! env SHOTS_SETUP=0,0,10,20 SHOTS_MOTION=reduced SHOTS_FLASH=1
+# Phase 4 with Motion: Reduced and Reduced flashing: the piece just appears and
+# moves cell by cell, no pop, no streaks, no smear or squash; the landing flash
+# is a soft tint, never white. Play is the same.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+# the run's first piece slides in half a cell from the top and fills in
+shot 94-spawn-f2
+expect feel dy 0
+expect feel fill 1.00
+wait 4
+shot 94-spawn-done
+expect feel dy 0
+expect feel fill 1.00
+# a tap glides over 0.04 s, at most half a cell behind
+game clear
+game piece T 0 3 6
+wait 2
+tapshot RIGHT 94-tap-f1
+expect feel dx 0
+expect game px 4
+shot 94-tap-f2
+expect feel dx 0
+shot 94-tap-f3
+expect feel dx 0
+# auto-repeat snaps (the initial press, then at 0.17 s and every 0.035 s)
+down LEFT
+wait 10
+shot 94-das-f11
+expect feel dx 0
+expect game px 2
+shot 94-das-f12
+expect feel dx 0
+shot 94-das-f13
+expect feel dx 0
+expect game px 1
+up LEFT
+wait 4
+# soft drop snaps and leaves streaks
+tapshot DOWN 94-softdrop-f1
+expect feel dy 0
+expect feel streak 0
+wait 6
+# a turn pops 2 px for two frames
+mark sounds
+tapshot UP 94-turn-f1
+expect feel pop 0
+expect sounds sfx:1
+shot 94-turn-f2
+expect feel pop 0
+shot 94-turn-f3
+expect feel pop 0
+# a turn that cannot be made ticks dully
+game clear
+game row 0 ####.#####
+game row 1 ####.#####
+game row 2 ####.#####
+game row 3 ####.#####
+game row 4 ####.#####
+game row 5 ####.#####
+game piece I 1 2 20
+wait 2
+mark sounds
+tap UP
+wait 1
+expect sounds pitched:1
+expect game rotation 1
+wait 70
+# the ghost: outline and a light fill; the rows it would complete marked at both edges
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 ####.####.
+game piece I 1 7
+wait 3
+shot 94-ghost-rows
+expect feel ghost 1
+# a piece on the ground darkens as its lock delay runs out
+game clear
+game piece T 0 3 22
+wait 22
+shot 94-lock-shade
+wait 15
+# a hard drop: smear, two-frame squash, landing flash, dust thrown sideways (inside the well)
+game clear
+game row 0 ##......##
+game piece T 0 3 4
+wait 2
+tapshot SPACE 94-harddrop-f1
+expect feel smear 0
+expect feel squash 0
+expect feel impact 1
+expect feel bits >0
+expect pixels 130 596 90 60 nowhite 200
+shot 94-harddrop-f2
+expect feel squash 0
+shot 94-harddrop-f3
+expect feel squash 0
+expect pixels 0 56 36 600 below 60
+expect pixels 345 56 30 600 below 60
+expect pixels 40 661 300 25 below 60
+wait 4
+shot 94-harddrop-f8
+expect feel smear 0
+wait 20
+# a natural lock settles with a brighter bevel, no flash
+game clear
+game row 0 #########.
+game row 1 #########.
+game piece O 0 3 20
+wait 33
+shot 94-natural-lock
+expect feel bevel 1
+expect feel impact 0
+expect game pieces 4

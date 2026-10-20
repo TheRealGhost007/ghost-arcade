@@ -1,0 +1,46 @@
+# Scores: Tab, Shift+Tab, pad LB and RB change the mode tab and nothing else.
+# The kit hands LB/RB (and Tab) to the first row of tabs on a screen as well,
+# which here is This machine | World: before 2.5.0's verifier fix one Tab
+# turned World on with the mode. A click on World still turns it.
+wait 10
+tap DOWN
+tap DOWN
+tap ENTER
+wait 5
+expect screen SCORES
+expect scores mode Marathon
+expect scores world 0
+tap TAB
+wait 3
+expect scores mode Sprint 40
+expect scores world 0
+tap LEFT_SHIFT TAB
+wait 3
+expect scores mode Marathon
+expect scores world 0
+pad on
+pad tap RB
+wait 3
+expect scores mode Sprint 40
+expect scores world 0
+pad tap RB
+wait 3
+expect scores mode Ultra
+expect scores world 0
+pad tap LB
+wait 3
+expect scores mode Sprint 40
+expect scores world 0
+shot 114-tabs-keep-scope
+# World by a click; RB then keeps it
+click 210 198
+wait 3
+expect scores world 1
+pad tap RB
+wait 3
+expect scores mode Ultra
+expect scores world 1
+# Up/Down still turn it
+tap UP
+wait 3
+expect scores world 0

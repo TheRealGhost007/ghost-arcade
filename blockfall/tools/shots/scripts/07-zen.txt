@@ -1,0 +1,40 @@
+#! env SHOTS_SETUP=3,0,10,20
+# Zen: early, late and the sweep that replaces game over
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Zen
+shot 07-zen-early
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game lines 57
+wait 20
+shot 07-zen-late
+tap SPACE
+wait 3
+expect game zen 1
+shot 07-zen-fresh-start
+# FRESH START fits the classic well now (it ran over the panel's Score)
+expect pixels 345 200 33 100 below 60
+wait 40
+shot 07-zen-fresh-start-later

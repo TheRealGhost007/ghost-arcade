@@ -1,0 +1,79 @@
+#! env SHOTS_SETUP=4,0,10,20
+# Power mode: the marks on a falling piece, Next and Hold, then each power-up firing
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Power
+shot 08-power-early
+# marks: falling piece carries a bomb, Next a laser, Hold a sweep
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game row 3 .##..##...
+game piece T 0 3
+game power Bomb 2
+game nextpower Laser 1
+game next I
+game hold S
+game holdpower Sweep 2
+wait 12
+shot 08-power-marks
+# BOMB
+tap SPACE
+shot 08-power-bomb-frame1
+wait 4
+shot 08-power-bomb-frame6
+wait 14
+shot 08-power-bomb-frame21
+wait 40
+shot 08-power-bomb-after
+# LASER: the next piece (I, carrying a laser) dropped vertical in column 4
+game piece I 1 2
+game power Laser 1
+wait 2
+tap SPACE
+wait 2
+shot 08-power-laser-frame3
+wait 6
+shot 08-power-laser-frame9
+wait 50
+shot 08-power-laser-after
+# FREEZE
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game piece O 0 6
+game power Freeze 0
+wait 2
+tap SPACE
+wait 30
+shot 08-power-freeze-active
+# SLOW on top of it
+game piece L 0 0
+game power Slow 1
+wait 2
+tap SPACE
+wait 30
+shot 08-power-freeze-and-slow
+wait 400
+shot 08-power-slow-only
+# SWEEP
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game row 3 #.##.####.
+game row 4 .##..##...
+game piece S 0 3
+game power Sweep 2
+wait 2
+shot 08-power-sweep-before
+tap SPACE
+wait 2
+shot 08-power-sweep-frame3
+wait 40
+shot 08-power-sweep-after

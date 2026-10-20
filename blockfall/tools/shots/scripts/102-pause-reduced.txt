@@ -1,0 +1,17 @@
+#! env SHOTS_MOTION=reduced SHOTS_FLASH=1
+# The pause menu with Motion: Reduced: the card is in place and the screen
+# dimmed on the first frame (no slide, no dim-in), and the focus bar jumps.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 10
+tapshot ESCAPE 102-pause-reduced-f1
+expect app pause open
+tap DOWN
+shot 102-pause-reduced-down
+expect app focus Restart
+tap ENTER
+wait 3
+expect app pause closed
+expect game score 0

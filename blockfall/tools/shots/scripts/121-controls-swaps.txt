@@ -1,0 +1,177 @@
+#! after-file .config/blockfall/config.ini hold2=LEFT_SHIFT
+#! after-file .config/blockfall/config.ini rotate_left=Z
+# Phase 6: setting keys. A cap pressed waits five seconds for a key, with a
+# bar draining under it (Esc gives up, a click gives up, five quiet seconds
+# give up). A key another action has swaps places, and the note says what
+# moved; the only key an action has is never taken; Esc never moves onto
+# another action. M is turned away, Alt+Enter only goes fullscreen, Shift
+# binds when let go, Delete clears a second key, Reset controls asks first.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect screen SETTINGS
+# Hold's second key
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap RIGHT
+wait 2
+expect app focus Hold key 2
+shot 121-hold-second-focused
+tap ENTER
+wait 2
+expect awaiting 1
+expect app capture key:Hold:2
+expect app note Press a key for Hold (second key). Esc gives up.
+shot 121-press-a-key
+wait 148
+expect awaiting 1
+shot 121-press-a-key-half
+tap ESCAPE
+wait 2
+expect awaiting 0
+expect app note Left as it was.
+expect app key:Hold:2 NONE
+# M is the mute key; Alt+Enter goes fullscreen and binds nothing
+tap ENTER
+wait 2
+tap M
+wait 2
+expect awaiting 1
+expect app note M mutes the sound in a run. Pick another key.
+shot 121-m-turned-away
+tap ALT ENTER
+wait 3
+expect awaiting 1
+expect fullscreen 1
+tap ALT ENTER
+wait 3
+expect fullscreen 0
+# Shift binds when it is let go: held, the cap is still waiting
+down LEFT_SHIFT
+wait 2
+expect awaiting 1
+expect app key:Hold:2 NONE
+shot 121-shift-held
+up LEFT_SHIFT
+wait 2
+expect awaiting 0
+expect app key:Hold:2 LEFT_SHIFT
+expect app note Hold's second key is now Left Shift.
+expect file .config/blockfall/config.ini hold2=LEFT_SHIFT
+shot 121-shift-bound
+# A swap: Z (Rotate left's) for Soft drop's first key
+tap UP
+tap UP
+tap UP
+tap UP
+tap LEFT
+wait 2
+expect app focus Soft drop key
+tap ENTER
+wait 2
+tap Z
+wait 3
+expect app key:Soft_drop:1 Z
+expect app key:Rotate_left:1 DOWN
+expect app note Z moved from Rotate left to Soft drop. Rotate left took Down.
+shot 121-swapped
+# Space (and Enter) pick menu items, so Pause cannot have them: the cap
+# keeps waiting. Esc on Pause never moves: Down is Rotate left's only key
+# now, so it stays
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap RIGHT
+wait 2
+expect app focus Pause key 2
+tap ENTER
+wait 2
+tap SPACE
+wait 3
+expect awaiting 1
+expect app key:Pause:2 ESCAPE
+expect app key:Hard_drop:1 SPACE
+expect app note Enter and Space pick menu items, so they cannot pause or restart.
+shot 121-space-turned-away
+tap DOWN
+wait 3
+expect awaiting 0
+expect app key:Pause:2 ESCAPE
+expect app key:Rotate_left:1 DOWN
+expect app note Down is the only key Rotate left has, so it stays there.
+shot 121-refused
+# a click gives up too
+tap ENTER
+wait 2
+expect awaiting 1
+click 600 700
+wait 2
+expect awaiting 0
+# Delete clears a second key (Hold's Left Shift); a first key never clears
+tap DOWN
+wait 2
+expect app focus Restart key 2
+tap UP
+tap UP
+wait 2
+expect app focus Hold key 2
+tap DELETE
+wait 2
+expect app key:Hold:2 NONE
+expect app note Hold's second key is cleared.
+tap LEFT
+tap DELETE
+wait 2
+expect app key:Hold:1 C
+# five quiet seconds give up
+tap RIGHT
+tap ENTER
+wait 305
+expect awaiting 0
+expect app note Nothing was pressed, so it stays as it was.
+# Reset controls asks first: Keep mine, then Reset
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Reset controls
+tap ENTER
+wait 3
+expect app dialogset Reset controls?
+expect app focus Keep mine
+shot 121-reset-ask
+tap ENTER
+wait 3
+expect app dialogset none
+expect app key:Soft_drop:1 Z
+tap ENTER
+wait 3
+tap RIGHT
+tap ENTER
+wait 3
+expect app dialogset none
+expect app key:Soft_drop:1 DOWN
+expect app key:Rotate_left:1 Z
+expect app note Every key and button is back to how Blockfall came.
+shot 121-after-reset
+expect file .config/blockfall/config.ini soft_drop=DOWN
+# Hold's second key once more, for the file
+tap UP
+tap UP
+tap UP
+tap RIGHT
+wait 2
+expect app focus Hold key 2
+tap ENTER
+wait 2
+tap LEFT_SHIFT
+wait 3

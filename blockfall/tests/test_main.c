@@ -1,10 +1,17 @@
-/* Headless correctness tests for the core game logic (rng/tetromino/board/
- * game). No raylib dependency, so this builds and runs anywhere `make test`
- * runs, including CI. Tests poke Game/Board fields directly to set up exact
- * scenarios rather than relying on the random bag, which keeps everything
- * deterministic. */
+/* Headless correctness tests for Blockfall: the core game logic (rng/
+ * tetromino/board/game), what runs record and the files behind them, and the
+ * play screen's layout. No raylib dependency, so this builds and runs
+ * anywhere `make test` runs, including CI. Tests poke Game/Board fields
+ * directly to set up exact scenarios rather than relying on the random bag,
+ * which keeps everything deterministic. Everything that touches a file runs
+ * in a temp HOME made here first, so a real save is never read or written. */
+#define _XOPEN_SOURCE 700
+#include <ftw.h>
+#include <sys/stat.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include "check.h"
 #include "../src/board.h"
 #include "../src/game.h"
 #include "../src/tetromino.h"
@@ -12,16 +19,8 @@
 
 static float fabsf_local(float x) { return x < 0 ? -x : x; }
 
-static int gChecks = 0;
-static int gFailures = 0;
-
-#define CHECK(cond, msg) do { \
-    gChecks++; \
-    if (!(cond)) { \
-        gFailures++; \
-        printf("FAIL: %s (%s:%d)\n", msg, __FILE__, __LINE__); \
-    } \
-} while (0)
+int gChecks = 0;
+int gFailures = 0;
 
 static void test_rng_deterministic(void) {
     Rng a, b;
@@ -270,13 +269,18 @@ static void test_rotation_near_wall_stays_in_bounds(void) {
     Game_Init(&g, 8, 0, 1, 0);
     Board_Clear(&g.board);
 
+    /* A vertical I against the right wall: turning flat in place would put
+     * a block past the wall, so the turn only works with a kick (the old
+     * set-up turned in place and passed with every kick removed). */
     g.current = PIECE_I;
-    g.rotation = 0; /* horizontal, spans local x=0..3 */
-    g.px = BOARD_W - 4; /* flush against the right wall */
+    g.rotation = 1; /* vertical in local column 2 */
+    g.px = BOARD_W - 3; /* that column is the last one */
     g.py = BOARD_HIDDEN + 5;
+    int startPx = g.px;
+    CHECK(!Board_TestFit(&g.board, PIECE_I, 2, g.px, g.py), "game: the flat I does not fit in place against the wall");
 
     bool rotated = Game_Rotate(&g, 1);
-    CHECK(rotated, "game: rotation near a wall finds a valid kick");
+    CHECK(rotated && g.px < startPx, "game: rotation near a wall finds a valid kick away from it");
 
     Cell cells[CELLS_PER_PIECE];
     Tetromino_GetCells(g.current, g.rotation, cells);
@@ -426,9 +430,9 @@ static void test_modern_scoring(void) {
         while (Board_TestFit(&g.board, g.current, g.rotation, g.px, g.py + 1)) g.py++;
         s0 = g.score;
         Game_HardDrop(&g);
-        CHECK(g.score - s0 >= 100, "classic: a single is at least 100");
+        CHECK(g.score - s0 == 100 + 2L * g.lastDropCells, "classic: a single at level 1 is exactly 100");
     }
-    CHECK(g.lastComboBonus == 0 || g.lastComboBonus == 0, "classic: no combo bonus");
+    CHECK(g.combo == -1 && g.lastComboBonus == 0, "classic: no combo on the classic marathon");
 
     /* Modern: combos climb, and reset on a miss. */
     Game_InitConfig(&g, (GameConfig){MODE_MARATHON, 10, 20, true}, 4, 0, 1, 0);
@@ -463,11 +467,27 @@ static void test_modern_scoring(void) {
         g.level = 1;
         s0 = g.score;
         Game_HardDrop(&g);
-        quad[round] = g.score - s0;
+        CHECK(g.lastClearCount == 4, "modern: the set-up is a quad");
+        CHECK(g.lastWasB2B == (round == 1), "modern: lastWasB2B marks only the quad that paid half again");
+        quad[round] = g.score - s0 - 2L * g.lastDropCells;
         g.combo = -1;
+        Game_ConsumeFrameFlags(&g);
+        CHECK(!g.lastWasB2B, "modern: lastWasB2B lasts one frame");
     }
-    CHECK(g.lastClearCount == 0 || true, "modern: quads set up");
-    CHECK(quad[1] > quad[0], "modern: the second quad in a row pays more than the first");
+    CHECK(quad[0] == 800 && quad[1] == 1200, "modern: the second quad in a row pays half again (800, then 1200)");
+    /* The classic board has no back-to-back: never marked. */
+    Game_InitConfig(&g, (GameConfig){MODE_MARATHON, 10, 20, false}, 4, 0, 1, 0);
+    bool marked = false;
+    for (int round = 0; round < 2; round++) {
+        Board_Init(&g.board, 10, 20);
+        int bottom = Board_TotalH(&g.board) - 1;
+        for (int y = bottom - 3; y <= bottom; y++) FillRowExceptCells(&g, y, 9, 1);
+        g.current = PIECE_I; g.rotation = 1; g.px = 7; g.py = BOARD_HIDDEN;
+        Game_HardDrop(&g);
+        if (g.lastWasB2B) marked = true;
+        Game_ConsumeFrameFlags(&g);
+    }
+    CHECK(!marked, "classic: two quads in a row are never marked back-to-back");
 }
 
 static int PlacePowerPiece(Game *g, PowerUp p, int cell) {
@@ -501,10 +521,11 @@ static void test_powerups(void) {
     CHECK(hole, "bomb: the 3x3 around it is empty");
     CHECK(Board_CountFilled(&g.board) < before + 4 && g.lastPowerRemoved > 0 && g.score - s0 >= 150 + 30 * g.lastPowerRemoved, "bomb: scored for the pickup and each block destroyed");
 
-    /* Laser: the whole column. */
+    /* Laser: the whole column. (Column 0 is left open so the O completes no
+     * row: a laser fires after any clear, see test_rules.c.) */
     Game_InitConfig(&g, (GameConfig){MODE_POWER, 10, 20, false}, 8, 0, 1, 0);
     total = Board_TotalH(&g.board);
-    for (int y = total - 8; y < total; y++) for (int x = 0; x < g.board.w; x++) g.board.cells[y][x] = (x == 5 || x == 6) ? CELL_EMPTY : (int8_t)PIECE_S;
+    for (int y = total - 8; y < total; y++) for (int x = 0; x < g.board.w; x++) g.board.cells[y][x] = (x == 0 || x == 5 || x == 6) ? CELL_EMPTY : (int8_t)PIECE_S;
     g.board.cells[total - 8][5] = CELL_EMPTY;
     at = PlacePowerPiece(&g, PU_LASER, 1);
     int lx = at % 100;
@@ -574,7 +595,37 @@ static void test_powerups(void) {
     CHECK(g.curPower == PU_BOMB && g.curPowerCell == 3, "power: and comes back with it");
 }
 
+/* A fresh temp HOME, XDG_DATA_HOME and XDG_CONFIG_HOME before anything reads
+ * a file, and removed at the end. */
+static char sHome[600];
+
+static int RemoveOne(const char *path, const struct stat *st, int flag, struct FTW *ftw) {
+    (void)st; (void)flag; (void)ftw;
+    return remove(path);
+}
+
+static void UseTempHome(void) {
+    const char *tmp = getenv("TMPDIR");
+    snprintf(sHome, sizeof(sHome), "%s/blockfall-tests.XXXXXX", (tmp && tmp[0]) ? tmp : "/tmp");
+    if (!mkdtemp(sHome)) { perror("mkdtemp"); exit(2); }
+    char path[700];
+    setenv("HOME", sHome, 1);
+    snprintf(path, sizeof(path), "%s/.local", sHome);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.local/share", sHome);
+    mkdir(path, 0755);
+    setenv("XDG_DATA_HOME", path, 1);
+    snprintf(path, sizeof(path), "%s/.config", sHome);
+    mkdir(path, 0755);
+    setenv("XDG_CONFIG_HOME", path, 1);
+}
+
+static void DropTempHome(void) {
+    if (strstr(sHome, "/blockfall-tests.")) nftw(sHome, RemoveOne, 16, FTW_DEPTH | FTW_PHYS);
+}
+
 int main(void) {
+    UseTempHome();
     test_rng_deterministic();
     test_tetromino_shapes_in_bounds();
     test_board_fit_and_collision();
@@ -593,6 +644,17 @@ int main(void) {
     test_modes();
     test_modern_scoring();
     test_powerups();
+    test_rules_all();
+    test_records_all();
+    test_layout_all();
+    test_hud_all();
+    test_feel_all();
+    test_kit_all();
+    test_input_all();
+    test_menus_all();
+    test_around_all();
+    test_settings_all();
+    DropTempHome();
 
     printf("\n%d checks, %d failures\n", gChecks, gFailures);
     return gFailures == 0 ? 0 : 1;

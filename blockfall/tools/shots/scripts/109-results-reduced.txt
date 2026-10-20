@@ -1,0 +1,44 @@
+#! env SHOTS_MOTION=reduced SHOTS_FLASH=1
+# The end with Motion: Reduced and Reduced flashing: the blocked piece is a
+# steady red (it never blinks), the card is in place at once with no drop,
+# the count-up takes 0.2 s, and NEW BEST's stamp does not flash white.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game score 30000
+wait 2
+tap SPACE
+wait 4
+shot 109-reduced-piece-f5
+expect pixels 160 56 60 30 nowhite 230
+wait 6
+shot 109-reduced-piece-f11
+wait 45
+shot 109-reduced-card-f56
+expect app resultsdone 0
+wait 22
+expect app resultsdone 1
+shot 109-reduced-stamp
+expect pixels 260 250 100 40 nowhite 240

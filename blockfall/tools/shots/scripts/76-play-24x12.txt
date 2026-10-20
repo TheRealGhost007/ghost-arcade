@@ -1,0 +1,55 @@
+#! env SHOTS_SETUP=0,5,24,12
+# Phase 3, the play screen on 24x12. The flattest board (24x12): the panel is a strip across the top (22 px cells, 14 before) and the card sits under the well in two columns.
+# Shots: early, in the middle of the clear, and with the callouts showing.
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+# Play setup says where the panel will go
+shot 76-play-24x12-setup
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game w 24
+expect game h 12
+expect hud place strip
+expect hud cell 22
+expect hud card 1
+expect hud callouts none
+shot 76-play-24x12-early
+wait 45
+shot 76-play-24x12-early-falling
+game clear
+game row 0 #######################.
+game row 1 #######################.
+game row 2 #######################.
+game row 3 #######################.
+game row 4 ####.###..##...#####....
+game piece I 1 21
+game combo 4
+game b2b 1
+game score 12400
+wait 2
+tap SPACE
+wait 2
+shot 76-play-24x12-clear-mid
+expect hud callouts QUAD|BACK-TO-BACK|COMBO 5
+expect pixels 36 145 548 2 below 60
+expect pixels 36 425 548 8 below 60
+wait 8
+shot 76-play-24x12-callouts
+expect hud callouts QUAD|BACK-TO-BACK|COMBO 5
+expect pixels 36 145 548 2 below 60
+expect pixels 36 425 548 8 below 60
+wait 50
+shot 76-play-24x12-after
+expect hud callouts none
+expect hud popup none
+# paused: the lines sit on the dimmed 528x264 well
+tap P
+wait 3
+expect game phase PAUSED
+shot 76-play-24x12-paused
+tap P
+wait 2
+expect game phase PLAYING

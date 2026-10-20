@@ -1,0 +1,95 @@
+#! after-file .config/blockfall/config.ini pad_restart=VIEW
+#! after-file .config/blockfall/config.ini pad_pause=MENU
+# Pad A is the menus' press button (uikeymap.c maps it to KA_UI_PRESS with
+# Enter and Space), and the pause menu reads Pause and Restart before its
+# buttons. So A on Restart's or Pause's pad cap is turned away in gold, as
+# Enter and Space are on their key caps (121), the cap keeps waiting, Menu
+# gives up and the old button stays (View, Menu: the file says so after).
+# Then in the pause menu A on Resume resumes, and opens no "Restart this
+# run?" box.
+wait 10
+pad on
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap A
+wait 4
+expect screen SETTINGS
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap RIGHT
+pad tap RIGHT
+wait 2
+expect app focus Restart pad
+expect app pad:Restart:1 VIEW
+shot 138-restart-pad-focused
+pad tap A
+wait 2
+expect awaiting 1
+expect app capture pad:Restart:1
+expect app note Press a button for Restart. Menu or Esc gives up.
+# A is turned away, and the cap keeps waiting
+pad tap A
+wait 2
+expect awaiting 1
+expect app capture pad:Restart:1
+expect app note A picks menu items, so it cannot pause or restart.
+expect app pad:Restart:1 VIEW
+expect app pad:Hard_drop:1 A
+shot 138-a-turned-away
+pad tap MENU
+wait 2
+expect awaiting 0
+expect app note Left as it was.
+expect app pad:Restart:1 VIEW
+# the same on Pause's first button
+pad tap UP
+wait 2
+expect app focus Pause pad
+pad tap A
+wait 2
+expect app capture pad:Pause:1
+pad tap A
+wait 2
+expect awaiting 1
+expect app note A picks menu items, so it cannot pause or restart.
+expect app pad:Pause:1 MENU
+expect app pad:Hard_drop:1 A
+shot 138-a-turned-away-pause
+pad tap MENU
+wait 2
+expect awaiting 0
+expect app pad:Pause:1 MENU
+# into a run, and the pause menu: A on Resume resumes, no box opens
+pad tap B
+wait 3
+expect screen MENU
+pad tap UP
+pad tap UP
+pad tap UP
+pad tap A
+wait 3
+pad tap A
+wait 4
+expect screen PLAYING
+game score 500
+wait 2
+pad tap MENU
+wait 3
+expect app pause open
+expect app dialog none
+expect app focus Resume
+shot 138-pause-resume-focused
+pad tap A
+wait 3
+expect app dialog none
+expect app pause closed
+expect game phase PLAYING
+expect game score 500
+shot 138-resumed

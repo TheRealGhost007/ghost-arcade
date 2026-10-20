@@ -1,0 +1,90 @@
+# Small things on the new menus: Settings opens on its first row, the wheel
+# over a key does nothing, and Up stops at the tabs (3.0.0), Updates opens with its first header whole (the top
+# fade only shows once scrolled), and the toast sits clear of "Playing as".
+wait 60
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen SETTINGS
+expect app setrow Move left
+wheel 3
+wait 2
+expect app setrow Move left
+tap UP
+wait 2
+expect app setrow Tabs
+tap UP
+wait 2
+expect app setrow Tabs
+tap DOWN
+wait 2
+expect app setrow Move left
+tap ESCAPE
+wait 3
+tap DOWN
+tap ENTER
+wait 12
+expect screen UPDATES
+expect app scroll 0
+shot 66-updates-top-whole
+expect pixels 40 116 200 3 above 200
+wheel -1
+wait 3
+shot 66-updates-scrolled-fade
+expect pixels 40 116 200 2 below 120
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+tap SPACE
+wait 2
+game score 1
+game level 5
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 2
+expect app dialog Leave this run?
+tap RIGHT
+tap ENTER
+wait 27
+expect screen MENU
+expect app toast Picking Up Speed
+shot 66-toast-clear-of-playing-as
+expect pixels 474 28 9 8 above 90
+# A player name too long for the gap (the owner's is 18 letters): the toast
+# spans the whole top row instead of cutting through "Playing as".
+write .local/share/ghost-launcher/profiles.txt # Ghost Launcher profiles\nBlockfall|The Real Dev Ghost\n__DEFAULT__|TRG\n
+wait 280
+expect app toast 
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+tap SPACE
+wait 2
+game score 20000
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 2
+expect app dialog Leave this run?
+tap RIGHT
+tap ENTER
+wait 27
+expect screen MENU
+expect app toast Skyscraper
+shot 66-toast-long-name
+expect pixels 0 64 24 3 above 150
+expect pixels 600 64 20 3 above 150
+expect pixels 340 28 250 8 below 45

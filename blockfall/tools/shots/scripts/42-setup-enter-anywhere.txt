@@ -1,0 +1,39 @@
+#! env SHOTS_SETUP=4,5,12,22
+# Enter on the Width or Height row starts the run too (as on any mode row),
+# when it is let go, so it never reaches play.
+wait 10
+tap ENTER
+wait 3
+expect screen SETUP
+expect app focus Power
+tap DOWN
+expect app focus Width
+tap RIGHT
+wait 2
+expect file .config/blockfall/config.ini setup_width=13
+tap ENTER
+wait 3
+expect screen PLAYING
+expect game mode Power
+expect game w 13
+expect game h 22
+expect game filled 0
+expect game pieces 0
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+expect screen MENU
+tap ENTER
+wait 3
+tap DOWN
+tap DOWN
+tap LEFT
+wait 2
+expect app board Custom 13x21
+tap SPACE
+wait 3
+expect screen PLAYING
+expect game h 21
+expect game pieces 0

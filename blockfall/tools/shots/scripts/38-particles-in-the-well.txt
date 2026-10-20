@@ -1,0 +1,26 @@
+# Clear particles and hard-drop dust stay inside the well. (They flew over
+# the margin and the panel, and dust fell below the frame.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 #########.
+game row 4 ##.######.
+game piece I 1 7
+wait 2
+tap SPACE
+wait 4
+shot 38-quad-frame5
+expect pixels 0 56 36 600 below 60
+expect pixels 345 56 33 600 below 60
+expect pixels 40 661 300 30 below 60
+wait 10
+shot 38-quad-frame15
+expect pixels 0 56 36 600 below 60
+expect pixels 345 56 33 600 below 60
+expect pixels 40 661 300 30 below 60

@@ -1,0 +1,39 @@
+#! env SHOTS_SETUP=0,1,14,20
+# Passing your best mid-run (Wide 14x20, best 15 300): a gold NEW BEST
+# callout and a soft coin, once; Best turns gold and follows the score.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect view best 15300
+expect view passed 0
+game clear
+game row 0 #############.
+game row 1 ####.#####.##.
+game piece I 1 11
+game score 15250
+# let the count-up reach it first
+wait 30
+shot 82-best-not-yet
+mark sounds
+tap SPACE
+wait 2
+expect view passed 1
+expect sounds jingle:COIN,sfx:2,sfx:3
+expect hud callouts NEW BEST
+shot 82-new-best
+wait 10
+shot 82-new-best-held
+# a second clear: no second NEW BEST, no second coin
+game clear
+game row 0 #############.
+game row 1 ####.#####.##.
+game piece I 1 11
+wait 60
+mark sounds
+tap SPACE
+wait 2
+expect sounds sfx:2,sfx:3
+expect hud callouts none
+shot 82-best-gold-tracking

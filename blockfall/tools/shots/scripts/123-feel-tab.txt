@@ -1,0 +1,89 @@
+#! env SHOTS_SETUP=0,0,10,20
+#! after-file .config/blockfall/config.ini arr_ms=0
+#! after-file .config/blockfall/config.ini das_ms=130
+#! after-file .config/blockfall/config.ini soft_drop_speed=instant
+# Phase 6: Settings > Feel. The presets set all three values (the one your
+# values match is lit; any other mix says Custom), the delay and speed step
+# in ms, the soft drop's speed; the strip shows a piece sliding with your
+# values by itself, and Left or Right held on it try them. Then in a run:
+# a repeat speed of 0 sends the piece straight to the wall after the delay,
+# and an Instant soft drop takes it to the floor without locking it.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+tap TAB
+wait 3
+expect app settab Feel
+expect app focus Relaxed
+expect app look:Standard normal
+shot 123-presets-standard
+tap RIGHT
+tap RIGHT
+wait 2
+expect app focus Fast
+tap ENTER
+wait 3
+expect app das 110
+expect app arr 15
+expect app softdrop fast
+expect file .config/blockfall/config.ini das_ms=110
+shot 123-preset-fast
+tap DOWN
+wait 2
+expect app setrow Repeat delay
+tap RIGHT
+tap RIGHT
+wait 3
+expect app das 130
+shot 123-custom
+tap DOWN
+tap LEFT
+tap LEFT
+tap LEFT
+wait 3
+expect app arr 0
+tap DOWN
+tap RIGHT
+wait 3
+expect app softdrop instant
+expect file .config/blockfall/config.ini soft_drop_speed=instant
+# the strip: it shows the values by itself, then Left held tries them
+tap DOWN
+wait 2
+expect app setrow Try it
+wait 40
+shot 123-strip-show
+hold LEFT 30
+wait 2
+expect app strip 0
+shot 123-strip-tried
+tap ESCAPE
+wait 3
+expect screen MENU
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+game clear
+game piece T 0 4
+wait 2
+# 130 ms is 8 frames held: the press moves one cell, then the wall
+hold LEFT 7
+wait 1
+expect game px 3
+hold LEFT 9
+wait 1
+expect game px 0
+shot 123-at-the-wall
+tap DOWN
+wait 1
+expect game py 22
+expect game pieces 0
+shot 123-instant-soft-drop

@@ -1,0 +1,49 @@
+#! env SHOTS_SETUP=0,0,10,20
+# Phase 4: the clear's beat is shorter at high levels, so the picture never
+# trails the stack for long: 0.24 s to level 9, 0.18 s at levels 10-14 and
+# 0.12 s from 15 (frames 4, 8 and 14 of a single at level 10, then at 15).
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+game clear
+game row 0 #########.
+game row 1 ###.#####.
+game piece I 1 7
+game level 10
+game lines 95
+wait 2
+tapshot SPACE 92-level10-f1
+expect feel total 0.18
+expect feel stage flash
+wait 2
+shot 92-level10-f4
+expect feel stage zip
+wait 3
+shot 92-level10-f8
+expect feel stage drop
+wait 5
+shot 92-level10-f14
+expect feel stage none
+expect feel ghost 1
+wait 30
+game clear
+game row 0 #########.
+game row 1 ###.#####.
+game piece I 1 7
+game level 15
+game lines 145
+wait 2
+tapshot SPACE 92-level15-f1
+expect feel total 0.12
+expect feel stage flash
+wait 2
+shot 92-level15-f4
+expect feel stage zip
+wait 3
+shot 92-level15-f8
+expect feel stage none
+expect feel ghost 1
+expect game level 15

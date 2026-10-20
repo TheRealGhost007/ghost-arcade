@@ -1,0 +1,29 @@
+# A pad player on Settings: A on a key row asks for a key; B gives up, and so
+# do five seconds of nothing. (Only a keyboard key used to get out.)
+wait 10
+pad on
+wait 3
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+wait 2
+pad tap A
+wait 3
+expect screen SETTINGS
+pad tap A
+wait 3
+expect awaiting 1
+shot 27-pad-press-a-key
+pad tap B
+wait 3
+expect awaiting 0
+expect screen SETTINGS
+pad tap A
+wait 3
+expect awaiting 1
+wait 290
+expect awaiting 1
+wait 20
+expect awaiting 0
+expect screen SETTINGS
+shot 27-pad-gave-up

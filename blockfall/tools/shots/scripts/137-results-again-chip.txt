@@ -1,0 +1,90 @@
+#! after-file .config/blockfall/config.ini pad_restart=RT
+# The results card's "again" chip names the pad's bound Restart button, not
+# a hard-coded View: Restart's first button rebound to RT in Settings (on
+# the pad), a run topped out on the pad, the chip says RT and RT plays
+# again; the keyboard's chip is the Restart key.
+wait 10
+pad on
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap A
+wait 4
+expect screen SETTINGS
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap RIGHT
+pad tap RIGHT
+wait 2
+expect app focus Restart pad
+pad tap A
+wait 2
+expect app capture pad:Restart:1
+pad tap RT
+wait 3
+expect app pad:Restart:1 RT
+expect app note Restart's button is now RT.
+pad tap B
+wait 3
+expect screen MENU
+pad tap UP
+pad tap UP
+pad tap UP
+pad tap A
+wait 3
+pad tap A
+wait 4
+expect screen PLAYING
+expect view padcard Left Right|Down|Up|X|A|Y LB|Menu B|RT
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game score 15020
+game lines 47
+wait 2
+pad tap A
+wait 2
+expect game phase GAMEOVER
+expect app results on
+wait 105
+expect app resultsdone 1
+expect app hints pad
+expect app againchip RT
+shot 137-again-chip-rt
+# the keyboard's chip: the Restart key
+tap RIGHT
+wait 2
+tap LEFT
+wait 2
+expect app hints keyboard
+expect app againchip R
+shot 137-again-chip-key
+# and RT on the pad plays again
+pad tap RT
+wait 4
+expect app results off
+expect game phase PLAYING
+expect game pieces 0

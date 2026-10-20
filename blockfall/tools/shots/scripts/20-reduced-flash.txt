@@ -1,0 +1,23 @@
+#! env SHOTS_FLASH=1 SHOTS_SHAKE=0
+# Reduced flashing ON and shake OFF: the cleared rows get a soft wash of the
+# piece's colour, not white bars (04-marathon checks the bars are white with
+# the setting off), and the well does not move.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 #########.
+game row 4 ##.######.
+game piece I 1 7
+wait 2
+tap SPACE
+shot 20-reducedflash-quad-frame1
+expect pixels 40 536 300 120 nowhite 200
+wait 3
+shot 20-reducedflash-quad-frame5
+expect pixels 40 536 300 120 nowhite 200

@@ -1,0 +1,66 @@
+#! env SHOTS_SETUP=0,0,10,20
+#! after-file .config/blockfall/config.ini hard_drop2=X
+# Phase 6 in a run: Z turns left (and pad X); the controls card has a Rotate
+# left row and shows Pause's keys together; after pad use it shows your
+# buttons (Y and LB for Hold, Menu and B for Pause). LB holds. A second key
+# for Hard drop (X) works.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect view card Left Right|Down|Up|Z|Space|C|P Esc|R
+game clear
+game piece T 0 3
+wait 2
+tap Z
+wait 2
+expect game rotation 3
+shot 126-card-keys
+pad on
+pad tap X
+wait 2
+expect game rotation 2
+expect view pad 1
+expect view padcard Left Right|Down|Up|X|A|Y LB|Menu B|View
+shot 126-card-pad
+pad tap LB
+wait 2
+expect game hold T
+# Hard drop's second key: X
+tap ESCAPE
+wait 3
+tap UP
+tap ENTER
+wait 3
+expect screen MENU
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+tap DOWN
+tap DOWN
+tap DOWN
+tap RIGHT
+wait 2
+expect app focus Hard drop key 2
+tap ENTER
+wait 2
+tap X
+wait 3
+expect app key:Hard_drop:2 X
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect game pieces 0
+tap X
+wait 2
+expect game pieces 1

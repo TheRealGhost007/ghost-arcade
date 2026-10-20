@@ -1,0 +1,43 @@
+# Updates on the kit: the wheel scrolls, Up/Down step (and repeat while
+# held), LB/RB or PgUp/PgDn a page, Home/End; the Back button hovers and
+# clicks.
+wait 60
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 12
+expect screen UPDATES
+expect app scroll 0
+shot 60-updates-top
+wheel -2
+wait 2
+expect app scroll 96
+tap DOWN
+wait 2
+expect app scroll 144
+hold DOWN 31
+expect app scroll 288
+pad on
+pad tap RB
+wait 2
+expect app scroll 764
+shot 60-updates-paged
+pad tap LB
+wait 2
+expect app scroll 288
+tap HOME
+wait 2
+expect app scroll 0
+mouse 60 26
+wait 2
+expect app look:Back hover
+shot 60-updates-back-hover
+mdown left
+wait 2
+expect app look:Back pressed
+shot 60-updates-back-pressed
+mup left
+wait 3
+expect screen MENU

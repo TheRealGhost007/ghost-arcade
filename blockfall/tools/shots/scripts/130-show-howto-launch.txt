@@ -1,0 +1,13 @@
+#! env SHOTS_CONFIG=show_howto-1
+#! after-file .config/blockfall/config.ini show_howto=0
+# Phase 6: Settings > Game > Show How to play: the next launch opens How to
+# play's Basics page by itself (as the first launch does), once.
+wait 20
+expect screen HOWTO
+expect app howtofirst 1
+expect app howtopage Basics
+expect file .config/blockfall/config.ini show_howto=0
+shot 130-basics-on-launch
+tap ENTER
+wait 3
+expect screen MENU

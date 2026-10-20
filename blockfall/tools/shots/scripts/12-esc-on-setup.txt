@@ -1,0 +1,20 @@
+# Esc on Play setup goes back to the menu. (It used to quit the whole game:
+# that pass drew no frame, so the menu read the same Esc again and quit.)
+wait 10
+tap ENTER
+wait 3
+expect screen SETUP
+shot 12-setup-before-esc
+tap ESCAPE
+wait 30
+expect screen MENU
+shot 12-menu-after-esc
+# Esc on the menu moves the bar to Quit first (2.2.0); a second Esc quits.
+tap ESCAPE
+wait 10
+expect screen MENU
+expect app focus Quit
+shot 12-menu-esc-to-quit
+tap ESCAPE
+wait 10
+quits

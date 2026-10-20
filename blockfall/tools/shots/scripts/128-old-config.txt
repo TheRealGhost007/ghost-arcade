@@ -1,0 +1,35 @@
+#! env SHOTS_OLDCONFIG=1 SHOTS_READY=1
+#! after-file .config/blockfall/config.ini left=LEFT
+#! after-file .config/blockfall/config.ini quit=ESCAPE
+#! after-file .config/blockfall/config.ini volume=50
+#! after-file .config/blockfall/config.ini rotate_left=Z
+#! after-file .config/blockfall/config.ini block_patterns=1
+# Phase 6: the owner's config.ini from 2.0.0 loads unchanged in Settings:
+# every key as it was, Rotate left on the free Z, the new second keys empty,
+# the pad as it always was plus X and LB, Feel at Standard. A change saves
+# the file with every old line kept.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect app key:Move_left:1 LEFT
+expect app key:Move_left:2 A
+expect app key:Rotate_right:2 W
+expect app key:Pause:2 ESCAPE
+expect app key:Rotate_left:1 Z
+expect app key:Hold:2 NONE
+expect app pad:Hold:2 LB
+expect app pad:Rotate_left:1 X
+expect app das 170
+expect app arr 35
+expect app softdrop normal
+shot 128-old-config
+tap TAB
+tap TAB
+tap DOWN
+tap DOWN
+tap RIGHT
+wait 3
+expect app patterns 1

@@ -1,0 +1,116 @@
+#! env SHOTS_SETUP=0,0,10,20
+#! after-file .config/blockfall/config.ini ghost_piece=2
+#! after-file .config/blockfall/config.ini grid=faint
+#! after-file .config/blockfall/config.ini block_patterns=1
+# Phase 6: Settings > Look. Ghost piece Outline, Solid or Off; the grid On,
+# Faint or Off; block patterns so the pieces can be told apart without their
+# colours (the sample beside the switch shows them). In a run: a solid ghost,
+# a faint grid, a mark on every block (well, Next, Hold). The pause menu's
+# ghost switch turns it off and back on to Solid.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+tap TAB
+tap TAB
+wait 3
+expect app settab Look
+expect app setrow Ghost piece
+tap RIGHT
+wait 2
+expect app ghost 2
+tap DOWN
+tap RIGHT
+wait 2
+expect app grid faint
+tap DOWN
+tap RIGHT
+wait 3
+expect app patterns 1
+shot 124-look-set
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+game clear
+game row 0 IOTSZJL.##
+game row 1 ZJL.IOTS##
+game piece L 0 3
+game hold J
+wait 3
+shot 124-play-solid-faint-patterns
+# the pause menu's quick panel: ghost off, then on again: Solid
+tap ESCAPE
+wait 3
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect app pausepage settings
+tap DOWN
+tap DOWN
+tap DOWN
+tap LEFT
+wait 2
+expect app ghost 0
+tap RIGHT
+wait 2
+expect app ghost 2
+tap ESCAPE
+wait 2
+tap ESCAPE
+wait 3
+expect app pause closed
+# grid off and the outline ghost
+tap ESCAPE
+wait 3
+tap UP
+tap ENTER
+wait 3
+expect screen MENU
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect app settab Look
+tap DOWN
+tap RIGHT
+wait 2
+expect app grid off
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 IOTSZJL.##
+game piece T 0 3
+wait 3
+shot 124-play-grid-off
+tap ESCAPE
+wait 3
+tap UP
+tap ENTER
+wait 3
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+tap DOWN
+tap LEFT
+wait 2
+expect app grid faint

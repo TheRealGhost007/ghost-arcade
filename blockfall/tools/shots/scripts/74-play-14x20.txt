@@ -1,0 +1,44 @@
+#! env SHOTS_SETUP=0,1,14,20
+# Phase 3, the play screen on 14x20. Wide 14x20: a back-to-back quad in a long combo; B2B ready stays lit after it.
+# Shots: early, in the middle of the clear, and with the callouts showing.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game w 14
+expect game h 20
+expect hud place side
+expect hud cell 24
+expect hud card 1
+expect hud callouts none
+shot 74-play-14x20-early
+wait 45
+shot 74-play-14x20-early-falling
+game clear
+game row 0 #############.
+game row 1 #############.
+game row 2 #############.
+game row 3 #############.
+game row 4 ###.#######...
+game piece I 1 11
+game combo 3
+game b2b 1
+game score 7200
+wait 2
+tap SPACE
+wait 2
+shot 74-play-14x20-clear-mid
+expect hud callouts QUAD|BACK-TO-BACK|COMBO 4
+expect pixels 382 56 28 480 below 60
+expect pixels 0 56 34 480 below 60
+wait 8
+shot 74-play-14x20-callouts
+expect hud callouts QUAD|BACK-TO-BACK|COMBO 4
+expect pixels 382 56 28 480 below 60
+expect pixels 0 56 34 480 below 60
+wait 50
+shot 74-play-14x20-after
+expect hud callouts none
+expect hud popup none

@@ -1,0 +1,152 @@
+#! env SHOTS_SETUP=0,0,10,20
+# Phase 4: line clears replay from the board as the piece was stamped. On the
+# classic board a single, a double with a row between, a triple and a quad, each
+# at frames 1, 4, 8 and 14: the rows flash white, zip out from where the I landed
+# (a quad bursts at once), then the rows above fall and settle. Each clear size
+# sounds higher (a double and a triple pitched up), and the ghost hides till the end.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game mode Marathon
+# a single
+game clear
+game row 0 #########.
+game row 1 ###.#####.
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 88-feel-clears-single-f1
+expect feel stage flash
+expect feel rows 1
+expect sounds sfx:2,sfx:3
+expect pixels 40 626 300 30 white 220
+expect feel ghost 0
+expect feel impact 1
+expect feel smear 1
+wait 2
+shot 88-feel-clears-single-f4
+expect feel stage zip
+wait 3
+shot 88-feel-clears-single-f8
+expect feel stage zip
+expect feel bits >0
+wait 3
+# frame 11: the row above falls from one cell up (never more than a cell)
+expect feel stage drop
+expect feel lift 20
+wait 2
+shot 88-feel-clears-single-f14
+expect feel stage drop
+expect feel lift -1
+wait 20
+expect feel stage none
+expect feel ghost 1
+expect game lines 1
+wait 30
+# a double
+game clear
+game row 0 #########.
+game row 1 ##.######.
+game row 2 #########.
+game row 3 ####.####.
+game row 4 .##.##.#..
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 88-feel-clears-double-f1
+expect feel stage flash
+expect feel rows 2
+expect sounds sfx:2,pitched:3
+expect pixels 40 626 300 30 white 220
+expect feel ghost 0
+expect feel impact 1
+expect feel smear 1
+wait 2
+shot 88-feel-clears-double-f4
+expect feel stage zip
+wait 3
+shot 88-feel-clears-double-f8
+expect feel stage zip
+expect feel bits >0
+wait 5
+shot 88-feel-clears-double-f14
+expect feel stage drop
+expect feel ghost 0
+wait 20
+expect feel stage none
+expect feel ghost 1
+expect game lines 3
+wait 30
+# a triple
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 ##.######.
+game row 4 .#..####..
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 88-feel-clears-triple-f1
+expect feel stage flash
+expect feel rows 3
+expect sounds sfx:2,pitched:3
+expect pixels 40 626 300 30 white 220
+expect feel ghost 0
+expect feel impact 1
+expect feel smear 1
+wait 2
+shot 88-feel-clears-triple-f4
+expect feel stage zip
+wait 3
+shot 88-feel-clears-triple-f8
+expect feel stage zip
+expect feel bits >0
+wait 5
+shot 88-feel-clears-triple-f14
+expect feel stage drop
+expect feel ghost 0
+wait 20
+expect feel stage none
+expect feel ghost 1
+expect game lines 6
+wait 30
+# a quad
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 #########.
+game row 4 ##.######.
+game row 5 .#..####..
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 88-feel-clears-quad-f1
+expect feel stage flash
+expect feel rows 4
+expect sounds sfx:2,sfx:4,sfx:5
+expect pixels 40 626 300 30 white 220
+expect feel ghost 0
+expect feel impact 1
+expect feel smear 1
+expect feel quadframe 1
+wait 2
+shot 88-feel-clears-quad-f4
+expect feel stage flash
+wait 3
+shot 88-feel-clears-quad-f8
+expect feel stage zip
+expect feel bits >0
+wait 5
+shot 88-feel-clears-quad-f14
+expect feel stage drop
+expect feel ghost 0
+wait 20
+expect feel stage none
+expect feel ghost 1
+expect game lines 10
+wait 30

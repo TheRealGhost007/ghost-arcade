@@ -1,0 +1,34 @@
+#! env SHOTS_SETUP=4,1,14,20
+# Power on Wide 14x20: Next and Hold name the power-up their piece carries
+# (the 4 px dot became the letter and the name); a used Hold is grey with a
+# lock; Freeze and Slow are draining bars; a power-up that fires with a
+# clear says both.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Power
+game clear
+game row 0 #############.
+game row 1 #############.
+game row 2 ####.#######..
+game piece I 1 11
+game power Bomb 0
+game next T
+game nextpower Laser 1
+game hold S
+game holdpower Sweep 2
+game holdused 1
+game freeze 4.5
+game slow 9
+wait 3
+shot 81-power-names-bars-hold-used
+tap SPACE
+wait 2
+expect hud callouts DOUBLE|BOMB
+shot 81-power-double-bomb
+wait 8
+shot 81-power-double-bomb-held
+wait 200
+shot 81-power-freeze-gone-slow-draining

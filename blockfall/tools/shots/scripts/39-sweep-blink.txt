@@ -1,0 +1,25 @@
+#! env SHOTS_SETUP=4,0,10,20
+# After a Sweep the landing blink is on the piece, three rows down with the
+# board, not on the empty cells where it landed.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 .#########
+game row 1 .#########
+game row 2 .#########
+game row 3 .#########
+game row 4 .#########
+game row 5 .#########
+game piece O 0 3
+game power Sweep 0
+wait 2
+tap SPACE
+shot 39-sweep-frame1
+# where it landed: empty now, no blink (the old blink lit it up). Since 2.4.0
+# the hard drop's smear (the piece's own colour, never white) runs through it.
+expect pixels 161 417 58 58 nowhite 145
+# where it is: the blink is on the piece
+expect pixels 161 507 58 58 white 145

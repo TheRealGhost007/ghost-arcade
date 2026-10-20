@@ -1,0 +1,24 @@
+#! env SHOTS_SETUP=2,0,10,20
+# Ultra's countdown is its main number: plain, gold from 0:30, red from 0:10,
+# ticking (a 2 px nudge) each second from there.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Ultra
+shot 79-ultra-2-00
+game timeleft 45.5
+wait 3
+shot 79-ultra-plain-0-45
+game timeleft 25.5
+wait 3
+shot 79-ultra-gold-0-25
+game timeleft 9.02
+wait 1
+shot 79-ultra-red-0-09
+# the tick: the second changes to 8 and the number nudges up for a moment
+wait 2
+shot 79-ultra-red-tick-0-08
+wait 10
+shot 79-ultra-red-0-08

@@ -1,0 +1,56 @@
+# The controls card shows your keys, or the pad's buttons once the pad was
+# used last; Settings > Look > Controls card hides it (saved at once).
+wait 10
+pad on
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect view pad 0
+expect hud card 1
+pad tap Y
+wait 3
+expect view pad 1
+expect view padcard Left Right|Down|Up|X|A|Y LB|Menu B|View
+shot 85-card-pad
+tap LEFT
+wait 3
+expect view pad 0
+shot 85-card-keys
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+wait 2
+expect screen MENU
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 5
+expect screen SETTINGS
+tap TAB
+tap TAB
+tap DOWN
+tap DOWN
+tap DOWN
+wait 3
+expect app setrow Controls card
+tap ENTER
+wait 3
+expect file .config/blockfall/config.ini hide_controls=1
+shot 85-settings-card-hidden
+tap ESCAPE
+wait 5
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect view showcard 0
+expect hud card 0
+shot 85-card-hidden

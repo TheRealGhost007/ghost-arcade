@@ -1,0 +1,43 @@
+#! env SHOTS_SETUP=4,3,18,30
+#! after-file .local/share/blockfall/save.dat high_score=24680
+#! after-nofile .local/share/blockfall/save.dat high_score=99999
+#! after-file .local/share/ghost-launcher/scores/blockfall.txt power-18x30|TRG|99999|
+# Power on Huge 18x30, a high score, back to the menu (Esc opens the pause
+# menu, Quit to menu asks, Leave) and Quit. The run goes on its own board; the classic best in
+# save.dat (the menu's Best) does not take it. (Quitting used to fold any
+# mode's score, level and lines into save.dat.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect game mode Power
+tap SPACE
+wait 2
+game score 99999
+game level 15
+game lines 140
+wait 5
+tap ESCAPE
+wait 3
+expect game phase PAUSED
+expect app pause open
+tap UP
+tap ENTER
+wait 2
+expect app dialog Leave this run?
+expect app dialogbody It counts for 99 999 on Huge 18x30.
+tap RIGHT
+tap ENTER
+wait 5
+expect screen MENU
+expect app bestsboard Huge 18x30
+expect app best:Power 99 999
+expect app best:Marathon no run yet
+shot 22-menu-after-power-run
+expect file .local/share/blockfall/save.dat high_score=24680
+tap UP
+wait 2
+tap ENTER
+wait 5
+quits

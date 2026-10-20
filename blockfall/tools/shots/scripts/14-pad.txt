@@ -1,0 +1,68 @@
+# The Xbox pad: A starts (no double press), Start opens the pause menu and
+# Start again resumes, B opens it too and B again resumes, View asks before
+# restarting a run with points (B or Keep playing say no), and leaving asks
+# too. (B used to throw the run away at once, and View restarted it at once.)
+wait 10
+pad on
+wait 5
+pad tap A
+wait 3
+expect screen SETUP
+pad tap A
+wait 2
+expect screen PLAYING
+expect game filled 0
+shot 14-pad-start-first-frames
+pad tap MENU
+wait 3
+expect game phase PAUSED
+expect app pause open
+expect app focus Resume
+shot 14-pad-paused
+pad tap MENU
+wait 3
+expect game phase PLAYING
+pad tap Y
+wait 3
+shot 14-pad-hold
+# View in play asks first when the run has points; B keeps playing
+game score 4321
+pad tap VIEW
+wait 3
+expect app dialog Restart this run?
+expect game phase PAUSED
+expect game score 4321
+shot 14-pad-view-asks
+pad tap B
+wait 3
+expect app pause closed
+expect game phase PLAYING
+expect game score 4321
+# B opens the pause menu...
+pad tap B
+wait 5
+expect screen PLAYING
+expect game phase PAUSED
+expect app focus Resume
+shot 14-pad-b-pauses
+expect nofile .local/share/ghost-launcher/scores/blockfall.txt |4321|
+# ...View from there asks too, and Restart restarts
+pad tap VIEW
+wait 3
+expect app dialog Restart this run?
+pad tap RIGHT
+pad tap A
+wait 3
+expect game score 0
+expect game phase PLAYING
+# (nothing locked in it, so it was not a run and goes on no board)
+expect nofile .local/share/ghost-launcher/scores/blockfall.txt |4321|
+# B, then up (round the list) to Quit to menu and A: a run with no points
+# leaves at once
+pad tap B
+wait 3
+pad tap UP
+pad tap A
+wait 5
+expect screen MENU
+shot 14-pad-b-left-run

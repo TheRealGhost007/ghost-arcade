@@ -1,0 +1,8 @@
+# Any key skips the title drop, and the key acts at once (Down moves the bar).
+wait 6
+expect app drop 1
+tap DOWN
+expect app drop 0
+expect app focus How to play
+wait 1
+shot 51-title-skipped

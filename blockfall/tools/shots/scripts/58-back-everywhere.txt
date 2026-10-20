@@ -1,0 +1,89 @@
+# Back goes to the screen you came from, from every screen: Esc, pad B or
+# the mouse's back button (and the [<- Back] button on the kit's screens).
+wait 60
+pad on
+# Play setup: Esc, pad B, the mouse's back button, the Back button
+tap ENTER
+wait 3
+tap ESCAPE
+wait 3
+expect screen MENU
+tap ENTER
+wait 3
+pad tap B
+wait 3
+expect screen MENU
+tap ENTER
+wait 3
+click back
+wait 3
+expect screen MENU
+tap ENTER
+wait 3
+click 60 26
+wait 3
+expect screen MENU
+expect app depth 1
+# How to play, Scores, Settings, Updates from the menu
+tap DOWN
+tap ENTER
+wait 3
+expect screen HOWTO
+pad tap B
+wait 3
+expect screen MENU
+tap DOWN
+tap ENTER
+wait 3
+expect screen SCORES
+click back
+wait 3
+expect screen MENU
+tap DOWN
+tap ENTER
+wait 3
+expect screen SETTINGS
+pad tap B
+wait 3
+expect screen MENU
+tap DOWN
+tap ENTER
+wait 3
+expect screen UPDATES
+tap ESCAPE
+wait 3
+expect screen MENU
+tap ENTER
+wait 3
+expect screen UPDATES
+click 60 26
+wait 3
+expect screen MENU
+expect app focus Updates
+# Scores opened from Play setup goes back to Play setup
+tap UP
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 3
+expect screen SETUP
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen SCORES
+expect app under SETUP
+pad tap B
+wait 3
+expect screen SETUP
+expect app depth 2
+pad tap B
+wait 3
+expect screen MENU
+expect app depth 1

@@ -1,0 +1,65 @@
+# Enter, Space (the hard-drop key) or pad A on Resume close the pause menu
+# when they are let go, and that press never reaches play: no hard drop, not
+# on the frame it resumes and not on the next, however long it was held.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect game pieces 0
+# Enter held 12 frames on Resume
+tap ESCAPE
+wait 3
+expect app pause open
+expect app focus Resume
+down ENTER
+wait 12
+expect app pause open
+expect app look:Resume pressed
+expect game phase PAUSED
+up ENTER
+expect app pause closed
+expect game phase PLAYING
+wait 3
+expect game pieces 0
+expect game py 4
+# Space, the hard-drop key itself, held on Resume
+tap ESCAPE
+wait 3
+down SPACE
+wait 10
+expect app pause open
+expect game phase PAUSED
+up SPACE
+wait 3
+expect app pause closed
+expect game phase PLAYING
+expect game pieces 0
+expect game py 4
+# pad A (the hard-drop button) on Resume, held, then a tap
+pad on
+wait 2
+pad tap B
+wait 3
+expect app pause open
+expect app focus Resume
+pad down A
+wait 15
+expect game phase PAUSED
+pad up A
+wait 3
+expect app pause closed
+expect game pieces 0
+pad tap MENU
+wait 3
+pad tap A
+wait 3
+expect app pause closed
+expect game phase PLAYING
+expect game pieces 0
+shot 100-resumed-no-drop
+# and the next press of the hard-drop key does drop, as it always has
+tap SPACE
+wait 3
+expect game pieces 1

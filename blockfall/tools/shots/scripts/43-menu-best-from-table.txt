@@ -1,0 +1,8 @@
+#! env SHOTS_SAVE=0
+# The menu's bests: with save.dat lost or reset, the classic Marathon's best
+# is the score table's. (2.2.0: the Your bests strip, in place of the old
+# Best / level / lines line.)
+wait 10
+expect screen MENU
+expect app best:Marathon 24 680
+shot 43-menu-best-from-table

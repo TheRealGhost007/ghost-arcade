@@ -1,0 +1,22 @@
+#! env SHOTS_SETUP=3,0,10,20
+# Zen promises no game over: a Hold swap that does not fit at the spawn is a
+# fresh start, with its banner. (It used to end the run with GAME OVER.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 18 ...#......
+game row 17 ##.#####.#
+game piece O 0 3
+game hold I
+wait 2
+shot 23-zen-before-hold
+tap C
+wait 3
+expect game phase PLAYING
+expect game zen 1
+expect game filled 0
+expect game current I
+shot 23-zen-after-hold-fresh-start

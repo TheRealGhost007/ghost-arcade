@@ -1,0 +1,62 @@
+#! env SHOTS_SETUP=0,0,10,20 SHOTS_READY=1 SHOTS_MOTION=reduced SHOTS_FLASH=1
+#! after-file .config/blockfall/config.ini ready_go=0
+# Phase 4: READY-GO with Motion: Reduced and Reduced flashing: READY and GO
+# still show, but READY does not drop in. Then Settings turns Ready, go off
+# (saved at once) and the next run starts playing at once.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+shot 99-ready-f2
+expect feel cue ready
+wait 5
+shot 99-ready-f8
+expect feel cue ready
+expect game elapsed 0.00
+wait 27
+shot 99-go-f36
+expect feel cue go
+wait 30
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+wait 7
+expect screen MENU
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen SETTINGS
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Ready, go
+expect app readygo on
+tap ENTER
+wait 2
+expect app readygo off
+expect file .config/blockfall/config.ini ready_go=0
+shot 99-settings-ready-off
+tap ESCAPE
+wait 3
+expect screen MENU
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 3
+expect screen SETUP
+mark sounds
+tap ENTER
+shot 99-off-f2
+expect screen PLAYING
+expect feel cue none
+expect game elapsed 0.03
+expect sounds jingle:READY

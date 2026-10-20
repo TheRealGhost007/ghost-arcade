@@ -1,0 +1,71 @@
+# Play setup (2.2.0): the five modes in a list (Up/Down picks), the board
+# picker (Left/Right), Width and Height that always work, and Start.
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+expect app focus Marathon
+expect app board Classic 10x20
+shot 03-setup-marathon-classic
+tap DOWN
+wait 10
+expect app mode Sprint
+shot 03-setup-sprint
+tap DOWN
+wait 10
+shot 03-setup-ultra
+tap DOWN
+wait 10
+shot 03-setup-zen
+tap DOWN
+wait 10
+expect app mode Power
+shot 03-setup-power
+expect file .config/blockfall/config.ini setup_mode=4
+tap RIGHT
+wait 12
+expect app board Wide 14x20
+shot 03-setup-board-wide
+tap RIGHT
+wait 12
+shot 03-setup-board-tall
+tap RIGHT
+wait 12
+shot 03-setup-board-huge
+tap RIGHT
+wait 12
+shot 03-setup-board-tiny
+tap RIGHT
+wait 12
+expect app board Custom 10x20
+shot 03-setup-board-custom
+tap DOWN
+expect app focus Width
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+wait 12
+expect app board Custom 6x20
+shot 03-setup-custom-width-6
+tap DOWN
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+wait 12
+expect app board Custom 6x12
+shot 03-setup-custom-height-12
+tap DOWN
+tap DOWN
+wait 10
+expect app focus Start
+shot 03-setup-start-selected
+expect file .config/blockfall/config.ini setup_width=6
+expect file .config/blockfall/config.ini setup_height=12
+expect file .config/blockfall/config.ini setup_preset=5

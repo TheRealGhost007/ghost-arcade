@@ -1,0 +1,22 @@
+# M and - / = in a run show a chip and are saved at once. (Nothing showed,
+# and the change waited for the quit.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+tap M
+wait 2
+expect view chip 1
+expect view sound 0
+shot 33-chip-sound-off
+expect file .config/blockfall/config.ini audio_enabled=0
+tap M
+tap MINUS
+wait 2
+expect view sound 1
+expect view volume 60
+shot 33-chip-volume
+expect file .config/blockfall/config.ini volume=60
+wait 120
+expect view chip 0

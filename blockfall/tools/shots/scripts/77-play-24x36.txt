@@ -1,0 +1,44 @@
+#! env SHOTS_SETUP=0,5,24,36
+# Phase 3, the play screen on 24x36. The biggest board (24x36): 14 px cells at the side (the strip would give 12), power letters and callouts still fit.
+# Shots: early, in the middle of the clear, and with the callouts showing.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game w 24
+expect game h 36
+expect hud place side
+expect hud cell 14
+expect hud card 1
+expect hud callouts none
+shot 77-play-24x36-early
+wait 45
+shot 77-play-24x36-early-falling
+game clear
+game row 0 #######################.
+game row 1 #######################.
+game row 2 #######################.
+game row 3 ..##.####.....###.####..
+game piece I 1 21
+game combo 1
+game lines 38
+game level 4
+game score 15100
+wait 2
+tap SPACE
+wait 2
+shot 77-play-24x36-clear-mid
+expect hud callouts TRIPLE|COMBO 2|LEVEL 5
+expect pixels 382 56 28 504 below 60
+expect pixels 0 56 34 504 below 60
+wait 8
+shot 77-play-24x36-callouts
+expect hud callouts TRIPLE|COMBO 2|LEVEL 5
+expect pixels 382 56 28 504 below 60
+expect pixels 0 56 34 504 below 60
+wait 50
+shot 77-play-24x36-after
+expect hud callouts none
+expect hud popup none

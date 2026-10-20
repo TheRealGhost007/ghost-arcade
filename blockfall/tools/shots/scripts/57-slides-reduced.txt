@@ -1,0 +1,11 @@
+#! env SHOTS_MOTION=reduced
+# Motion: Reduced. Screens cut instead of sliding, the bar jumps.
+wait 10
+tap ENTER
+expect screen SETUP
+expect app slide 0
+shot 57-reduced-cut-frame1
+tap DOWN
+shot 57-reduced-bar-frame1
+tap ESCAPE
+expect app slide 0

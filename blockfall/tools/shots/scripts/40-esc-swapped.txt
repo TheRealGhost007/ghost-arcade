@@ -1,0 +1,48 @@
+#! env SHOTS_CONFIG=hard_drop-ESCAPE,quit-N
+# A config.ini from 2.1.0, where a swap left Esc on Hard drop and Back to
+# menu on N (3.0.0's Settings never hands Esc over: see 121-controls-swaps;
+# and Space, the menus' press key, it mends off Pause on load, so the file
+# gives Back a plain letter). It loads as it was: Esc drops, as Settings and
+# the card say, and N opens the pause menu (and closes it again).
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect view card Left Right|Down|Up|Z|Esc|C|P N|R
+expect game pieces 0
+# Esc is Hard drop now: it drops, and does not pause.
+tap ESCAPE
+wait 3
+expect game pieces 1
+expect game phase PLAYING
+# N is Back now: it opens the pause menu, and a second N resumes.
+tap N
+wait 3
+expect game phase PAUSED
+expect app pause open
+expect app focus Resume
+shot 40-pause-n-leaves
+tap N
+wait 3
+expect game phase PLAYING
+expect app pause closed
+# In the menu Esc is Back as in every menu: it resumes, it never drops.
+tap N
+wait 3
+tap ESCAPE
+wait 3
+expect game phase PLAYING
+expect game pieces 1
+# Quit to menu asks (the run has points), Leave leaves.
+tap N
+wait 3
+tap UP
+tap ENTER
+wait 2
+expect app dialog Leave this run?
+tap RIGHT
+tap ENTER
+wait 5
+expect screen MENU

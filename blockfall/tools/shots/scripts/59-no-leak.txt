@@ -1,0 +1,60 @@
+# The press that starts a run never acts in it: Enter, Space and pad A act
+# when let go, and the run's first frame takes no press. Space held through
+# the start does not hard-drop either. (Each run here is left from the pause
+# menu: no points, so Quit to menu leaves at once.)
+wait 20
+tap ENTER
+wait 3
+tap SPACE
+wait 2
+expect screen PLAYING
+expect game filled 0
+expect game pieces 0
+expect game py 4
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+expect screen MENU
+tap ENTER
+wait 3
+hold SPACE 20
+wait 2
+expect screen PLAYING
+expect game filled 0
+expect game py 4
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+expect screen MENU
+pad on
+pad tap A
+wait 3
+pad hold A 15
+wait 2
+expect screen PLAYING
+expect game filled 0
+expect game py 4
+pad tap B
+wait 2
+pad tap UP
+pad tap A
+wait 3
+expect screen MENU
+# Enter on Width (it starts when let go)
+tap ENTER
+wait 3
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+expect app focus Width
+hold ENTER 10
+wait 2
+expect screen PLAYING
+expect game filled 0
+expect game pieces 0

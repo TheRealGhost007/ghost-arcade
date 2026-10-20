@@ -1,0 +1,128 @@
+#! env SHOTS_SETUP=0,0,10,20 SHOTS_MOTION=reduced
+# Phase 4 with Motion: Reduced: each clear is a 0.08 s flash, then the rows
+# snap down (no zip, no fall); no smear.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game mode Marathon
+# a single
+game clear
+game row 0 #########.
+game row 1 ###.#####.
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 90-feel-clears-reduced-single-f1
+expect feel stage flash
+expect feel rows 1
+expect sounds sfx:2,sfx:3
+expect feel smear 0
+wait 2
+shot 90-feel-clears-reduced-single-f4
+expect feel stage flash
+wait 3
+shot 90-feel-clears-reduced-single-f8
+expect feel stage none
+expect feel lift 0
+wait 5
+shot 90-feel-clears-reduced-single-f14
+expect feel stage none
+wait 20
+expect feel stage none
+expect feel ghost 1
+expect game lines 1
+wait 30
+# a double
+game clear
+game row 0 #########.
+game row 1 ##.######.
+game row 2 #########.
+game row 3 ####.####.
+game row 4 .##.##.#..
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 90-feel-clears-reduced-double-f1
+expect feel stage flash
+expect feel rows 2
+expect sounds sfx:2,pitched:3
+expect feel smear 0
+wait 2
+shot 90-feel-clears-reduced-double-f4
+expect feel stage flash
+wait 3
+shot 90-feel-clears-reduced-double-f8
+expect feel stage none
+expect feel lift 0
+wait 5
+shot 90-feel-clears-reduced-double-f14
+expect feel stage none
+wait 20
+expect feel stage none
+expect feel ghost 1
+expect game lines 3
+wait 30
+# a triple
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 ##.######.
+game row 4 .#..####..
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 90-feel-clears-reduced-triple-f1
+expect feel stage flash
+expect feel rows 3
+expect sounds sfx:2,pitched:3
+expect feel smear 0
+wait 2
+shot 90-feel-clears-reduced-triple-f4
+expect feel stage flash
+wait 3
+shot 90-feel-clears-reduced-triple-f8
+expect feel stage none
+expect feel lift 0
+wait 5
+shot 90-feel-clears-reduced-triple-f14
+expect feel stage none
+wait 20
+expect feel stage none
+expect feel ghost 1
+expect game lines 6
+wait 30
+# a quad
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 #########.
+game row 4 ##.######.
+game row 5 .#..####..
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 90-feel-clears-reduced-quad-f1
+expect feel stage flash
+expect feel rows 4
+expect sounds sfx:2,sfx:4,sfx:5
+expect feel smear 0
+wait 2
+shot 90-feel-clears-reduced-quad-f4
+expect feel stage flash
+wait 3
+shot 90-feel-clears-reduced-quad-f8
+expect feel stage none
+expect feel lift 0
+wait 5
+shot 90-feel-clears-reduced-quad-f14
+expect feel stage none
+wait 20
+expect feel stage none
+expect feel ghost 1
+expect game lines 10
+wait 30

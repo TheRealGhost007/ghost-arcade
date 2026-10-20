@@ -1,0 +1,44 @@
+#! env SHOTS_SETUP=0,1,14,20
+# Callouts from one lock show together and go together: a DOUBLE half a
+# second after a QUAD replaces it (it used to shrink the QUAD to 16 px under
+# itself, then jump up into the QUAD's place when its 0.9 s ran out), and a
+# single in between (no word) leaves the QUAD where it is.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+game clear
+game row 0 #############.
+game row 1 #############.
+game row 2 #############.
+game row 3 #############.
+game piece I 1 11
+wait 2
+tap SPACE
+wait 10
+expect hud callouts QUAD
+shot 87-quad
+game clear
+game row 0 #############.
+game piece I 1 11
+wait 1
+tap SPACE
+wait 2
+expect hud callouts QUAD
+game clear
+game row 0 #############.
+game row 1 #############.
+game piece I 1 11
+wait 12
+tap SPACE
+wait 2
+expect hud callouts DOUBLE|COMBO 2
+shot 87-double-replaces-quad
+# the frames where the QUAD's time would have run out: nothing hops
+wait 20
+expect hud callouts DOUBLE|COMBO 2
+shot 87-double-steady
+wait 40
+expect hud callouts none

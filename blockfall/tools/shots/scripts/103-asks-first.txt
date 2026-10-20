@@ -1,0 +1,93 @@
+#! env SHOTS_NOACH=1
+# "Are you sure?" (Keep playing picked first; Esc, pad B or Keep playing say
+# no): Restart and Quit to menu ask only when the run has points; R and pad
+# View ask the same in play, and Keep playing goes straight back to play.
+# With no points everything acts at once. Each ask plays the warning.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+# no points: R restarts at once, Restart and Quit act at once
+expect game score 0
+tap R
+wait 3
+expect app dialog none
+expect app pause closed
+tap ESCAPE
+wait 2
+tap DOWN
+tap ENTER
+wait 3
+expect app pause closed
+expect game phase PLAYING
+# with points: R asks
+tap SPACE
+wait 2
+game score 12450
+mark sounds
+tap R
+wait 3
+expect sounds jingle:WARNING
+expect game phase PAUSED
+expect app dialog Restart this run?
+expect app dialogbody It counts for 12 450 on Classic 10x20.
+expect app focus Keep playing
+shot 103-r-asks
+tap ENTER
+wait 3
+expect app dialog none
+expect app pause closed
+expect game phase PLAYING
+expect game score 12450
+# pad View asks too; pad B keeps playing
+pad on
+wait 2
+pad tap VIEW
+wait 3
+expect app dialog Restart this run?
+pad tap B
+wait 3
+expect app pause closed
+expect game phase PLAYING
+# the Restart button asks; Esc keeps playing and stays in the menu
+tap ESCAPE
+wait 2
+tap DOWN
+tap ENTER
+wait 3
+expect app dialog Restart this run?
+tap ESCAPE
+wait 3
+expect app dialog none
+expect app pause open
+expect app focus Restart
+# Restart: a fresh run, the old one counted
+tap ENTER
+wait 2
+tap RIGHT
+wait 2
+expect app focus Restart
+shot 103-restart-picked
+tap ENTER
+wait 3
+expect game score 0
+expect game phase PLAYING
+expect file .local/share/blockfall/runs.log |marathon|12450|
+# Quit to menu asks; Leave leaves
+tap SPACE
+wait 2
+game score 300
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+expect app dialog Leave this run?
+expect app dialogbody It counts for 300 on Classic 10x20.
+shot 103-leave-asks
+tap RIGHT
+tap ENTER
+wait 5
+expect screen MENU
+expect file .local/share/blockfall/runs.log |marathon|300|

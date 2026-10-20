@@ -1,0 +1,55 @@
+#! env SHOTS_SETUP=4,0,10,20 SHOTS_MOTION=reduced SHOTS_FLASH=1
+# Phase 4 with Motion: Reduced and Reduced flashing: Hold and Next simply
+# change (no flight, no slide); Hold's ready flash is at half strength.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game mode Power
+game clear
+game piece L 1 4 8
+game power Bomb 2
+game next T
+game nextpower none
+game hold none
+wait 10
+# into an empty Hold: the L flies into the box, the next piece comes in, Next slides
+mark sounds
+tapshot C 97-hold-f1
+expect feel flight 0
+expect feel slide 0
+expect game hold L
+expect game current T
+expect sounds sfx:1
+wait 2
+shot 97-hold-f4
+expect feel flight 0
+expect feel slide 0
+wait 3
+shot 97-hold-f8
+expect feel flight 0
+expect feel slide 0
+wait 10
+# the next piece makes hold ready again: the box's edge flashes once
+tapshot SPACE 97-ready-f1
+expect feel ready 1
+expect feel slide 0
+wait 2
+shot 97-ready-f4
+expect feel ready 1
+wait 6
+shot 97-ready-f11
+expect feel ready 0
+wait 10
+# a swap flies too, and Next stays where it is
+tapshot C 97-swap-f1
+expect feel flight 0
+expect feel slide 0
+expect game current L
+wait 2
+shot 97-swap-f4
+wait 10
+shot 97-swap-done
+expect feel flight 0

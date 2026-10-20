@@ -1,0 +1,32 @@
+#! env SHOTS_SETUP=3,5,8,14
+# Zen (custom 8x14): fresh starts are its main number; a top-out sweeps the
+# board with a FRESH START callout that fits the 240 px well.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Zen
+shot 80-zen-early
+game clear
+game row 0 #######.
+game row 1 ##.#####
+game row 2 #.######
+game row 3 ###.####
+game row 4 .#######
+game row 5 ####.###
+game row 6 #.######
+game row 7 ###.####
+game row 8 ##.#####
+game row 9 #.##.###
+game row 10 ####.###
+game piece O 0 3
+game lines 31
+wait 2
+tap SPACE
+wait 3
+expect game zen 1
+expect hud callouts FRESH START
+shot 80-zen-fresh-start
+wait 10
+shot 80-zen-fresh-start-held

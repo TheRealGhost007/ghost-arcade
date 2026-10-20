@@ -1,0 +1,86 @@
+# A run started from Scores (Play this board) goes on the menu as one from
+# Play setup does, so its results card's Scores button opens Scores above the
+# card and Back comes back to the card. Before 2.5.0's verifier fix Scores
+# stayed under the run, the card's Scores went back down to it (the stack
+# never holds a screen twice) and Back then landed on the menu, the card lost.
+wait 10
+tap DOWN
+tap DOWN
+tap ENTER
+wait 5
+expect screen SCORES
+tap ENTER
+wait 4
+expect screen PLAYING
+expect app depth 2
+expect app under MENU
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game score 15020
+wait 2
+tap SPACE
+expect app results on
+wait 120
+expect app resultsdone 1
+tap DOWN
+wait 2
+expect app focus Scores
+tap ENTER
+wait 4
+expect screen SCORES
+expect app depth 3
+expect scores blink 2
+tap ESCAPE
+wait 4
+expect screen PLAYING
+expect app results on
+expect app focus Scores
+shot 115-back-on-card
+# From Play setup's Scores for this board too
+tap ESCAPE
+wait 4
+expect screen MENU
+tap UP
+tap UP
+wait 2
+expect app focus Start game
+tap ENTER
+wait 4
+expect screen SETUP
+expect app focus Marathon
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 4
+expect app focus Scores for this board
+tap ENTER
+wait 4
+expect screen SCORES
+expect app depth 3
+tap ENTER
+wait 4
+expect screen PLAYING
+expect app depth 2
+expect app under MENU

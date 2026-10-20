@@ -1,0 +1,46 @@
+#! env SHOTS_TUNED=1
+#! after-file .local/share/blockfall/save.dat high_score=24680
+# A tuned (F2) playtest never touches save.dat, just as it never reaches the
+# score tables. (A half-speed run used to set the menu's Best.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+game score 90000
+wait 2
+tap SPACE
+wait 3
+expect game phase GAMEOVER
+expect file .local/share/blockfall/save.dat high_score=24680
+expect nofile .local/share/ghost-launcher/scores/blockfall.txt |90000|
+expect nofile .local/share/blockfall/runs.log |
+# the results card takes no input for its first 0.4 s; then Esc is Menu
+expect app results on
+expect app card:best A tuned run is never recorded
+wait 24
+tap ESCAPE
+wait 5
+expect screen MENU
+expect app best:Marathon 24 680
+shot 31-menu-after-tuned-run

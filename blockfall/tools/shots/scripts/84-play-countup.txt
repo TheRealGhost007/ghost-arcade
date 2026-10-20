@@ -1,0 +1,21 @@
+#! env SHOTS_SETUP=0,0,10,20
+# The score counts up to its real value in 0.35 s, and snaps when paused.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect hud shown 0
+game score 2000
+wait 1
+shot 84-countup-frame1
+wait 5
+shot 84-countup-frame6
+wait 30
+expect hud shown 2000
+shot 84-countup-done
+game score 5000
+tap P
+wait 2
+expect hud shown 5000
+tap P

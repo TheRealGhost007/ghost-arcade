@@ -1,0 +1,50 @@
+#! env SHOTS_SETUP=0,1,14,20
+# Phase 4 on Wide 14x20 (modern scoring): a quad, then a quad back to back. The
+# second adds its BACK-TO-BACK line and its sound is two semitones brighter;
+# both burst all four rows at once and flash the frame gold.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+game clear
+game row 0 #############.
+game row 1 #############.
+game row 2 #############.
+game row 3 #############.
+game row 4 ##.######..##.
+game piece I 1 11
+wait 2
+mark sounds
+tapshot SPACE 89-quad-f1
+expect sounds sfx:2,sfx:4
+expect feel quadframe 1
+expect feel stage flash
+wait 30
+game clear
+game row 0 #############.
+game row 1 #############.
+game row 2 #############.
+game row 3 #############.
+game row 4 .#####.####.#.
+game piece I 1 11
+wait 2
+mark sounds
+tapshot SPACE 89-b2b-f1
+expect sounds sfx:2,pitched:4
+expect hud callouts QUAD|BACK-TO-BACK
+expect feel stage flash
+expect feel quadframe 1
+wait 2
+shot 89-b2b-f4
+expect feel stage flash
+wait 3
+shot 89-b2b-f8
+expect feel stage zip
+expect feel bits >0
+wait 5
+shot 89-b2b-f14
+expect feel stage drop
+wait 20
+expect feel stage none

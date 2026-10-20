@@ -1,0 +1,76 @@
+#! env SHOTS_SETUP=0,5,6,12
+# The end show and the results card on the smallest board (6x12) and the
+# flattest (24x12, the strip layout): the rows go grey inside the well, and
+# the card, centred on the window, fits both whole.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect game w 6
+game clear
+game row 0 #####.
+game row 1 .#####
+game row 2 ##.###
+game row 3 ###.##
+game row 4 ####.#
+game row 5 #.####
+game row 6 ##.###
+game row 7 ####.#
+game row 8 .#####
+game row 9 ###.##
+game piece O 0 1
+game score 2100
+wait 2
+tap SPACE
+wait 30
+expect game phase GAMEOVER
+shot 113-tiny-rows
+wait 90
+expect app resultsdone 1
+shot 113-tiny-results
+wait 2
+tap DOWN
+tap LEFT
+wait 2
+expect app focus Change setup
+tap ENTER
+wait 5
+expect screen SETUP
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+expect app focus Width
+hold RIGHT 110
+wait 3
+tap DOWN
+expect app focus Height
+wait 2
+expect app board Custom 24x12
+tap ENTER
+wait 4
+expect game w 24
+expect hud place strip
+game clear
+game row 0 #######################.
+game row 1 .#######################
+game row 2 ##########.#############
+game row 3 ###.####################
+game row 4 ################.#######
+game row 5 #####.##################
+game row 6 ##################.#####
+game row 7 #########.##############
+game row 8 ############.###########
+game row 9 ##.#####################
+game piece O 0 10
+game score 4400
+wait 2
+tap SPACE
+wait 30
+expect game phase GAMEOVER
+shot 113-flat-rows
+wait 90
+expect app resultsdone 1
+shot 113-flat-results

@@ -1,0 +1,98 @@
+#! env SHOTS_SETUP=1,0,10,20 SHOTS_READY=1
+# Phase 4: READY-GO. A Sprint starts with READY (violet, dropping in) for 0.6 s
+# while the run waits: the pieces are there, but nothing moves or falls and the
+# clock does not run. A hard drop pressed then never happens; a turn and a hold
+# are made at GO (the hold first); Left held through READY acts as a fresh
+# press at GO. GO (gold) shows for 0.4 s as play begins. Ultra's clock waits
+# too, pausing during READY pauses READY, and after R only GO shows and play
+# starts at once.
+wait 10
+tap ENTER
+wait 2
+expect screen SETUP
+mark sounds
+tap ENTER
+shot 98-ready-f2
+expect screen PLAYING
+expect game mode Sprint
+expect feel cue ready
+expect game elapsed 0.00
+expect sounds jingle:READY
+game piece T 0 3
+game next J
+down LEFT
+tap SPACE
+tap UP
+tap C
+wait 2
+shot 98-ready-f12
+expect feel cue ready
+expect game elapsed 0.00
+expect game pieces 0
+expect game rotation 0
+expect game hold none
+expect game current T
+expect game px 3
+expect game py 4
+mark sounds
+wait 23
+shot 98-go-f36
+expect feel cue go
+expect game elapsed 0.00
+expect game pieces 0
+expect game hold T
+expect game current J
+expect game rotation 1
+expect sounds sfx:1,jingle:GO,sfx:1
+shot 98-go-f37
+expect game elapsed 0.02
+expect game px 2
+up LEFT
+wait 10
+shot 98-go-f48
+expect feel cue go
+wait 12
+expect feel cue none
+expect game pieces 0
+shot 98-go-over
+# Ultra: its clock waits for GO; pausing during READY (P opens the pause
+# menu, P again resumes) pauses READY
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 3
+wait 7
+expect screen MENU
+tap ENTER
+wait 3
+expect screen SETUP
+tap DOWN
+wait 2
+expect app mode Ultra
+tap ENTER
+wait 8
+expect game mode Ultra
+expect game timeleft 120.00
+expect feel cue ready
+tap P
+wait 60
+expect game phase PAUSED
+expect game timeleft 120.00
+shot 98-ultra-paused-in-ready
+tap P
+wait 3
+expect feel cue ready
+expect game timeleft 120.00
+wait 37
+expect feel cue go
+shot 98-ultra-go
+# R: only GO, and the clock runs from the first frame
+mark sounds
+tapshot R 98-restart-f1
+expect feel cue go
+expect sounds jingle:GO
+expect game timeleft 119.98
+expect game elapsed 0.02
+wait 30
+expect feel cue none

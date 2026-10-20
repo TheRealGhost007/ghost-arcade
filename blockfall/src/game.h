@@ -34,6 +34,20 @@ typedef struct {
 #define MAX_LOCK_RESETS 15
 #define LINES_PER_LEVEL 10
 
+/* What a run did, for the results card. Plain counters kept by the rules
+ * code as it goes; the rules never read them, so they change no play. They
+ * are kept on every board, the classic one included (where combos and
+ * back-to-back do not score, they are still counted). */
+typedef struct {
+    int clears[5];     /* locks that cleared 1, 2, 3 or 4 rows ([0] is unused) */
+    int combo;         /* the chain of clearing locks now, counted as the combo is: -1 none, 0 one clear, 1 two in a row */
+    int bestCombo;     /* the longest chain this run, counted the same way (0 until two clears in a row) */
+    bool lastQuad;     /* the last clear was a quad */
+    int backToBacks;   /* quads right after a quad (locks that clear nothing between them do not break it) */
+    int powers;        /* power-ups fired */
+    int holds;         /* holds made */
+} RunStats;
+
 typedef struct {
     /* Bag-of-7 randomizer state. */
     PieceType bag[PIECE_COUNT];
@@ -57,8 +71,15 @@ typedef struct {
     float fallInterval;
 
     bool grounded;
+    /* Lock delay: the piece locks after LOCK_DELAY_SECONDS on the ground. A
+     * move or turn on the ground restarts that, at most MAX_LOCK_RESETS
+     * times; the count comes back only when the piece reaches a row lower
+     * than any it has been on (lowestRow). In the air the timer holds, and
+     * once the resets are spent it keeps running there too, so lifting the
+     * piece with a kick buys no time. */
     float lockTimer;
     int lockResets;
+    int lowestRow;
 
     long score;
     int level;
@@ -72,6 +93,7 @@ typedef struct {
     bool justLocked;
     bool justRotated;
     bool justMoved;
+    bool justSoftDropped;   /* a soft-drop step this frame (the piece snaps down instead of gliding) */
 
     long highScore;
     int highLevel;
@@ -86,6 +108,8 @@ typedef struct {
     float timeLeft;         /* Ultra */
     bool won;               /* Sprint finished, or Ultra ran out: a completed run rather than a top-out */
     int zenResets;          /* Zen: how many times the board was swept for you */
+    int piecesLocked;       /* pieces locked this run; a run with none was never really played */
+    RunStats stats;         /* what the run did (the results card); never read by the rules */
 
     PowerUp curPower, nextPower, holdPower;
     int curPowerCell, nextPowerCell, holdPowerCell; /* which of the piece's four blocks carries it */
@@ -94,21 +118,29 @@ typedef struct {
     /* Events (cleared with the rest) */
     bool justHeld;
     int lastCombo;          /* combo count on the most recent clear */
+    bool lastWasB2B;        /* that clear was a back-to-back quad (paid half again); looks only, the rules never read it */
     long lastComboBonus;
     PowerUp lastPower;      /* fired by the most recent lock */
-    int lastPowerX, lastPowerY;
+    int lastPowerX, lastPowerY; /* where it fired; after a Sweep, where its block went */
     int lastPowerRemoved;
     bool justZenReset;
 
     /* Presentation hints, valid on the frame justLocked is set. The rules
      * never read these; they let the renderer flash the piece that just
      * landed and the rows that just vanished (which are already gone from
-     * the board by the time it draws). */
+     * the board by the time it draws). lastLockX/Y is where the piece's
+     * blocks are after a power-up fired (a Sweep lowers them), and before
+     * any line clear (which shows as the clear instead). */
     PieceType lastLockType;
     int lastLockRotation;
     int lastLockX, lastLockY;
     int lastDropCells;      /* rows a hard drop fell; 0 for a natural lock */
     int lastClearRows[4];   /* board rows cleared, as they were BEFORE compaction */
+    /* The board as the piece was stamped into it, before the line clear and
+     * any power-up (valid on the frame justLocked is set). The play screen
+     * replays the clear from it: the full rows flash and burst, then the
+     * rows above fall into the gap, ending on exactly the live board. */
+    Board lockBoard;
 } Game;
 
 void Game_Init(Game *g, uint64_t seed, long highScore, int highLevel, int highLines);
@@ -122,6 +154,10 @@ void Game_Restart(Game *g, uint64_t seed);
 /* Advances gravity/lock-delay timing. dt in seconds. Only has effect while
  * phase == GS_PLAYING. */
 void Game_Update(Game *g, float dt);
+
+/* Seconds per row of gravity at a level: 1.0 at level 1, 0.07 less each
+ * level, never under 0.08 (level 15 and up). */
+float Game_FallInterval(int level);
 
 bool Game_MoveLeft(Game *g);
 bool Game_MoveRight(Game *g);

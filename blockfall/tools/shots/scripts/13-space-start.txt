@@ -1,0 +1,14 @@
+# Space on Play setup starts the run and nothing else: the first piece is
+# still at the top. (The same press used to hard-drop it.)
+wait 10
+tap ENTER
+wait 3
+tap SPACE
+expect screen PLAYING
+expect game filled 0
+expect game score 0
+expect game py 4
+shot 13-space-start-first-frame
+wait 2
+shot 13-space-start-frame3
+expect game filled 0

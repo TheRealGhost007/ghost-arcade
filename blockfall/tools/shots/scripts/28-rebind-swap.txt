@@ -1,0 +1,62 @@
+# Rebinding Rotate to Space swaps it with Hard drop (two actions used to be
+# able to share a key). The controls card, How to play and the pause card
+# name your keys (they showed the defaults), and the pad keeps every action
+# (a rebound action used to drop off the pad).
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+expect screen SETTINGS
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Rotate right
+tap ENTER
+wait 2
+expect awaiting 1
+tap SPACE
+wait 3
+expect awaiting 0
+expect file .config/blockfall/config.ini rotate=SPACE
+expect file .config/blockfall/config.ini hard_drop=UP
+expect app note Space moved from Hard drop to Rotate right. Hard drop took Up.
+shot 28-settings-swapped
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+wait 2
+tap ENTER
+wait 3
+expect screen HOWTO
+shot 28-howto-your-keys
+tap ESCAPE
+wait 3
+tap UP
+wait 2
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect view card Left Right|Down|Space|Z|Up|C|P Esc|R
+shot 28-card-your-keys
+tap UP
+wait 2
+expect game pieces 1
+pad on
+wait 2
+pad tap A
+wait 2
+expect game pieces 2
+pad tap UP
+wait 2
+expect game pieces 2
+tap P
+wait 3
+expect game phase PAUSED
+shot 28-pause-your-keys

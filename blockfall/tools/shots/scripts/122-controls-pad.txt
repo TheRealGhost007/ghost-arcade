@@ -1,0 +1,109 @@
+#! after-file .config/blockfall/config.ini pad_hard_drop=RB
+# Phase 6 on the pad: a pad cap waits for a button ("Press a button";
+# a keyboard key is turned away with a gold note and it keeps waiting;
+# Menu or Esc give up, B is a button like any other). The pad's buttons
+# swap as keys do, Y clears a second button, and in a run the new buttons
+# work: RB hard-drops, A turns left (it was Hard drop's), X holds.
+wait 10
+pad on
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap A
+wait 4
+expect screen SETTINGS
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap RIGHT
+pad tap RIGHT
+wait 2
+expect app focus Hard drop pad
+expect app hints pad
+shot 122-pad-cap-focused
+pad tap A
+wait 2
+expect app capture pad:Hard drop:1
+expect app note Press a button for Hard drop. Menu or Esc gives up.
+shot 122-press-a-button
+# a keyboard key is turned away in gold, and the cap keeps waiting
+tap X
+wait 2
+expect awaiting 1
+expect app capture pad:Hard drop:1
+expect app note That is a key: press a button on the pad. Menu or Esc gives up.
+shot 122-that-is-a-key
+pad tap MENU
+wait 2
+expect awaiting 0
+pad tap A
+wait 2
+pad tap RB
+wait 3
+expect app pad:Hard_drop:1 RB
+expect app note Hard drop's button is now RB.
+shot 122-rb-bound
+# A for Rotate left takes nothing from anyone now (Hard drop gave it up)
+pad tap DOWN
+pad tap DOWN
+wait 2
+expect app focus Rotate left pad
+pad tap A
+wait 2
+pad tap A
+wait 3
+expect app pad:Rotate_left:1 A
+# X (free now) for Hold's first: a swap within Hold? No: X is free
+pad tap DOWN
+wait 2
+expect app focus Hold pad
+pad tap A
+wait 2
+pad tap X
+wait 3
+expect app pad:Hold:1 X
+# Y clears Hold's second button (LB)
+pad tap RIGHT
+wait 2
+expect app focus Hold pad 2
+pad tap Y
+wait 2
+expect app pad:Hold:2 NONE
+shot 122-after
+# B is a button: Pause's second (B) for Restart's second, a swap
+pad tap DOWN
+pad tap DOWN
+wait 2
+expect app focus Restart pad 2
+pad tap A
+wait 2
+pad tap B
+wait 3
+expect app pad:Restart:2 B
+expect app pad:Pause:2 NONE
+expect app note B moved from Pause to Restart.
+# B still goes back in the menus, whatever it does in a run
+pad tap B
+wait 3
+expect screen MENU
+pad tap UP
+pad tap UP
+pad tap UP
+pad tap A
+wait 3
+pad tap A
+wait 4
+expect screen PLAYING
+expect view padcard Left Right|Down|Up|A|RB|X|Menu|View B
+game piece T 0 3
+wait 1
+pad tap A
+wait 2
+expect game rotation 3
+pad tap X
+wait 2
+expect game hold T
+pad tap RB
+wait 2
+expect game pieces 1
+shot 122-in-play

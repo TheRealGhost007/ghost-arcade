@@ -1,0 +1,40 @@
+#! env SHOTS_SETUP=3,0,10,20
+# Phase 4 (verifier): a Zen fresh start made by Hold while a clear still
+# replays. The clear's replay draws the board as the piece was stamped; the
+# sweep empties the real board, so the replay must end there, or the old
+# stack stays drawn over the empty well for the rest of the flash and zip.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game mode Zen
+game clear
+game row 0 #########.
+game row 1 ###.#####.
+game row 2 ###.#####.
+game row 3 ###.#####.
+game row 4 ###.#####.
+game row 19 ......#...
+game piece I 1 7
+game next T
+game hold I
+game holdused 0
+wait 2
+tapshot SPACE 99-zen-sweep-f1
+expect pixels 40 506 220 114 above 120
+expect feel stage flash
+expect game lines 1
+# the I from Hold cannot come in (the clear moved the top block onto its row)
+tapshot C 99-zen-sweep-f2
+expect game zen 1
+expect game filled 0
+expect feel stage none
+expect feel impact 0
+expect feel smear 0
+expect hud callouts FRESH START
+expect pixels 40 506 220 114 below 120
+shot 99-zen-sweep-f3
+expect feel stage none
+expect pixels 40 506 220 114 below 120

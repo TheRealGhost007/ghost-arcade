@@ -1,0 +1,58 @@
+# Esc in a run opens the pause menu, Resume picked first; Esc again resumes.
+# Quit to menu asks first when the run has points ("Leave this run? It
+# counts for 4 321"), Keep playing picked first; Leave goes back to the menu
+# and the run is kept for what it scored. (One Esc used to leave at once.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+tap SPACE
+wait 2
+game score 4321
+tap ESCAPE
+wait 3
+expect screen PLAYING
+expect game phase PAUSED
+expect app pause open
+expect app focus Resume
+shot 25-esc-pauses
+expect nofile .local/share/ghost-launcher/scores/blockfall.txt marathon|TRG|4321|
+tap ESCAPE
+wait 3
+expect game phase PLAYING
+expect app pause closed
+tap P
+wait 3
+expect game phase PAUSED
+tap P
+wait 3
+expect game phase PLAYING
+tap ESCAPE
+wait 2
+tap UP
+wait 2
+expect app focus Quit to menu
+tap ENTER
+wait 3
+expect app dialog Leave this run?
+expect app dialogbody It counts for 4 321 on Classic 10x20.
+expect app focus Keep playing
+shot 25-leave-asks
+tap ENTER
+wait 3
+expect app dialog none
+expect app pause open
+expect app focus Quit to menu
+expect game phase PAUSED
+tap ENTER
+wait 3
+expect app dialog Leave this run?
+tap RIGHT
+wait 2
+expect app focus Leave
+tap ENTER
+wait 5
+expect screen MENU
+expect file .local/share/ghost-launcher/scores/blockfall.txt marathon|TRG|4321|
+expect file .local/share/blockfall/save.dat high_score=24680

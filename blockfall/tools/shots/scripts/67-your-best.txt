@@ -1,0 +1,27 @@
+#! env SHOTS_SAVE=50000 SHOTS_SETUP=0,0,10,20
+# "Your best" is yours: on a machine with another profile (Arcade) the
+# board's best can be theirs. The classic best from save.dat (50 000) is
+# above every row, so it is #1 here, not the place of your best table row.
+write .local/share/ghost-launcher/scores/blockfall.txt marathon|Arcade|30000|2026-10-10\nmarathon|TRG|24680|2026-10-11\nultra|Arcade|5000|2026-10-10\n
+write .local/share/ghost-launcher/scores/global/blockfall.txt marathon|The Real Dev Ghost|88120|2026-10-10\n
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+expect app yourbest 50 000
+expect app yourrank #1 here
+# a long world holder's name is cut to nine letters and a stop, never "The Real ."
+expect app worldbest 88 120 The Real.
+shot 67-setup-classic-yours
+tap DOWN
+tap DOWN
+wait 8
+expect app mode Ultra
+expect app yourbest No best yet
+expect app yourrank 
+shot 67-setup-ultra-not-yours
+tap ESCAPE
+wait 8
+expect screen MENU
+expect app best:Marathon 50 000
+expect app best:Ultra no run yet

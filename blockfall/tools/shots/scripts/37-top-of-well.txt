@@ -1,0 +1,71 @@
+#! env SHOTS_SETUP=4,0,10,20 SHOTS_SHAKE=0
+# The top of the well. A bomb in the top rows stays inside the well (its
+# square drew over the BLOCKFALL title), and a piece that locks partly above
+# the top ends the run like reaching the top (it stayed there, solid but
+# never drawn).
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 #########.
+game row 4 #########.
+game row 5 #########.
+game row 6 #########.
+game row 7 #########.
+game row 8 #########.
+game row 9 #########.
+game row 10 #########.
+game row 11 #########.
+game row 12 #########.
+game row 13 #########.
+game row 14 #########.
+game row 15 #########.
+game row 16 .#########
+game row 17 .#########
+game piece O 0 4
+game power Bomb 0
+wait 2
+tap SPACE
+shot 37-bomb-at-the-top-frame1
+expect pixels 40 34 300 17 below 60
+wait 3
+shot 37-bomb-at-the-top-frame4
+expect pixels 40 34 300 17 below 60
+# Now an I kicked up into the hidden rows, slid to the wall: it locks there.
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 #########.
+game row 4 #########.
+game row 5 #########.
+game row 6 #########.
+game row 7 #########.
+game row 8 #########.
+game row 9 #########.
+game row 10 #########.
+game row 11 #########.
+game row 12 #########.
+game row 13 #########.
+game row 14 #########.
+game row 15 #########.
+game row 16 #########.
+game row 17 #########.
+game piece I 0 3
+game power none
+tap UP
+wait 2
+expect game py 2
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+wait 60
+expect game phase GAMEOVER
+shot 37-locked-above-the-top

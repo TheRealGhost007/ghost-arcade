@@ -1,0 +1,87 @@
+#! env SHOTS_SETUP=0,0,10,20
+#! after-file .config/ghost-arcade/prefs.ini music_volume=40
+#! after-file .config/blockfall/config.ini auto_pause=0
+#! after-file .config/blockfall/config.ini show_howto=1
+#! after-file .config/blockfall/config.ini volume=60
+# Phase 6: Settings > Sound and Game. The effects volume ticks at its own
+# pitch as it changes (saved in config.ini), music volume is shared
+# (prefs.ini), Sound off makes Test sound faint and say why. Game: with Auto
+# pause off the run keeps going when the window loses focus; Show How to play
+# is a button ([Next launch]) that is saved for the next launch and says so.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+tap TAB
+tap TAB
+tap TAB
+wait 3
+expect app settab Sound
+expect app setrow Effects volume
+mark sounds
+tap LEFT
+wait 2
+expect sounds pitched:0
+expect file .config/blockfall/config.ini volume=60
+tap DOWN
+tap LEFT
+tap LEFT
+tap LEFT
+wait 2
+expect file .config/ghost-arcade/prefs.ini music_volume=40
+tap DOWN
+tap LEFT
+wait 2
+expect file .config/blockfall/config.ini audio_enabled=0
+# Test sound is faint now, so Down passes it by
+tap DOWN
+wait 2
+expect app setrow Sound
+expect app look:Play disabled
+shot 125-sound-off
+tap RIGHT
+wait 2
+expect file .config/blockfall/config.ini audio_enabled=1
+tap TAB
+wait 3
+expect app settab Game
+expect app setrow Auto pause
+tap LEFT
+wait 2
+expect app autopause 0
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Show How to play
+expect app focus Next launch
+expect app showhowto 0
+tap ENTER
+wait 2
+expect app showhowto 1
+expect app note How to play will open next time.
+expect file .config/blockfall/config.ini show_howto=1
+shot 125-game
+# pressed again it stays set
+tap ENTER
+wait 2
+expect app showhowto 1
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+focus off
+wait 10
+expect game phase PLAYING
+expect app pause closed
+focus on
+wait 3

@@ -1,0 +1,13 @@
+#! env SHOTS_FIRSTRUN=1
+# First launch: How to play opens by itself, on its Basics page alone (3.0.0)
+# with "More in How to play" and a Let's play button
+wait 20
+expect screen HOWTO
+expect app howtofirst 1
+expect app howtopage Basics
+expect app focus Let's play
+shot 01-firstrun-howto
+tap ENTER
+wait 20
+expect screen MENU
+shot 01-firstrun-menu-after

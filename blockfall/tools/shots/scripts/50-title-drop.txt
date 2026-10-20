@@ -1,0 +1,15 @@
+# The living title screen: on launch the letters of BLOCKFALL drop in one by
+# one (0.04 s apart, a small thud each, about 0.6 s in all).
+wait 4
+expect screen MENU
+expect app drop 1
+mark sounds
+shot 50-title-drop-frame4
+wait 8
+shot 50-title-drop-frame12
+wait 14
+shot 50-title-drop-frame26
+wait 30
+expect app drop 0
+expect sounds pitched:2,pitched:2,pitched:2,pitched:2,pitched:2,pitched:2,pitched:2,pitched:2,pitched:2
+shot 50-title-landed

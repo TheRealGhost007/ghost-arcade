@@ -1,0 +1,32 @@
+#! env SHOTS_OLDCONFIG=1 SHOTS_CONFIG=hold-Z
+#! after-file .config/blockfall/config.ini rotate_left=NONE
+#! after-file .config/blockfall/config.ini hold=Z
+# Phase 6: an old config.ini that already uses Z (here for Hold): Rotate left
+# starts with no key (its cap shows a dash, the card a dash) and Z keeps
+# holding; nothing shares a key.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect app key:Rotate_left:1 NONE
+expect app key:Hold:1 Z
+shot 129-rotate-left-none
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect view card Left Right|Down|Up|-|Space|Z|P Esc|R
+game clear
+game piece T 0 3
+wait 2
+tap Z
+wait 2
+expect game hold T
+expect game rotation 0

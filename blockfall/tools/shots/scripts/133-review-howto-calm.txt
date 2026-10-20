@@ -1,0 +1,40 @@
+#! env SHOTS_FLASH=1 SHOTS_MOTION=reduced
+# Phase 6 review with Reduced flashing and Motion: Reduced: How to play's
+# Scoring demo at its quad (the callout sits still), and the Feel strip.
+wait 10
+tap DOWN
+tap ENTER
+wait 3
+expect screen HOWTO
+tap RIGHT
+tap RIGHT
+wait 3
+expect app howtopage Scoring
+wait 100
+shot 133-scoring-f100
+wait 4
+shot 133-scoring-f104
+wait 4
+shot 133-scoring-f108
+expect app democallout QUAD +800
+wait 4
+shot 133-scoring-f112
+tap ESCAPE
+wait 3
+expect screen MENU
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen SETTINGS
+tap TAB
+wait 3
+expect app settab Feel
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Try it
+wait 40
+shot 133-strip-reduced

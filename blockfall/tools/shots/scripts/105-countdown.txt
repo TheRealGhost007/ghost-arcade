@@ -1,0 +1,62 @@
+#! env SHOTS_COUNTDOWN=1
+# Countdown after pause (Settings, off by default): Resume shows 3, 2, 1 over
+# the board, 0.3 s each, the piece in view; nothing falls and no clock runs,
+# a turn pressed meanwhile happens at its end, and then play goes on.
+wait 10
+tap ENTER
+wait 2
+tap DOWN
+tap ENTER
+wait 3
+expect game mode Sprint
+wait 20
+tap ESCAPE
+wait 3
+expect app pause open
+tap ENTER
+wait 2
+expect app pause closed
+expect feel cue count
+shot 105-countdown-3
+expect game elapsed 0.40
+wait 16
+shot 105-countdown-2
+expect feel cue count
+tap UP
+wait 18
+expect feel cue count
+shot 105-countdown-1
+expect game rotation 0
+expect game elapsed 0.40
+expect game py 4
+wait 22
+expect feel cue none
+expect game rotation 1
+expect game phase PLAYING
+# Settings: its row
+tap ESCAPE
+wait 2
+tap UP
+tap ENTER
+wait 4
+expect screen MENU
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Resume countdown
+expect app countdown 1
+shot 105-settings-countdown
+tap ENTER
+wait 2
+expect app countdown 0
+expect file .config/blockfall/config.ini resume_countdown=0
