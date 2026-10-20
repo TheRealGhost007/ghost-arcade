@@ -38,4 +38,16 @@ bool Manifest_RemoveGame(Manifest *m, int index);
 /* Expands a leading "~/" to $HOME; otherwise copies the path unchanged. */
 void Manifest_ExpandPath(const char *in, char *out, size_t outSize);
 
+/* A machine that is a tool rather than a game (Chipforge, by its program's
+ * file name): it has no scores, runs, trophies or daily, and the hall says
+ * "Open" instead of "Play". */
+bool Manifest_IsTool(const GameEntry *e);
+
+/* What the admin form says beside a path as it is typed. */
+typedef enum { PATH_PROGRAM, PATH_FILE, PATH_FOLDER } PathKind;
+typedef enum { PATH_EMPTY, PATH_FOUND, PATH_MISSING, PATH_NOT_PROGRAM, PATH_NOT_FILE, PATH_NOT_FOLDER } PathStatus;
+PathStatus Manifest_PathStatus(const char *path, PathKind kind);
+/* "found", "not found", "not executable", ...; "" for an empty path. */
+const char *Manifest_PathWords(PathStatus st);
+
 #endif

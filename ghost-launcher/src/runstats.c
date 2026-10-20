@@ -18,19 +18,24 @@ int RunStats_DaysAgo(const char *date, time_t now) {
     return (int)(days + (days >= 0 ? 0.5 : -0.5));
 }
 
-void RunStats_Load(const char *slug, time_t now, RunSummary *out) {
-    memset(out, 0, sizeof(*out));
-    if (!slug || !slug[0] || strchr(slug, '/')) return;
+bool RunStats_LogPath(const char *slug, char *out, size_t size) {
+    if (!slug || !slug[0] || strchr(slug, '/')) return false;
     const char *xdg = getenv("XDG_DATA_HOME");
     char base[512];
     if (xdg && xdg[0]) snprintf(base, sizeof(base), "%s", xdg);
     else {
         const char *home = getenv("HOME");
-        if (!home || !home[0]) return;
+        if (!home || !home[0]) return false;
         snprintf(base, sizeof(base), "%s/.local/share", home);
     }
+    int n = snprintf(out, size, "%s/%s/runs.log", base, slug);
+    return n > 0 && (size_t)n < size;
+}
+
+void RunStats_Load(const char *slug, time_t now, RunSummary *out) {
+    memset(out, 0, sizeof(*out));
     char path[800];
-    snprintf(path, sizeof(path), "%s/%s/runs.log", base, slug);
+    if (!RunStats_LogPath(slug, path, sizeof(path))) return;
     FILE *f = fopen(path, "r");
     if (!f) return;
     char line[160];

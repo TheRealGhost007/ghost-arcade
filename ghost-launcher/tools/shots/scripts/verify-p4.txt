@@ -1,0 +1,144 @@
+#! env SHOTS_ADMIN=0
+# Phase 4 verification. A mouse press held on a machine while T puts the
+# row in another order does nothing when let go (cabinets are known by
+# their place, and another machine stands there now). A second favourite
+# lands behind the first, and its note does not claim "first". The pad
+# alone reaches Settings > Machines and stars, unstars and hides. A game
+# that exits while the launcher is behind it wakes the hall (60 fps) but
+# keeps it silent until the launcher is in front. Chipforge has no Daily
+# chip; pad Y there still says why.
+wait 30
+expect app lit Blockfall
+expect app row Blockfall,Coilrush,Brickburst,Skyraid,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+
+# Held across two T presses (Most played puts Brickburst where Coilrush was).
+mouse 680 300
+wait 3
+mdown left
+wait 2
+tap T
+wait 2
+tap T
+wait 3
+expect app order Most played
+mup left
+wait 3
+expect app lit Blockfall
+expect launches 0
+# A fresh click acts as ever: the machine now under the pointer comes in.
+click 680 300
+wait 30
+expect app lit Brickburst
+tap T
+wait 2
+tap T
+wait 3
+expect app order Your order
+expect app lit Brickburst
+
+# Two favourites: the second joins the first at the front, behind it.
+tap F
+wait 3
+expect app place 0
+expect app status Brickburst is a favourite now: favourites come first.
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect app lit Skyraid
+tap F
+wait 3
+expect app row Brickburst,Skyraid,Blockfall,Coilrush,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app place 1
+expect app status Skyraid is a favourite now: favourites come first.
+shot verify-p4-second-favourite
+
+# The pad alone: Menu, Settings, LB round to Machines, then A on the rows.
+pad on
+wait 2
+pad tap MENU
+wait 3
+pad tap DOWN
+pad tap DOWN
+wait 2
+expect app focus Settings
+pad tap A
+wait 3
+expect ui SETTINGS
+pad tap LB
+wait 3
+expect app tab Machines
+expect app focusrow Row order
+pad tap DOWN
+wait 2
+expect app focusrow Brickburst
+pad tap DOWN
+wait 2
+expect app focusrow Skyraid
+expect app focus Unfavourite
+pad tap A
+wait 3
+expect app fav:Skyraid 0
+expect app toast Saved
+expect app focusrow Skyraid
+expect app focus Favourite
+expect app mine Brickburst,Blockfall,Coilrush,Skyraid,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+wait 2
+expect app focusrow Lanehop
+pad tap RIGHT
+pad tap RIGHT
+pad tap RIGHT
+wait 2
+expect app focus Hide
+pad tap A
+wait 3
+expect app hidden:Lanehop 1
+expect app focus Show
+expect file .config/ghost-launcher/launcher.ini hide.lanehop=1\n
+expect nofile .config/ghost-launcher/launcher.ini fav.skyraid
+shot verify-p4-pad-machines
+pad tap B
+wait 3
+expect ui MENU
+pad tap B
+wait 3
+expect ui LIST
+expect app row Brickburst,Blockfall,Coilrush,Skyraid,Ghostmaze,Rockdrift,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app lit Skyraid
+expect app place 3
+
+# A game ends while the launcher is behind it: the hall wakes, still silent.
+pad tap A
+wait 70
+expect launched Skyraid
+expect file .config/ghost-launcher/launcher.ini last_played=skyraid\n
+focus off
+wait 3
+expect app quiet 1
+expect app fps 10
+expect app music silent
+gameexit
+wait 3
+expect app quiet 0
+expect app fps 60
+expect app music silent
+focus on
+wait 3
+expect app music menu
+
+# Chipforge: no Daily chip; pad Y still says why, and starts nothing.
+pad tap RB
+wait 2
+pad tap RB
+wait 30
+expect app lit Chipforge
+expect app chip:Daily absent
+expect app playlabel Open Chipforge
+pad tap Y
+wait 3
+expect app status Chipforge has no daily challenge.
+expect launches 1
+shot verify-p4-chipforge-strip

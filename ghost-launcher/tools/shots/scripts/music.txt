@@ -1,0 +1,115 @@
+#! env SHOTS_ADMIN=0 SHOTS_HALL_SONG=1 SHOTS_GEMDELVE=1
+# Phase 4: hall music and the quiet hall. The harness has no sound device,
+# so this checks what the launcher asks of the music (menu layer, silent),
+# not what is heard: the menu layer only while the hall is in front with no
+# coin dropping and no game running; the hall's share of the shared volume;
+# the Chipforge song given to the hall, picked up again after a visit to
+# Chipforge; Hall music Off; 10 frames a second with the clock stopped
+# while a game the launcher started has the screen. Also the one-time fold
+# of the old Gemdelve playtime into Gemdive.
+wait 30
+expect app music menu
+expect app musicvolume 42
+expect app hallmusic 1
+expect app hallsong Ghost Arcade (launcher)
+expect app fps 60
+expect app quiet 0
+expect app playtime:Gemdive 418.3
+expect app playtime:Gemdelve 0.0
+expect file .local/share/ghost-launcher/playtime.txt Gemdive|418.3\n
+expect nofile .local/share/ghost-launcher/playtime.txt Gemdelve
+expect file .config/ghost-launcher/launcher.ini migrated.gemdelve=1\n
+
+# Not in front: silent. Back in front: the tune again.
+focus off
+wait 3
+expect app music silent
+expect app quiet 0
+expect app fps 60
+focus on
+wait 3
+expect app music menu
+
+# The coin drop fades it out; the game it starts keeps it silent.
+tap ENTER
+wait 10
+expect app music silent
+wait 60
+expect launched Blockfall
+expect app music silent
+expect app quiet 0
+# Behind the game: the hall rests, its clock held still.
+focus off
+wait 3
+expect app quiet 1
+expect app fps 10
+log resting
+expect app clock 1.87
+wait 30
+expect app quiet 1
+expect app clock 1.87
+focus on
+wait 3
+expect app quiet 0
+expect app fps 60
+expect app clock 1.93
+expect app music silent
+gameexit
+wait 3
+expect app music menu
+
+# A visit to Chipforge gave the hall another song: picked up on return.
+focus off
+write .config/ghost-arcade/music.ini ghostarcade=lobby.gsong\n
+wait 3
+focus on
+wait 3
+expect app hallsong Lobby
+write .config/ghost-arcade/music.ini ghostarcade=ghost-arcade-launcher.gsong\n
+focus off
+wait 2
+focus on
+wait 3
+expect app hallsong Ghost Arcade (launcher)
+
+# Settings > Sound > Hall music: what it plays, and Off.
+tap TAB
+wait 3
+tap TAB
+wait 3
+expect app tab Sound
+expect app music menu
+tap DOWN
+wait 2
+expect app focusrow Hall music
+shot settings-sound-hall-music
+click 476 246
+wait 3
+expect app hallmusic 0
+expect app music silent
+expect file .config/ghost-launcher/launcher.ini hall_music=off\n
+expect app toast Saved
+mouse 480 620
+wait 3
+shot settings-sound-hall-music-off
+click 548 246
+wait 3
+expect app hallmusic 1
+expect app music menu
+# The music volume sets the hall's too.
+tap UP
+wait 2
+tap LEFT
+tap LEFT
+wait 3
+expect prefs music_volume 50
+expect app musicvolume 30
+tap ESC
+wait 3
+
+# Chipforge's card: three songs in the library, and the hall's song.
+tap LEFT
+wait 30
+expect app lit Chipforge
+expect app cardtool 1 3 Ghost Arcade (launcher)
+shot chipforge-card-song

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include "../sync/syncdata.h"
 #include "../sync/online_config.h"
 #include "../src/scores.h"
@@ -27,17 +28,16 @@
 #include "../sync/updatecheck.h"
 #include <time.h>
 #include "prefs.h"
+#include "../src/input.h"
+#include "../src/keymap.h"
+#include "../src/launcherini.h"
+#include "../src/prefswatch.h"
+#include "../src/settings.h"
 
-static int gChecks = 0;
-static int gFailures = 0;
+#include "check.h"
 
-#define CHECK(cond, msg) do { \
-    gChecks++; \
-    if (!(cond)) { \
-        gFailures++; \
-        printf("FAIL: %s (%s:%d)\n", msg, __FILE__, __LINE__); \
-    } \
-} while (0)
+int gChecks = 0;
+int gFailures = 0;
 
 static char gTmpRoot[512];
 
@@ -224,6 +224,57 @@ static void test_cache_and_local_files(void) {
     CHECK(Sync_LoadLocalFile(path, "mixed", rows, 1) == 1, "local: maxRows respected");
 }
 
+/* The board download asks for regular boards and two weeks of dailies,
+ * #1s first, so games late in the alphabet keep their boards however many
+ * old dailies the server has piled up. */
+static void test_board_download(void) {
+    struct tm noon = {0};
+    noon.tm_year = 2026 - 1900; noon.tm_mon = 9; noon.tm_mday = 14; noon.tm_hour = 12; noon.tm_isdst = -1;
+    time_t now = mktime(&noon);
+    char cutoff[24];
+    Sync_DailyCutoff(now, cutoff, sizeof(cutoff));
+    CHECK(strcmp(cutoff, "daily-20260930") == 0, "download: the daily cut-off is 14 days back, as the games keep them");
+    CHECK(Sync_KeepBoard("classic", cutoff) && Sync_KeepBoard("power-14x20", cutoff) && Sync_KeepBoard("daily-20261014", cutoff) &&
+              Sync_KeepBoard("daily-20260930", cutoff) && !Sync_KeepBoard("daily-20260929", cutoff) && !Sync_KeepBoard("daily-20250101", cutoff),
+          "download: regular boards stay, dailies from the cut-off on stay, older ones go");
+    CHECK(Sync_KeepBoard("daily-x", cutoff) && !Sync_KeepBoard(NULL, cutoff), "download: only a real daily-YYYYMMDD is ever dropped");
+
+    char q[1024];
+    size_t n = Sync_BoardQuery(now, q, sizeof(q));
+    CHECK(n == strlen(q) && n > 0, "download: the query fits");
+    CHECK(strstr(q, "game=in.(blockfall,coilrush,brickburst,skyraid,ghostmaze,rockdrift,lanehop,crawlshot,moondrop,gemdive,girderclimb)") != NULL,
+          "download: every known game, and only those");
+    CHECK(strstr(q, "&or=(mode.not.like.daily-*,mode.gte.daily-20260930)") != NULL, "download: regular boards, and dailies no older than the cut-off");
+    CHECK(strstr(q, "&order=rank.asc,game.asc,mode.asc") != NULL && strstr(q, "&limit=1000") != NULL,
+          "download: #1s first, so a cut answer trims every board a little instead of dropping the last games");
+    CHECK(Sync_BoardQuery(now, q, 40) == 0, "download: a query that does not fit is not sent");
+
+    /* What comes back, #1s first; an old daily the server sent anyway. */
+    const char *csv =
+        "game,mode,username,score,played_on\n"
+        "blockfall,classic,ghost,900,2026-10-01\n"
+        "girderclimb,classic,anna,50,2026-10-02\n"
+        "blockfall,daily-20261013,ghost,70,2026-10-13\n"
+        "blockfall,daily-20250101,old,99,2025-01-01\n"
+        "blockfall,classic,anna,800,2026-10-01\n"
+        "girderclimb,classic,ghost,40,2026-10-02\n"
+        "blockfall,classic,trg,700,2026-10-01\n";
+    SyncRow rows[16];
+    int count = Sync_ParseBoardCsv(csv, rows, 16);
+    count = Sync_DropOldDailies(rows, count, cutoff);
+    CHECK(count == 6, "download: an old daily is dropped even if the server sends it");
+    Sync_GroupBoards(rows, count);
+    const char *want[6][2] = {{"blockfall", "ghost"}, {"blockfall", "anna"}, {"blockfall", "trg"}, {"blockfall", "ghost"}, {"girderclimb", "anna"}, {"girderclimb", "ghost"}};
+    bool grouped = true;
+    for (int i = 0; i < 6; i++) grouped &= strcmp(rows[i].game, want[i][0]) == 0 && strcmp(rows[i].username, want[i][1]) == 0;
+    CHECK(grouped && strcmp(rows[3].mode, "daily-20261013") == 0, "download: grouped by game and board, each board in its rank order");
+    CHECK(Sync_WriteGlobalCache(rows, count) == 2, "download: one file per game after grouping");
+    char buf[512];
+    CHECK(ReadFile("data/ghost-launcher/scores/global/blockfall.txt", buf, sizeof(buf)) &&
+              strcmp(buf, "classic|ghost|900|2026-10-01\nclassic|anna|800|2026-10-01\nclassic|trg|700|2026-10-01\ndaily-20261013|ghost|70|2026-10-13\n") == 0,
+          "download: the file reads as before, board by board, best first");
+}
+
 static void test_install_id(void) {
     char a[SYNC_UUID_LEN], b[SYNC_UUID_LEN], small[8];
     CHECK(Sync_InstallId(a, sizeof(a)), "id: created on first use");
@@ -282,7 +333,8 @@ static void test_config(void) {
     CHECK(!cfg.enabled && cfg.decided && strcmp(cfg.key, "k1") == 0, "config: opting out again");
     int enabledLines = 0;
     { char p[900]; snprintf(p, sizeof(p), "%s/config/ghost-launcher/online.conf", gTmpRoot); FILE *ff = fopen(p, "r"); char ln[200];
-      while (ff && fgets(ln, sizeof(ln), ff)) if (strncmp(ln, "enabled", 7) == 0) enabledLines++; if (ff) fclose(ff); }
+      while (ff && fgets(ln, sizeof(ln), ff)) { if (strncmp(ln, "enabled", 7) == 0) enabledLines++; }
+      if (ff) fclose(ff); }
     CHECK(enabledLines == 1, "config: never more than one enabled= line");
 
     /* A hand-edited file with a few comments is longer than eight lines;
@@ -388,6 +440,53 @@ static InstallStatus WaitForInstall(void) {
     return Launch_InstallStatus(NULL);
 }
 
+/* A save that does not reach the disk says so: the launcher shows
+ * "Couldn't save" instead of pretending. Both ways it can fail: the folder
+ * refuses the new file, or the last step (the rename over the old file)
+ * fails, which is where a full disk shows up too. */
+static void test_saves_report_failure(void) {
+    char cfg[800], data[800], blocker[900], inside[1000];
+    snprintf(cfg, sizeof(cfg), "%s/config/ghost-launcher", gTmpRoot);
+    snprintf(data, sizeof(data), "%s/data/ghost-launcher", gTmpRoot);
+    mkdir(data, 0755);
+    Manifest m;
+    Manifest_Load(&m, "/nonexistent-assets");
+    Profiles p;
+    Profiles_Load(&p);
+    if (geteuid() != 0) { /* root writes anywhere */
+        chmod(cfg, 0555);
+        chmod(data, 0555);
+        CHECK(!Manifest_Save(&m), "saves: a catalog folder that cannot be written fails the save");
+        CHECK(!Profiles_Save(&p), "saves: so does a profiles folder");
+        chmod(cfg, 0755);
+        chmod(data, 0755);
+    }
+    /* A folder (not empty) where the file should be: the rename fails. */
+    snprintf(blocker, sizeof(blocker), "%s/profiles.txt", data);
+    remove(blocker); /* the saved copy; p still holds it and saves it back below */
+    mkdir(blocker, 0755);
+    snprintf(inside, sizeof(inside), "%s/keep", blocker);
+    FILE *f = fopen(inside, "w");
+    if (f) fclose(f);
+    CHECK(!Profiles_Save(&p), "saves: a failed last step is a failed save, not a quiet success");
+    remove(inside);
+    rmdir(blocker);
+    CHECK(Profiles_Save(&p), "saves: profiles save again once it can");
+    snprintf(blocker, sizeof(blocker), "%s/games.txt", cfg);
+    char keep[1000];
+    snprintf(keep, sizeof(keep), "%s.kept", blocker);
+    rename(blocker, keep);
+    mkdir(blocker, 0755);
+    snprintf(inside, sizeof(inside), "%s/keep", blocker);
+    f = fopen(inside, "w");
+    if (f) fclose(f);
+    CHECK(!Manifest_Save(&m), "saves: the catalog's failed last step too");
+    remove(inside);
+    rmdir(blocker);
+    rename(keep, blocker);
+    CHECK(Manifest_Save(&m), "saves: the catalog saves again once it can");
+}
+
 static void test_installer(void) {
     char err[128] = "", dir[800], marker[900];
     const char *name = NULL;
@@ -422,31 +521,33 @@ static void test_installer(void) {
     Launch_InstallAcknowledge();
 }
 
-static void Cleanup(void) {
-    const char *files[] = {
-        "data/ghost-launcher/scores/global/coilrush.txt", "data/ghost-launcher/scores/global/blockfall.txt",
-        "data/ghost-launcher/scores/mixed.txt", "data/ghost-launcher/install_id",
-        "data/ghost-launcher/scores/reader.txt", "data/ghost-launcher/scores/global/reader.txt",
-        "data/ghost-launcher/profiles.txt", "data/ghost-launcher/install.log",
-        "config/ghost-launcher/games.txt",
-        "goodsrc/Makefile", "goodsrc/installed.marker", "badsrc/Makefile",
-        "config/ghost-launcher/online.conf",
-    };
-    const char *dirs[] = {
-        "data/ghost-launcher/scores/global", "data/ghost-launcher/scores", "data/ghost-launcher", "data",
-        "config/ghost-launcher", "config", "goodsrc", "badsrc", "",
-    };
-    char path[800];
-    for (size_t i = 0; i < sizeof(files) / sizeof(files[0]); i++) {
-        snprintf(path, sizeof(path), "%s/%s", gTmpRoot, files[i]);
-        unlink(path);
-    }
-    for (size_t i = 0; i < sizeof(dirs) / sizeof(dirs[0]); i++) {
-        snprintf(path, sizeof(path), "%s/%s", gTmpRoot, dirs[i]);
+/* Everything the tests wrote, however many files that is: a fixed list of
+ * names fell behind as tests were added and left a folder in /tmp per run.
+ * Never follows a symlink, and only ever acts inside our mkdtemp folder. */
+static void RemoveTree(const char *path) {
+    struct stat st;
+    if (lstat(path, &st) != 0) return;
+    if (S_ISDIR(st.st_mode)) {
+        DIR *d = opendir(path);
+        if (d) {
+            struct dirent *e;
+            while ((e = readdir(d)) != NULL) {
+                if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0) continue;
+                char child[1024];
+                snprintf(child, sizeof(child), "%s/%s", path, e->d_name);
+                RemoveTree(child);
+            }
+            closedir(d);
+        }
         rmdir(path);
+    } else {
+        unlink(path);
     }
 }
 
+static void Cleanup(void) {
+    if (strstr(gTmpRoot, "/ghost-launcher-test-")) RemoveTree(gTmpRoot);
+}
 
 static void test_daily(void) {
     CHECK(Daily_SeedForDate(2026, 9, 20) == Daily_SeedForDate(2026, 9, 20), "daily: seed is stable for a date");
@@ -467,7 +568,7 @@ static void test_daily(void) {
 }
 
 static void test_achievements(void) {
-    static const char *const kSlugs[11] = {"blockfall", "coilrush", "brickburst", "skyraid", "ghostmaze", "rockdrift", "lanehop", "crawlshot", "moondrop", "gemdive", "girderclimb"};
+    static const char *const kSlugs[12] = {"blockfall", "coilrush", "brickburst", "skyraid", "ghostmaze", "rockdrift", "lanehop", "crawlshot", "moondrop", "gemdive", "girderclimb", "chipforge"};
     /* The table: six per game, every id unique, thresholds sensible. */
     int total = 0;
     bool unique = true, sane = true;
@@ -682,9 +783,9 @@ static void test_safefile(void) {
 }
 
 static void test_howto(void) {
-    static const char *const kSlugs[11] = {"blockfall", "coilrush", "brickburst", "skyraid", "ghostmaze", "rockdrift", "lanehop", "crawlshot", "moondrop", "gemdive", "girderclimb"};
+    static const char *const kSlugs[12] = {"blockfall", "coilrush", "brickburst", "skyraid", "ghostmaze", "rockdrift", "lanehop", "crawlshot", "moondrop", "gemdive", "girderclimb", "chipforge"};
     bool all = true, sane = true;
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < 12; i++) {
         const HowTo *h = HowTo_ForSlug(kSlugs[i]);
         if (!h) { all = false; continue; }
         int controls = 0;
@@ -694,7 +795,7 @@ static void test_howto(void) {
         }
         if (controls < 3 || controls >= HOWTO_MAX_CONTROLS || strlen(h->goal) < 20 || strlen(h->tip) < 10 || strlen(h->goal) > 240 || strlen(h->tip) > 200) sane = false;
     }
-    CHECK(all && HowTo_Count() == 11, "howto: every game has a card");
+    CHECK(all && HowTo_Count() == 12, "howto: every game and Chipforge has a card");
     CHECK(sane, "howto: each card has a goal, a tip and a sensible number of controls");
     CHECK(HowTo_ForSlug("nope") == NULL && HowTo_ForSlug(NULL) == NULL, "howto: unknown slug is NULL");
     CHECK(!HowTo_Seen("lanehop"), "howto: not seen at first");
@@ -732,6 +833,646 @@ static void test_tuning_and_prefs(void) {
     CHECK(PREFS_ROWS == 4, "prefs: four shared settings rows");
 }
 
+/* ------------------------------------------------------------ input */
+
+/* One frame of a held (or newly pressed) keyboard key. */
+static void RawKey(InputRaw *raw, InputKey k, bool pressed, bool down) {
+    memset(raw, 0, sizeof(*raw));
+    raw->focused = true;
+    raw->keyPressed[k] = pressed;
+    raw->keyDown[k] = down;
+}
+
+/* Holds k for `frames` frames after a press at 60 fps; returns the frame
+ * of the first repeat (0 = the press itself) and counts every step. */
+static int HoldKey(InputState *st, InputKey k, int frames, int *steps) {
+    InputRaw raw;
+    Input in;
+    int first = -1;
+    *steps = 0;
+    for (int f = 0; f <= frames; f++) {
+        RawKey(&raw, k, f == 0, true);
+        Input_Step(st, &raw, 1.0f / 60.0f, &in);
+        if (in.keyRepeat[k]) {
+            (*steps)++;
+            if (f > 0 && first < 0) first = f;
+        }
+    }
+    RawKey(&raw, k, false, false);
+    Input_Step(st, &raw, 1.0f / 60.0f, &in);
+    return first;
+}
+
+static void test_input_repeat(void) {
+    InputState st;
+    Input_Init(&st);
+    int steps = 0;
+    int first = HoldKey(&st, IK_RIGHT, 60, &steps);
+    CHECK(first >= 24 && first <= 25, "input: a held arrow first repeats after 0.4 s");
+    CHECK(steps >= 7 && steps <= 8, "input: then about ten steps a second (press + 6-7 repeats in the first second)");
+    first = HoldKey(&st, IK_RIGHT, 24 + 60, &steps);
+    CHECK(steps >= 11 && steps <= 12, "input: a second of repeating is about ten steps");
+    first = HoldKey(&st, IK_RIGHT, 20, &steps);
+    CHECK(first < 0 && steps == 1, "input: let go before 0.4 s and it moved once");
+    first = HoldKey(&st, IK_BACKSPACE, 40, &steps);
+    CHECK(first >= 24 && first <= 25, "input: Backspace repeats");
+    first = HoldKey(&st, IK_D, 120, &steps);
+    CHECK(first < 0 && steps == 1, "input: letter keys never repeat (D would drop a coin per step)");
+    first = HoldKey(&st, IK_DELETE, 40, &steps);
+    CHECK(first >= 24 && first <= 25, "input: Delete repeats (a text field deletes on while it is held)");
+    first = HoldKey(&st, IK_W, 120, &steps);
+    CHECK(first < 0 && steps == 1, "input: only the arrows, the d-pad, Backspace and Delete repeat");
+
+    /* The hall's Remove reads the press alone: holding Delete there asks once. */
+    InputRaw rawDel;
+    Input inDel;
+    int removes = 0, deletes = 0;
+    for (int f = 0; f < 90; f++) {
+        RawKey(&rawDel, IK_DELETE, f == 0, true);
+        Input_Step(&st, &rawDel, 1.0f / 60.0f, &inDel);
+        if (Keymap_Pressed(KA_ADMIN_REMOVE, &inDel)) removes++;
+        if (Keymap_Pressed(KA_TEXT_DELETE, &inDel)) deletes++;
+    }
+    RawKey(&rawDel, IK_DELETE, false, false);
+    Input_Step(&st, &rawDel, 1.0f / 60.0f, &inDel);
+    CHECK(removes == 1 && deletes > 5, "keymap: held Delete removes one machine but deletes text on and on");
+
+    /* A hitch (one very long frame) gives one step, not a burst. */
+    InputRaw raw;
+    Input in;
+    RawKey(&raw, IK_LEFT, true, true);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    RawKey(&raw, IK_LEFT, false, true);
+    Input_Step(&st, &raw, 2.0f, &in);
+    bool hitch = in.keyRepeat[IK_LEFT];
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(hitch && !in.keyRepeat[IK_LEFT], "input: a two-second frame repeats once, then waits");
+    RawKey(&raw, IK_LEFT, false, false);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+
+    /* A raylib tap shorter than a frame (pressed but no longer down) counts. */
+    RawKey(&raw, IK_UP, true, false);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.key[IK_UP] && in.keyRepeat[IK_UP], "input: a tap within one frame still counts");
+
+    /* The screen changes while Right (or Backspace) is held: the hold stays
+     * with the old screen until the key is pressed again. */
+    RawKey(&raw, IK_RIGHT, true, true);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    for (int f = 0; f < 30; f++) { RawKey(&raw, IK_RIGHT, false, true); Input_Step(&st, &raw, 1.0f / 60.0f, &in); }
+    bool wasRepeating = in.keyRepeat[IK_RIGHT] || st.keyRep[IK_RIGHT].armed;
+    Input_DropHolds(&st);
+    int leaked = 0;
+    for (int f = 0; f < 90; f++) { RawKey(&raw, IK_RIGHT, false, true); Input_Step(&st, &raw, 1.0f / 60.0f, &in); if (in.keyRepeat[IK_RIGHT]) leaked++; }
+    CHECK(wasRepeating && leaked == 0, "input: after a screen change a held arrow does not repeat on");
+    RawKey(&raw, IK_RIGHT, false, false);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    RawKey(&raw, IK_RIGHT, true, true);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.keyRepeat[IK_RIGHT], "input: ...and the next press works at once");
+    RawKey(&raw, IK_RIGHT, false, false);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+}
+
+static void PadFrame(InputState *st, Input *in, PadButton b, bool down, bool focused, float dt) {
+    InputRaw raw;
+    memset(&raw, 0, sizeof(raw));
+    raw.focused = focused;
+    if (b < PB_COUNT) raw.padDown[b] = down && focused;
+    Input_Step(st, &raw, dt, in);
+}
+
+static void test_input_pad(void) {
+    InputState st;
+    Input_Init(&st);
+    Input in;
+    PadFrame(&st, &in, PB_COUNT, false, true, 1.0f / 60.0f); /* the window has focus */
+
+    int confirms = 0;
+    for (int f = 0; f < 30; f++) {
+        PadFrame(&st, &in, PB_A, true, true, 1.0f / 60.0f);
+        if (Keymap_Pressed(KA_HALL_PLAY, &in)) confirms++;
+        CHECK(!in.key[IK_ENTER] && !in.key[IK_SPACE], "pad: A is not the Enter or Space key");
+    }
+    PadFrame(&st, &in, PB_A, false, true, 1.0f / 60.0f);
+    CHECK(confirms == 1, "pad: holding A confirms exactly once");
+
+    PadFrame(&st, &in, PB_B, true, true, 1.0f / 60.0f);
+    CHECK(Keymap_Pressed(KA_BACK, &in) && !Keymap_Pressed(KA_UI_PRESS, &in), "pad: B is back");
+    PadFrame(&st, &in, PB_B, false, true, 1.0f / 60.0f);
+
+    int steps = 0, first = -1;
+    for (int f = 0; f <= 60; f++) {
+        PadFrame(&st, &in, PB_RIGHT, true, true, 1.0f / 60.0f);
+        if (in.padRepeat[PB_RIGHT]) { steps++; if (f > 0 && first < 0) first = f; }
+    }
+    PadFrame(&st, &in, PB_RIGHT, false, true, 1.0f / 60.0f);
+    CHECK(first >= 24 && first <= 25 && steps >= 7 && steps <= 8, "pad: the d-pad repeats like the arrows");
+    PadFrame(&st, &in, PB_LB, true, true, 1.0f / 60.0f);
+    bool lb = in.pad[PB_LB];
+    steps = 0;
+    for (int f = 0; f < 60; f++) { PadFrame(&st, &in, PB_LB, true, true, 1.0f / 60.0f); if (in.padRepeat[PB_LB]) steps++; }
+    PadFrame(&st, &in, PB_LB, false, true, 1.0f / 60.0f);
+    CHECK(lb && steps == 0, "pad: LB is read, and shoulder buttons never repeat");
+
+    /* Leaving a game with B held: the launcher gets focus with B already
+     * down. That is not a press made here. */
+    PadFrame(&st, &in, PB_B, true, false, 1.0f / 60.0f);
+    CHECK(!in.pad[PB_B], "pad: ignored while the window is in the background");
+    PadFrame(&st, &in, PB_B, true, true, 1.0f / 60.0f);
+    bool fired = in.pad[PB_B];
+    PadFrame(&st, &in, PB_B, true, true, 1.0f / 60.0f);
+    fired = fired || in.pad[PB_B];
+    CHECK(!fired, "pad: a button held while focus comes back does not fire");
+    PadFrame(&st, &in, PB_B, false, true, 1.0f / 60.0f);
+    PadFrame(&st, &in, PB_B, true, true, 1.0f / 60.0f);
+    CHECK(in.pad[PB_B], "pad: the next real press does");
+    PadFrame(&st, &in, PB_B, false, true, 1.0f / 60.0f);
+
+    PadFrame(&st, &in, PB_LEFT, true, false, 1.0f / 60.0f);
+    steps = 0;
+    for (int f = 0; f < 90; f++) { PadFrame(&st, &in, PB_LEFT, true, true, 1.0f / 60.0f); if (in.padRepeat[PB_LEFT]) steps++; }
+    CHECK(steps == 0, "pad: a d-pad held since before focus came back never starts repeating");
+    PadFrame(&st, &in, PB_LEFT, false, true, 1.0f / 60.0f);
+
+    PadFrame(&st, &in, PB_DOWN, true, true, 1.0f / 60.0f);
+    for (int f = 0; f < 10; f++) PadFrame(&st, &in, PB_DOWN, true, true, 1.0f / 60.0f);
+    Input_DropHolds(&st);
+    steps = 0;
+    for (int f = 0; f < 90; f++) { PadFrame(&st, &in, PB_DOWN, true, true, 1.0f / 60.0f); if (in.padRepeat[PB_DOWN] || in.pad[PB_DOWN]) steps++; }
+    CHECK(steps == 0, "pad: after a screen change a held d-pad neither fires nor repeats");
+    PadFrame(&st, &in, PB_DOWN, false, true, 1.0f / 60.0f);
+}
+
+static void test_input_keys_and_device(void) {
+    InputState st;
+    Input_Init(&st);
+    InputRaw raw;
+    Input in;
+
+    RawKey(&raw, IK_ENTER, true, true);
+    raw.alt = true;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(Keymap_Pressed(KA_FULLSCREEN, &in), "keys: Alt+Enter is the fullscreen key");
+    CHECK(!Keymap_Pressed(KA_TEXT_SAVE, &in) && !Keymap_Pressed(KA_HALL_PLAY, &in) && !Keymap_Pressed(KA_UI_PRESS, &in) &&
+          !Keymap_Pressed(KA_FORM_NEXT, &in), "keys: Alt+Enter does nothing else (no game, no save)");
+    RawKey(&raw, IK_ENTER, true, true);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(Keymap_Pressed(KA_TEXT_SAVE, &in) && Keymap_Pressed(KA_HALL_PLAY, &in) && Keymap_Pressed(KA_FORM_NEXT, &in) &&
+          !Keymap_Pressed(KA_FULLSCREEN, &in), "keys: plain Enter plays and saves");
+    RawKey(&raw, IK_F11, true, true);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(Keymap_Pressed(KA_FULLSCREEN, &in) && !Keymap_Pressed(KA_HALL_PLAY, &in), "keys: F11 is fullscreen");
+    RawKey(&raw, IK_SPACE, true, true);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(Keymap_Pressed(KA_HALL_PLAY, &in) && !Keymap_Pressed(KA_TEXT_SAVE, &in) && !Keymap_Pressed(KA_FORM_NEXT, &in),
+          "keys: Space plays, but types a space in a text field");
+    RawKey(&raw, IK_ESCAPE, true, true);
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(Keymap_Pressed(KA_BACK, &in) && Keymap_Pressed(KA_TEXT_CANCEL, &in), "keys: Esc is back, and puts a name back");
+
+    /* The device used last. */
+    Input_Init(&st);
+    memset(&raw, 0, sizeof(raw));
+    raw.focused = true;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.lastDevice == DEV_KEYBOARD && !in.any, "device: the keyboard until something is used");
+    raw.mouseMoved = true;
+    raw.mouseX = 100.0f;
+    raw.mouseY = 50.0f;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.lastDevice == DEV_MOUSE && in.any && in.mouseInside, "device: moving the mouse");
+    memset(&raw, 0, sizeof(raw));
+    raw.focused = true;
+    raw.padDown[PB_X] = true;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.lastDevice == DEV_PAD, "device: a pad button");
+    memset(&raw, 0, sizeof(raw));
+    raw.focused = true;
+    raw.padDown[PB_X] = true; /* still held: not a new use of the pad */
+    raw.chars[0] = 'q';
+    raw.charCount = 1;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.lastDevice == DEV_KEYBOARD && in.charCount == 1 && in.chars[0] == 'q', "device: typing is the keyboard");
+    memset(&raw, 0, sizeof(raw));
+    raw.focused = true;
+    raw.wheel = -1.0f;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.lastDevice == DEV_MOUSE, "device: the wheel is the mouse");
+    memset(&raw, 0, sizeof(raw));
+    raw.focused = true;
+    raw.mouseMoved = true;
+    raw.keyPressed[IK_L] = raw.keyDown[IK_L] = true;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.lastDevice == DEV_KEYBOARD, "device: a key pressed while the mouse drifts is the keyboard");
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    memset(&raw, 0, sizeof(raw));
+    raw.focused = true;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.lastDevice == DEV_KEYBOARD && !in.any, "device: remembered while nothing happens");
+
+    /* Hints follow the keyboard or the pad, whichever was used last; the
+     * mouse leaves them as they were. */
+    CHECK(in.hintDevice == DEV_KEYBOARD, "hint device: the keyboard to start with");
+    raw.padDown[PB_A] = true;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    raw.padDown[PB_A] = false;
+    raw.mouseMoved = true;
+    raw.mouseX = 300.0f;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.lastDevice == DEV_MOUSE && in.hintDevice == DEV_PAD, "hint device: a pad player who nudges the mouse keeps pad hints");
+    raw.mouseMoved = false;
+    raw.keyPressed[IK_D] = raw.keyDown[IK_D] = true;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    raw.keyPressed[IK_D] = raw.keyDown[IK_D] = false;
+    CHECK(in.hintDevice == DEV_KEYBOARD, "hint device: a key turns them back to keys");
+    CHECK(Input_PadRepeats(PB_X) && !Input_PadRepeats(PB_A) && !Input_PadRepeats(PB_Y),
+          "pad: X repeats (the name board's delete), A and Y do not");
+
+    raw.mouseX = -1.0f;
+    raw.mouseY = 10.0f;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(!in.mouseInside, "mouse: the letterbox is outside the screen");
+    raw.mouseX = 959.5f;
+    raw.mouseY = 639.5f;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.mouseInside, "mouse: the bottom-right pixel is inside");
+    raw.mouseX = 960.0f;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(!in.mouseInside, "mouse: x = 960 is past the edge");
+    raw.charCount = 999;
+    Input_Step(&st, &raw, 1.0f / 60.0f, &in);
+    CHECK(in.charCount == INPUT_MAX_CHARS, "input: a runaway character count is capped");
+}
+
+/* -------------------------------------------------------- prefs watch */
+
+static void WritePrefs(const char *content) {
+    char dir[800];
+    snprintf(dir, sizeof(dir), "%s/config/ghost-arcade", gTmpRoot);
+    mkdir(dir, 0755);
+    WriteFile("config/ghost-arcade/prefs.ini", content);
+}
+
+static void test_prefswatch(void) {
+    WritePrefs("music_volume=70\nscreen_shake=1\nreduced_flashing=0\nfullscreen=0\n");
+    Prefs_Load();
+    PrefsWatch w;
+    PrefsWatch_Init(&w, true);
+
+    /* A game the player started changes two settings. */
+    WritePrefs("# written by a game\nmusic_volume=30\nscreen_shake=1\nreduced_flashing=1\nfullscreen=0\n");
+    CHECK(!PrefsWatch_Update(&w, true, false, false) && Prefs_Get()->musicVolume == 70, "prefswatch: nothing happened, nothing is read");
+    CHECK(!PrefsWatch_Update(&w, false, false, false), "prefswatch: losing focus reads nothing");
+    CHECK(PrefsWatch_Update(&w, true, false, false), "prefswatch: getting focus back reads prefs.ini");
+    CHECK(Prefs_Get()->musicVolume == 30 && Prefs_Get()->reducedFlashing, "prefswatch: ...and sees the game's changes");
+
+    WritePrefs("music_volume=40\nscreen_shake=0\nreduced_flashing=1\nfullscreen=0\n");
+    CHECK(PrefsWatch_Update(&w, true, true, false) && Prefs_Get()->musicVolume == 40 && !Prefs_Get()->screenShake,
+          "prefswatch: a game exiting reads it too");
+
+    /* F11 in the launcher right after a game changed the file. */
+    WritePrefs("music_volume=10\nscreen_shake=1\nreduced_flashing=0\nfullscreen=0\n");
+    CHECK(PrefsWatch_Update(&w, true, false, true), "prefswatch: read again before the launcher writes");
+    ArcadePrefs *p = Prefs_Get();
+    p->fullscreen = !p->fullscreen; /* what winscale.c does on F11 */
+    Prefs_Save();
+    char buf[400];
+    CHECK(ReadFile("config/ghost-arcade/prefs.ini", buf, sizeof(buf)) && strstr(buf, "music_volume=10\n") && strstr(buf, "screen_shake=1\n") &&
+          strstr(buf, "reduced_flashing=0\n") && strstr(buf, "fullscreen=1\n"),
+          "prefswatch: F11 keeps the volume, shake and flashing a game just set");
+    p->fullscreen = false;
+    Prefs_Save();
+}
+
+/* -------------------------------------------------------- launcher.ini */
+
+static void LiniWrite(const char *content) { WriteFile("config/ghost-launcher/launcher.ini", content); }
+
+static void RemoveLini(void) {
+    char p[900];
+    snprintf(p, sizeof(p), "%s/config/ghost-launcher/launcher.ini", gTmpRoot);
+    remove(p);
+}
+
+static void test_launcherini(void) {
+    static LauncherIni ini;
+    char buf[2048];
+    RemoveLini();
+    CHECK(LauncherIni_Load(&ini) && ini.count == 0, "launcher.ini: a missing file is an empty one");
+    CHECK(LauncherIni_Get(&ini, "hall_sounds") == NULL && LauncherIni_GetInt(&ini, "hall_sounds", 7, 0, 10) == 7,
+          "launcher.ini: absent keys give the default");
+    CHECK(LauncherIni_StoreInt(&ini, "hall_sounds", 4), "launcher.ini: first store creates the file");
+    CHECK(ReadFile("config/ghost-launcher/launcher.ini", buf, sizeof(buf)) && buf[0] == '#' && strstr(buf, "\nhall_sounds=4\n"),
+          "launcher.ini: a new file gets a header comment and the key");
+
+    LiniWrite("# my notes\n\nfuture_key = from a newer launcher  \n; old style comment\nhall_sounds = 7\nstart_on=last\n");
+    CHECK(LauncherIni_Load(&ini) && ini.count == 6, "launcher.ini: every line is kept");
+    CHECK(LauncherIni_GetInt(&ini, "hall_sounds", 0, 0, 10) == 7 && strcmp(LauncherIni_Get(&ini, "future_key"), "from a newer launcher") == 0,
+          "launcher.ini: spaces around keys and values are ignored");
+    CHECK(LauncherIni_Set(&ini, "hall_sounds", "3") && LauncherIni_Set(&ini, "button_hints", "xbox") && LauncherIni_Save(&ini),
+          "launcher.ini: set and save");
+    CHECK(ReadFile("config/ghost-launcher/launcher.ini", buf, sizeof(buf)) &&
+          strcmp(buf, "# my notes\n\nfuture_key = from a newer launcher\n; old style comment\nhall_sounds=3\nstart_on=last\nbutton_hints=xbox\n") == 0,
+          "launcher.ini: a change stays where the key was; comments, blanks and unknown keys survive; new keys go last");
+
+    LiniWrite("a=1\nb=2\na=3");
+    LauncherIni_Load(&ini);
+    CHECK(strcmp(LauncherIni_Get(&ini, "a"), "3") == 0, "launcher.ini: a key written twice by hand: the last wins");
+    CHECK(LauncherIni_Set(&ini, "a", "5") && LauncherIni_Save(&ini) && ReadFile("config/ghost-launcher/launcher.ini", buf, sizeof(buf)) &&
+          strcmp(buf, "a=5\nb=2\n") == 0, "launcher.ini: setting it leaves one copy, where the first was");
+
+    LiniWrite("n=12x\nbig=99999\nneg=-5\nempty=\non=On\noff=no\nodd=maybe\n");
+    LauncherIni_Load(&ini);
+    CHECK(LauncherIni_GetInt(&ini, "n", 4, 0, 10) == 4 && LauncherIni_GetInt(&ini, "empty", 4, 0, 10) == 4, "launcher.ini: a value that is not a number gives the default");
+    CHECK(LauncherIni_GetInt(&ini, "big", 4, 0, 10) == 10 && LauncherIni_GetInt(&ini, "neg", 4, 0, 10) == 0, "launcher.ini: numbers are clamped");
+    CHECK(LauncherIni_GetBool(&ini, "on", false) && !LauncherIni_GetBool(&ini, "off", true) && LauncherIni_GetBool(&ini, "odd", true) &&
+          !LauncherIni_GetBool(&ini, "odd", false), "launcher.ini: on/off words, anything else gives the default");
+
+    int before = ini.count;
+    CHECK(!LauncherIni_Set(&ini, "Bad", "1") && !LauncherIni_Set(&ini, "a b", "1") && !LauncherIni_Set(&ini, "", "1") &&
+          !LauncherIni_Set(&ini, "a=b", "1") && !LauncherIni_Set(&ini, "k", "two\nlines") && !LauncherIni_Set(&ini, "k", NULL) &&
+          !LauncherIni_Set(&ini, "a234567890123456789012345678901234567890123456789012345678901234", "1") && ini.count == before,
+          "launcher.ini: keys and values that could break the file are refused");
+    CHECK(LauncherIni_Set(&ini, "fav.gemdive", "1") && strcmp(LauncherIni_Get(&ini, "fav.gemdive"), "1") == 0, "launcher.ini: dotted per-game keys");
+
+    /* A very long line is cut, and its tail does not turn into lines. */
+    char longLine[1500];
+    memset(longLine, 'x', sizeof(longLine));
+    memcpy(longLine, "# ", 2);
+    longLine[sizeof(longLine) - 1] = '\0';
+    char content[1700];
+    snprintf(content, sizeof(content), "%s\nk=v\n", longLine);
+    LiniWrite(content);
+    CHECK(LauncherIni_Load(&ini) && ini.count == 2 && strcmp(LauncherIni_Get(&ini, "k"), "v") == 0 && strlen(ini.lines[0]) == LINI_LINE_LEN - 1,
+          "launcher.ini: an over-long line is cut short");
+    CHECK(ini.truncated && !LauncherIni_StoreInt(&ini, "k", 2) && ReadFile("config/ghost-launcher/launcher.ini", buf, sizeof(buf)) &&
+          strlen(buf) == strlen(content), "launcher.ini: ...and that file is never saved over, so the long line survives");
+    LiniWrite("hall_sounds=3\n");
+    CHECK(LauncherIni_Load(&ini) && !ini.truncated, "launcher.ini: a file that fits is not marked cut");
+    snprintf(content, sizeof(content), "%.*s\nk=v\n", LINI_LINE_LEN - 1, longLine);
+    LiniWrite(content);
+    CHECK(LauncherIni_Load(&ini) && !ini.truncated && strlen(ini.lines[0]) == LINI_LINE_LEN - 1, "launcher.ini: a line of exactly the longest length is whole");
+
+    /* A full file still updates keys it has. */
+    static char many[LINI_MAX_LINES * 12 + 64];
+    size_t used = 0;
+    for (int i = 0; i < LINI_MAX_LINES + 20; i++) used += (size_t)snprintf(many + used, sizeof(many) - used, "k%d=%d\n", i, i);
+    LiniWrite(many);
+    LauncherIni_Load(&ini);
+    CHECK(ini.count == LINI_MAX_LINES && LauncherIni_Set(&ini, "k5", "x") && !LauncherIni_Set(&ini, "brand_new", "1"),
+          "launcher.ini: at most LINI_MAX_LINES lines; a full file refuses new keys");
+    CHECK(ini.truncated && !LauncherIni_Save(&ini) && !LauncherIni_Store(&ini, "k5", "y"), "launcher.ini: a file with more lines than fit is not saved");
+    {
+        static char after[sizeof(many)];
+        CHECK(ReadFile("config/ghost-launcher/launcher.ini", after, sizeof(after)) && strcmp(after, many) == 0,
+              "launcher.ini: ...so none of its lines are lost");
+    }
+
+    /* Store re-reads first: another launcher's change is not written over. */
+    LiniWrite("hall_sounds=7\n");
+    LauncherIni_Load(&ini);
+    LiniWrite("hall_sounds=7\nstart_on=first\n");
+    CHECK(LauncherIni_Store(&ini, "hall_sounds", "2") && ReadFile("config/ghost-launcher/launcher.ini", buf, sizeof(buf)) &&
+          strcmp(buf, "hall_sounds=2\nstart_on=first\n") == 0 && strcmp(LauncherIni_Get(&ini, "start_on"), "first") == 0,
+          "launcher.ini: a store keeps a change made since this copy loaded");
+
+    /* A file that cannot be read is never replaced. */
+    RemoveLini();
+    char p[900];
+    snprintf(p, sizeof(p), "%s/config/ghost-launcher/launcher.ini", gTmpRoot);
+    mkdir(p, 0755);
+    CHECK(!LauncherIni_Load(&ini) && !LauncherIni_Store(&ini, "hall_sounds", "1"), "launcher.ini: unreadable means no save");
+    rmdir(p);
+    RemoveLini();
+}
+
+/* ---------------------------------------------------- online.conf writer */
+
+static void test_online_conf_writer(void) {
+    char buf[1024];
+    WriteFile("config/ghost-launcher/online.conf",
+              "# Ghost Arcade online settings\n  url = https://custom.example\nenabled=1\n# check_updates=1 (a note)\ncheck_updates_extra=7\nkey=k1\r\ncheck_updates=1\n");
+    CHECK(SyncConfig_SetValue("check_updates", "0"), "online.conf: a line saves");
+    CHECK(ReadFile("config/ghost-launcher/online.conf", buf, sizeof(buf)) &&
+          strcmp(buf, "# Ghost Arcade online settings\n  url = https://custom.example\nenabled=1\n# check_updates=1 (a note)\ncheck_updates_extra=7\nkey=k1\r\ncheck_updates=0\n") == 0,
+          "online.conf: only that line changes; comments, look-alike keys, spacing and CRLF are kept");
+    SyncConfig cfg;
+    SyncConfig_Load(&cfg);
+    CHECK(!cfg.checkUpdates && cfg.enabled && strcmp(cfg.url, "https://custom.example") == 0 && strcmp(cfg.key, "k1") == 0,
+          "online.conf: the launcher reads back what it wrote");
+
+    WriteFile("config/ghost-launcher/online.conf", "enabled=1\n# x\n enabled = 0\nurl=https://a.example");
+    CHECK(SyncConfig_SetValue("enabled", "1") && ReadFile("config/ghost-launcher/online.conf", buf, sizeof(buf)) &&
+          strcmp(buf, "enabled=1\n# x\nurl=https://a.example\n") == 0, "online.conf: duplicates fold into the first line");
+    CHECK(SyncConfig_SetValue("update_repo", "someone/fork") && ReadFile("config/ghost-launcher/online.conf", buf, sizeof(buf)) &&
+          strcmp(buf, "enabled=1\n# x\nurl=https://a.example\nupdate_repo=someone/fork\n") == 0,
+          "online.conf: a new key goes at the end, after a newline the last line lacked");
+
+    CHECK(!SyncConfig_SetValue("Bad", "1") && !SyncConfig_SetValue("a b", "1") && !SyncConfig_SetValue("", "1") &&
+          !SyncConfig_SetValue("url", "https://x\nkey=evil") && !SyncConfig_SetValue("url", NULL),
+          "online.conf: keys and values that could add lines are refused");
+    CHECK(ReadFile("config/ghost-launcher/online.conf", buf, sizeof(buf)) && strcmp(buf, "enabled=1\n# x\nurl=https://a.example\nupdate_repo=someone/fork\n") == 0,
+          "online.conf: a refused write leaves the file alone");
+
+    remove_online_conf_for_test();
+    CHECK(SyncConfig_SetValue("check_updates", "0") && ReadFile("config/ghost-launcher/online.conf", buf, sizeof(buf)) && strcmp(buf, "check_updates=0\n") == 0,
+          "online.conf: a missing file is created with the one line");
+    SyncConfig_Load(&cfg);
+    CHECK(!cfg.decided && !cfg.enabled, "online.conf: writing another key does not answer the share-scores question");
+
+    /* A file far too big to be online.conf is not rewritten. */
+    static char huge[70000];
+    memset(huge, '#', sizeof(huge) - 2);
+    huge[sizeof(huge) - 2] = '\n';
+    huge[sizeof(huge) - 1] = '\0';
+    WriteFile("config/ghost-launcher/online.conf", huge);
+    CHECK(!SyncConfig_SetValue("enabled", "1"), "online.conf: an oversized file is refused, not truncated");
+    char p[900];
+    snprintf(p, sizeof(p), "%s/config/ghost-launcher/online.conf", gTmpRoot);
+    struct stat st;
+    CHECK(stat(p, &st) == 0 && st.st_size == (off_t)(sizeof(huge) - 1), "online.conf: ...and left as it was");
+    remove_online_conf_for_test();
+}
+
+/* ------------------------------------------------- Settings: saving */
+
+/* Shared rows: prefs.ini is read again first, so a game's change made
+ * while the launcher had an old copy is kept; only the one value moves. */
+static void test_settings_shared_prefs(void) {
+    char buf[512];
+    WritePrefs("music_volume=30\nscreen_shake=0\nreduced_flashing=1\nfullscreen=0\n");
+    Prefs_Load(); /* the launcher's copy */
+    WritePrefs("# Ghost Arcade preferences, shared by every game\nmusic_volume=40\nscreen_shake=1\nreduced_flashing=1\nfullscreen=0\n"); /* a game saved */
+    CHECK(Settings_SaveShared(SP_FULLSCREEN, 1), "settings: fullscreen saves");
+    CHECK(ReadFile("config/ghost-arcade/prefs.ini", buf, sizeof(buf)) && strstr(buf, "music_volume=40\n") && strstr(buf, "screen_shake=1\n") &&
+          strstr(buf, "reduced_flashing=1\n") && strstr(buf, "fullscreen=1\n"),
+          "settings: a game's music and shake survive the launcher saving fullscreen");
+    CHECK(Settings_SaveShared(SP_MUSIC, 120) && Settings_SharedValue(SP_MUSIC) == 100, "settings: music volume is kept in 0-100");
+    CHECK(Settings_SaveShared(SP_SHAKE, 0) && Settings_SaveShared(SP_FLASHING, 0) && ReadFile("config/ghost-arcade/prefs.ini", buf, sizeof(buf)) &&
+          strstr(buf, "music_volume=100\nscreen_shake=0\nreduced_flashing=0\nfullscreen=1\n"), "settings: each switch saves; the four lines stay together");
+    Prefs_Load();
+    CHECK(Settings_SharedValue(SP_MUSIC) == 100 && !Settings_SharedValue(SP_SHAKE) && !Settings_SharedValue(SP_FLASHING) && Settings_SharedValue(SP_FULLSCREEN),
+          "settings: what is read back is what was saved (as every game will read it)");
+    /* A folder where prefs.ini goes: the shared Prefs_Save opens its temp
+     * copy fine and then cannot rename it, which it does not report. */
+    char blocker[800], inside[900];
+    snprintf(blocker, sizeof(blocker), "%s/config/ghost-arcade/prefs.ini", gTmpRoot);
+    remove(blocker);
+    mkdir(blocker, 0755);
+    snprintf(inside, sizeof(inside), "%s/keep", blocker);
+    FILE *f = fopen(inside, "w");
+    if (f) fclose(f);
+    CHECK(!Settings_SaveShared(SP_FLASHING, 1), "settings: a shared setting that did not reach prefs.ini says Couldn't save");
+    CHECK(!Settings_SharedValue(SP_FLASHING), "settings: ...and shows what the games will read, not the change");
+    remove(inside);
+    rmdir(blocker);
+    CHECK(Settings_SaveShared(SP_FLASHING, 1) && Settings_SharedValue(SP_FLASHING), "settings: it saves again once it can");
+    WritePrefs("music_volume=70\nscreen_shake=1\nreduced_flashing=0\nfullscreen=0\n");
+    Prefs_Load();
+}
+
+static void test_settings_launcher_ini(void) {
+    static LauncherIni ini;
+    char buf[1024];
+    RemoveLini();
+    LauncherIni_Load(&ini);
+    CHECK(Settings_HallSounds(&ini) == 10, "settings: hall sounds start at full (the old fixed volumes)");
+    LiniWrite("# notes\nstart_on=last\nhall_sounds=7\nfav.blockfall=1\n");
+    LauncherIni_Load(&ini);
+    CHECK(Settings_HallSounds(&ini) == 7, "settings: hall sounds read from launcher.ini");
+    CHECK(Settings_SaveHallSounds(&ini, 0) && ReadFile("config/ghost-launcher/launcher.ini", buf, sizeof(buf)) &&
+          strcmp(buf, "# notes\nstart_on=last\nhall_sounds=0\nfav.blockfall=1\n") == 0 && Settings_HallSounds(&ini) == 0,
+          "settings: hall sounds 0 (mute) saves in place; the other lines stay");
+    CHECK(Settings_SaveHallSounds(&ini, 15) && Settings_HallSounds(&ini) == 10, "settings: hall sounds are kept in 0-10");
+    char prefsBuf[256];
+    CHECK(ReadFile("config/ghost-arcade/prefs.ini", prefsBuf, sizeof(prefsBuf)) && !strstr(prefsBuf, "hall_sounds"),
+          "settings: the launcher's own setting never goes into the games' prefs.ini");
+    char longLine[700];
+    memset(longLine, 'x', sizeof(longLine) - 1);
+    longLine[0] = '#';
+    longLine[sizeof(longLine) - 1] = '\0';
+    char content[800];
+    snprintf(content, sizeof(content), "%s\nhall_sounds=4\n", longLine);
+    LiniWrite(content);
+    LauncherIni_Load(&ini);
+    CHECK(!Settings_SaveHallSounds(&ini, 2), "settings: a launcher.ini too big to keep says Couldn't save");
+    LauncherIni_Load(&ini);
+    CHECK(Settings_HallSounds(&ini) == 4, "settings: ...and the file keeps what it had");
+    RemoveLini();
+
+    /* Button hints: auto unless the file says keys or pad; saved in place. */
+    LauncherIni_Load(&ini);
+    CHECK(Settings_ButtonHints(&ini) == HINTS_AUTO, "settings: button hints start on Auto");
+    LiniWrite("# notes\nbutton_hints=pad\nhall_sounds=7\n");
+    LauncherIni_Load(&ini);
+    CHECK(Settings_ButtonHints(&ini) == HINTS_PAD, "settings: button hints read from launcher.ini");
+    CHECK(Settings_SaveButtonHints(&ini, HINTS_KEYS) && ReadFile("config/ghost-launcher/launcher.ini", buf, sizeof(buf)) &&
+              strcmp(buf, "# notes\nbutton_hints=keys\nhall_sounds=7\n") == 0 && Settings_ButtonHints(&ini) == HINTS_KEYS,
+          "settings: button hints save in place; the other lines stay");
+    LiniWrite("button_hints=PlayStation\n");
+    LauncherIni_Load(&ini);
+    CHECK(Settings_ButtonHints(&ini) == HINTS_AUTO, "settings: a button hints value it does not know is Auto");
+    RemoveLini();
+}
+
+static void test_settings_online(void) {
+    char buf[1024];
+    WriteFile("config/ghost-launcher/online.conf", "# mine\nenabled=0\nurl=https://custom.example\nkey=k1\ncheck_updates=1\nupdate_repo=me/fork\n");
+    CHECK(Settings_SaveOnline("enabled", true) && ReadFile("config/ghost-launcher/online.conf", buf, sizeof(buf)) &&
+          strcmp(buf, "# mine\nenabled=1\nurl=https://custom.example\nkey=k1\ncheck_updates=1\nupdate_repo=me/fork\n") == 0,
+          "settings: Share my scores writes its one line; server, key, repo and comments stay");
+    CHECK(Settings_SaveOnline("check_updates", false) && ReadFile("config/ghost-launcher/online.conf", buf, sizeof(buf)) &&
+          strcmp(buf, "# mine\nenabled=1\nurl=https://custom.example\nkey=k1\ncheck_updates=0\nupdate_repo=me/fork\n") == 0,
+          "settings: Check for updates too");
+    SyncConfig cfg;
+    SyncConfig_Load(&cfg);
+    CHECK(cfg.enabled && cfg.decided && !cfg.checkUpdates && strcmp(cfg.url, "https://custom.example") == 0, "settings: ghost-sync reads them back");
+    remove_online_conf_for_test();
+    CHECK(Settings_SaveOnline("check_updates", true), "settings: a missing online.conf is made");
+    SyncConfig_Load(&cfg);
+    CHECK(!cfg.decided, "settings: and the share question is still unanswered");
+    remove_online_conf_for_test();
+}
+
+static void test_settings_names(void) {
+    char buf[1024], data[800];
+    snprintf(data, sizeof(data), "%s/data/ghost-launcher", gTmpRoot);
+    mkdir(data, 0755);
+    WriteFile("data/ghost-launcher/profiles.txt", "__DEFAULT__|TRG\nBlockfall|Arcade\n");
+    Profiles p;
+    Profiles_Load(&p);
+    CHECK(Settings_SaveName(&p, "Gemdive", "Digger") && ReadFile("data/ghost-launcher/profiles.txt", buf, sizeof(buf)) &&
+          strstr(buf, "__DEFAULT__|TRG\n") && strstr(buf, "Blockfall|Arcade\n") && strstr(buf, "Gemdive|Digger\n"),
+          "settings: a game's name saves beside the others");
+    CHECK(Settings_SaveName(&p, "Blockfall", "") && strcmp(Profiles_GetUsername(&p, "Blockfall"), "TRG") == 0,
+          "settings: Clear makes a game use the arcade name again");
+    CHECK(Settings_SaveName(&p, PROFILE_DEFAULT_KEY, "Ghost") && strcmp(Profiles_GetUsername(&p, "Coilrush"), "Ghost") == 0,
+          "settings: the arcade name");
+    Profiles back;
+    Profiles_Load(&back);
+    CHECK(strcmp(Profiles_GetOwnUsername(&back, PROFILE_DEFAULT_KEY), "Ghost") == 0 && strcmp(Profiles_GetOwnUsername(&back, "Gemdive"), "Digger") == 0,
+          "settings: the names read back as the games will read them");
+    if (geteuid() != 0) {
+        chmod(data, 0555);
+        CHECK(!Settings_SaveName(&p, PROFILE_DEFAULT_KEY, "Nope") && strcmp(Profiles_GetOwnUsername(&p, PROFILE_DEFAULT_KEY), "Ghost") == 0,
+              "settings: a name that cannot be saved says so, and shows the one on disk");
+        chmod(data, 0755);
+    }
+}
+
+static void test_settings_last_sync(void) {
+    char global[800], file[900], tmp[920];
+    snprintf(global, sizeof(global), "%s/data/ghost-launcher/scores/global", gTmpRoot);
+    long long before = Settings_LastSync();
+    CHECK(before > 0, "sync: the boards folder is there (made earlier), so there is a time");
+    usleep(20000);
+    snprintf(file, sizeof(file), "%s/settings-test.txt", global);
+    snprintf(tmp, sizeof(tmp), "%s.tmp", file);
+    FILE *f = fopen(tmp, "w");
+    if (f) { fputs("normal|x|1|2026-01-01\n", f); fclose(f); }
+    rename(tmp, file); /* as ghost-sync writes a board */
+    long long after = Settings_LastSync();
+    CHECK(after > before, "sync: a board written moves the time, even within the same second");
+    remove(file);
+    char saved[900];
+    snprintf(saved, sizeof(saved), "%s.away", global);
+    rename(global, saved);
+    CHECK(Settings_LastSync() == 0, "sync: no boards yet: never");
+    rename(saved, global);
+}
+
+static void test_path_status(void) {
+    char bin[800], plain[800], dir[600];
+    snprintf(dir, sizeof(dir), "%s/pathcheck", gTmpRoot);
+    mkdir(dir, 0755);
+    snprintf(bin, sizeof(bin), "%s/game", dir);
+    snprintf(plain, sizeof(plain), "%s/icon.png", dir);
+    FILE *f = fopen(bin, "w");
+    if (f) fclose(f);
+    chmod(bin, 0755);
+    f = fopen(plain, "w");
+    if (f) fclose(f);
+    CHECK(Manifest_PathStatus(bin, PATH_PROGRAM) == PATH_FOUND, "path: a program that is there");
+    CHECK(Manifest_PathStatus(plain, PATH_PROGRAM) == PATH_NOT_PROGRAM, "path: a file that is not executable");
+    CHECK(Manifest_PathStatus(dir, PATH_PROGRAM) == PATH_NOT_PROGRAM, "path: a folder is not a program");
+    CHECK(Manifest_PathStatus(plain, PATH_FILE) == PATH_FOUND && Manifest_PathStatus(dir, PATH_FILE) == PATH_NOT_FILE, "path: an icon file");
+    CHECK(Manifest_PathStatus(dir, PATH_FOLDER) == PATH_FOUND && Manifest_PathStatus(plain, PATH_FOLDER) == PATH_NOT_FOLDER, "path: a source folder");
+    CHECK(Manifest_PathStatus("/no/such/thing", PATH_FILE) == PATH_MISSING && Manifest_PathStatus("", PATH_FILE) == PATH_EMPTY,
+          "path: missing, and empty (no note)");
+    const char *oldHome = getenv("HOME");
+    char home[800];
+    snprintf(home, sizeof(home), "%s", oldHome ? oldHome : "");
+    setenv("HOME", gTmpRoot, 1);
+    CHECK(Manifest_PathStatus("~/pathcheck/game", PATH_PROGRAM) == PATH_FOUND, "path: ~ is the home folder");
+    if (oldHome) setenv("HOME", home, 1); else unsetenv("HOME");
+    CHECK(strcmp(Manifest_PathWords(PATH_NOT_PROGRAM), "not executable") == 0 && strcmp(Manifest_PathWords(PATH_FOUND), "found") == 0 &&
+          Manifest_PathWords(PATH_EMPTY)[0] == '\0', "path: the words the form shows");
+    remove(bin);
+    remove(plain);
+    rmdir(dir);
+}
+
 int main(void) {
     const char *tmpBase = getenv("TMPDIR");
     snprintf(gTmpRoot, sizeof(gTmpRoot), "%s/ghost-launcher-test-XXXXXX", (tmpBase && tmpBase[0]) ? tmpBase : "/tmp");
@@ -760,14 +1501,34 @@ int main(void) {
     test_upload_json();
     test_board_csv();
     test_cache_and_local_files(); /* also creates data/ghost-launcher/scores for later fixtures */
+    test_board_download();
     test_install_id();
     test_config();
     test_scores_reader();
     test_profiles();
     test_manifest_install_field();
+    test_saves_report_failure();
     test_installer();
     test_daily();
     test_achievements();
+    test_input_repeat();
+    test_input_pad();
+    test_input_keys_and_device();
+    test_prefswatch();
+    test_launcherini();
+    test_online_conf_writer();
+    test_settings_shared_prefs();
+    test_settings_launcher_ini();
+    test_settings_online();
+    test_settings_names();
+    test_settings_last_sync();
+    test_path_status();
+    test_kit_all();
+    test_settings_all();
+    test_hall_all();
+    test_row_all();
+    test_page_all();
+    test_extras_all();
 
     Cleanup();
     printf("%d checks, %d failures\n", gChecks, gFailures);

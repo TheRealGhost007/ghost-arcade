@@ -1,0 +1,11 @@
+#! env SHOTS_FIRSTRUN=1
+# First run answered with the pad: B means "No" (as Esc), and is saved.
+wait 30
+expect ui ONLINE
+pad on
+wait 2
+pad tap B
+wait 3
+expect ui LIST
+expect file .config/ghost-launcher/online.conf enabled=0\n
+pad off

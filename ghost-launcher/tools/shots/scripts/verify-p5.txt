@@ -1,0 +1,186 @@
+#! env SHOTS_ADMIN=1
+# Phase 5 verifier: what the review found and fixed.
+# - A press held across a page flip (Enter, or the mouse on Play while PgDn
+#   turns) no longer starts the machine turned to.
+# - Turned to a machine where the keys' button is faint (Daily), the keys go
+#   to Play, so a button always shows them.
+# - On the form's buttons Left and Right stay on Save and Cancel (Right from
+#   Cancel used to climb to the switch).
+# - The strip: no time reads faint, time with no date reads Not recorded,
+#   a machine without trophies reads None.
+# - A machine of the admin's own, on every tab; Edit and Remove from a page.
+wait 30
+tap I
+wait 8
+expect app pagefor Blockfall
+expect app focus Play
+down ENTER
+wait 3
+tap PAGE_DOWN
+wait 5
+expect app pagefor Coilrush
+up ENTER
+wait 5
+expect ui GAME
+mouse 220 408
+wait 2
+mdown left
+wait 3
+tap PAGE_DOWN
+wait 5
+expect app pagefor Brickburst
+mup left
+wait 5
+expect ui GAME
+wait 70
+expect launches 0
+
+# Brickburst's Daily has the keys; Coilrush's is faint, so they go to Play.
+tap DOWN
+wait 2
+expect app focus Daily challenge
+tap PAGE_UP
+wait 5
+expect app pagefor Coilrush
+expect app focus Play
+expect app look:Play focused
+expect app pagehelp Back to the hall, where the coin drops and it starts.
+shot verify-p5-flip-focus
+# The pad's buttons line up in one column without their keys.
+pad on
+pad tap DOWN
+wait 2
+expect app focus Name for this game
+shot verify-p5-pad-column
+pad tap B
+wait 5
+pad off
+expect ui LIST
+
+# The strip: Chipforge has 18m and no date known; Ghostmaze nothing at all.
+expect app lit Coilrush
+tap I
+wait 8
+tap PAGE_UP
+wait 3
+tap PAGE_UP
+wait 5
+expect app pagefor Chipforge
+expect app strip:1 18m
+expect app strip:2 Not recorded (faint)
+mouse 900 620
+wait 3
+shot verify-p5-chipforge-strip
+tap PAGE_DOWN
+tap PAGE_DOWN
+tap PAGE_DOWN
+tap PAGE_DOWN
+tap PAGE_DOWN
+wait 5
+expect app pagefor Ghostmaze
+expect app strip:1 0m (faint)
+expect app strip:3 Never (faint)
+expect app strip:4 0/6
+tap PAGE_UP
+tap PAGE_UP
+tap PAGE_UP
+wait 5
+
+# Edit Coilrush from its page: Left/Right on the form's buttons.
+expect app pagefor Coilrush
+tap E
+wait 5
+expect ui EDIT_GAME
+tap END
+tap SPACE
+text Two
+wait 2
+expect app carry on
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+wait 2
+expect app focus Cancel
+tap RIGHT
+wait 2
+expect app focus Cancel
+tap LEFT
+wait 2
+expect app focus Save
+expect app carry on
+shot verify-p5-form-row
+tap ENTER
+wait 5
+expect ui GAME
+expect app pagefor Coilrush Two
+expect app strip:1 10m
+expect file .local/share/ghost-launcher/playtime.txt Coilrush Two|610.0
+
+# A machine of the admin's own: no how-to card, no scores, no trophies.
+tap ESCAPE
+wait 5
+tap A
+wait 5
+text Zork the Great Underground Empire
+tap ENTER
+text ~/bin/zork
+tap ENTER
+tap ENTER
+text A text adventure of the old school with a very long description that will not fit
+tap ENTER
+tap ENTER
+tap ENTER
+wait 5
+expect ui LIST
+expect app lit Zork the Great Underground Empire
+tap I
+wait 8
+expect app strip:4 None (faint)
+expect app look:Play disabled
+expect app focus Name for this game
+mouse 900 620
+wait 3
+shot verify-p5-own-about
+tap RIGHT
+wait 3
+shot verify-p5-own-scores
+tap RIGHT
+wait 3
+shot verify-p5-own-trophies
+# Remove from its page asks, then goes back to the hall.
+tap DELETE
+wait 3
+expect app dialog remove
+expect app dialogtitle Remove Zork the Great Undergr?
+tap RIGHT
+tap ENTER
+wait 5
+expect ui LIST
+expect app games 12
+
+# A double-click on the card: the first click opens the page, the second
+# (where the page's Favourite now is) presses nothing. A later click does.
+expect app lit Chipforge
+tap LEFT
+wait 30
+mouse 200 525
+wait 2
+mdown left
+wait 1
+mup left
+wait 4
+mdown left
+wait 1
+mup left
+wait 3
+expect ui GAME
+expect app pagefor Girderclimb
+expect app fav:Girderclimb 0
+wait 30
+click 200 525
+wait 3
+expect app fav:Girderclimb 1

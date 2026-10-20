@@ -87,8 +87,7 @@ bool Stats_Save(const PlayStats *s) {
     for (int i = 0; i < s->count; i++) {
         fprintf(f, "%s|%.1f\n", s->entries[i].name, s->entries[i].seconds);
     }
-    SafeFile_Close(f);
-    return true;
+    return SafeFile_Close(f); /* a failed last step (the rename) is a failed save */
 }
 
 void Stats_AddGameTime(PlayStats *s, const char *gameName, double seconds) {
@@ -109,9 +108,33 @@ void Stats_AddLauncherTime(PlayStats *s, double seconds) {
     s->totalLauncherSeconds += seconds;
 }
 
+bool Stats_Fold(PlayStats *s, const char *from, const char *into) {
+    if (strcmp(from, into) == 0) return false;
+    double seconds = 0.0;
+    bool found = false;
+    /* A hand-edited file can hold the old name twice: every copy moves. */
+    for (int i = 0; i < s->count;) {
+        if (strcmp(s->entries[i].name, from) != 0) { i++; continue; }
+        seconds += s->entries[i].seconds;
+        memmove(&s->entries[i], &s->entries[i + 1], (size_t)(s->count - i - 1) * sizeof(s->entries[0]));
+        s->count--;
+        found = true;
+    }
+    if (found) Stats_AddGameTime(s, into, seconds);
+    return found;
+}
+
 double Stats_GetGameTime(const PlayStats *s, const char *gameName) {
     for (int i = 0; i < s->count; i++) {
         if (strcmp(s->entries[i].name, gameName) == 0) return s->entries[i].seconds;
     }
     return 0.0;
+}
+
+void Stats_FormatTime(double seconds, char *out, size_t size) {
+    if (seconds < 0) seconds = 0;
+    long total = (long)seconds;
+    long h = total / 3600, m = (total % 3600) / 60;
+    if (h > 0) snprintf(out, size, "%ldh %ldm", h, m);
+    else snprintf(out, size, "%ldm", m);
 }

@@ -1,0 +1,89 @@
+# Every screen the launcher has, one picture each, reached with the keys
+# they have always had. Used to check that a change leaves the look alone.
+wait 60
+expect ui LIST
+shot hall
+
+tap ESC
+wait 10
+expect ui MENU
+shot menu-open
+tap ESC
+wait 5
+expect ui LIST
+
+tap L
+wait 10
+expect ui STATS
+shot stats
+tap ESC
+wait 5
+expect ui LIST
+
+tap H
+wait 10
+expect ui TROPHIES
+shot trophies
+tap RIGHT
+wait 5
+shot trophies-next
+tap ESC
+wait 5
+
+tap V
+wait 10
+expect ui UPDATE
+shot updates
+tap ESC
+wait 5
+
+tap TAB
+wait 10
+expect ui SETTINGS
+shot settings
+tap ESC
+wait 5
+
+tap O
+wait 10
+expect ui SETTINGS
+expect app tab Online
+shot online
+tap ESC
+wait 5
+
+tap U
+wait 10
+expect ui SETTINGS
+expect app typing 1
+shot name
+tap ESC
+wait 5
+expect ui LIST
+
+tap SHIFT U
+wait 10
+expect ui SETTINGS
+expect app typing 1
+expect app focusrow Blockfall
+shot name-for-game
+tap ESC
+wait 5
+
+# A machine that is not installed (gemdive, from the fixtures), then the
+# coin drop on an installed one, half way.
+tap LEFT
+tap LEFT
+tap LEFT
+wait 30
+shot hall-not-installed
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+tap ENTER
+wait 30
+shot hall-coin
+wait 60
+expect launched Blockfall
+expect ui LIST

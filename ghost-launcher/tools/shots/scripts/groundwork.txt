@@ -1,0 +1,147 @@
+# Phase 0 behaviour, end to end in the real launcher: hold-to-repeat, the
+# pad as real buttons, Alt+Enter only toggling fullscreen, and prefs.ini
+# read again so F11 never undoes a setting a game changed.
+wait 30
+expect ui LIST
+expect selected 0
+
+# Holding Right for a second: one step, then about ten a second after 0.4 s.
+hold RIGHT 60
+wait 2
+expect selected 7
+tap RIGHT
+wait 2
+expect selected 8
+# W/S move one machine per press and do not repeat.
+hold W 60
+wait 2
+expect selected 7
+
+# Alt+Enter: fullscreen only, no coin, no game.
+tap ALT ENTER
+wait 80
+expect fullscreen 1
+expect prefs fullscreen 1
+expect file .config/ghost-arcade/prefs.ini fullscreen=1
+expect launches 0
+expect ui LIST
+tap F11
+wait 2
+expect fullscreen 0
+
+# The pad: d-pad steps and repeats, B backs out, A starts exactly one game.
+pad on
+wait 2
+pad tap LEFT
+wait 2
+expect selected 6
+pad hold LEFT 60
+wait 2
+expect selected 11
+pad tap RIGHT
+wait 2
+expect selected 0
+tap L
+wait 5
+expect ui STATS
+pad tap B
+wait 5
+expect ui LIST
+pad hold A 20
+wait 80
+expect launches 1
+expect launched Blockfall
+pad off
+
+# A game changes settings while the launcher waits behind it; it reads them
+# when the game exits, not before.
+write .config/ghost-arcade/prefs.ini music_volume=55\nscreen_shake=0\nreduced_flashing=1\nfullscreen=0\n
+wait 2
+expect prefs music_volume 70
+gameexit
+wait 3
+expect prefs music_volume 55
+expect prefs reduced_flashing 1
+
+# Settings changed by a game started some other way: read when the
+# launcher gets focus back.
+focus off
+wait 2
+write .config/ghost-arcade/prefs.ini music_volume=20\nscreen_shake=1\nreduced_flashing=0\nfullscreen=0\n
+wait 2
+expect prefs music_volume 55
+focus on
+wait 2
+expect prefs music_volume 20
+
+# ...and F11 right after a change made behind the launcher's back keeps it.
+write .config/ghost-arcade/prefs.ini music_volume=35\nscreen_shake=0\nreduced_flashing=1\nfullscreen=0\n
+wait 2
+tap F11
+wait 2
+expect file .config/ghost-arcade/prefs.ini music_volume=35
+expect file .config/ghost-arcade/prefs.ini screen_shake=0
+expect file .config/ghost-arcade/prefs.ini reduced_flashing=1
+expect file .config/ghost-arcade/prefs.ini fullscreen=1
+expect fullscreen 1
+tap F11
+wait 2
+
+# Name entry (U types into Settings > Player at once): Backspace repeats;
+# Alt+Enter does not save; Enter does, and comes back to the hall.
+tap U
+wait 3
+expect ui SETTINGS
+expect app typing 1
+text ABCDEFGHIJ
+hold BACKSPACE 60
+wait 2
+tap ALT ENTER
+wait 3
+expect ui SETTINGS
+expect app typing 1
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRG\n
+tap ENTER
+wait 3
+expect ui LIST
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRGABC\n
+
+# A hold belongs to the screen it began on: Right held on the hall does not
+# scroll Trophies, Backspace held on the hall does not eat the name, and a
+# fresh press on the new screen works at once.
+expect selected 0
+down RIGHT
+wait 10
+tap H
+wait 60
+expect ui TROPHIES
+expect trophy 1
+up RIGHT
+wait 2
+tap RIGHT
+wait 2
+expect trophy 2
+tap ESC
+wait 3
+expect selected 1
+down BACKSPACE
+wait 5
+tap U
+wait 60
+expect ui SETTINGS
+expect app typing 1
+expect profile TRGABC
+up BACKSPACE
+wait 2
+tap BACKSPACE
+wait 2
+expect profile TRGAB
+tap ESC
+wait 3
+expect ui LIST
+
+# The close X quits at once (it acts when the button is let go, as every
+# button does now).
+quits
+click 932 28
+wait 5

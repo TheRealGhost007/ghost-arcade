@@ -81,8 +81,7 @@ bool Profiles_Save(const Profiles *p) {
     for (int i = 0; i < p->count; i++) {
         fprintf(f, "%s|%s\n", p->entries[i].gameName, p->entries[i].username);
     }
-    SafeFile_Close(f);
-    return true;
+    return SafeFile_Close(f); /* a full disk shows up here, not at the open */
 }
 
 void Profiles_SetUsername(Profiles *p, const char *gameName, const char *username) {
@@ -111,4 +110,23 @@ const char *Profiles_GetUsername(const Profiles *p, const char *gameName) {
     const char *own = Profiles_GetOwnUsername(p, gameName);
     if (own[0] != '\0') return own; /* a blank override means "use my arcade name" */
     return Profiles_GetOwnUsername(p, PROFILE_DEFAULT_KEY);
+}
+
+bool Profiles_Rename(Profiles *p, const char *from, const char *into) {
+    if (strcmp(from, into) == 0) return false;
+    int at = -1;
+    for (int i = 0; i < p->count && at < 0; i++) if (strcmp(p->entries[i].gameName, from) == 0) at = i;
+    if (at < 0) return false;
+    char name[PROFILE_USERNAME_LEN];
+    snprintf(name, sizeof(name), "%s", p->entries[at].username);
+    for (int i = 0; i < p->count;) { /* every copy of either key goes; the moved one is added back once */
+        if (strcmp(p->entries[i].gameName, from) == 0 || strcmp(p->entries[i].gameName, into) == 0) {
+            memmove(&p->entries[i], &p->entries[i + 1], (size_t)(p->count - i - 1) * sizeof(p->entries[0]));
+            p->count--;
+        } else {
+            i++;
+        }
+    }
+    Profiles_SetUsername(p, into, name);
+    return true;
 }

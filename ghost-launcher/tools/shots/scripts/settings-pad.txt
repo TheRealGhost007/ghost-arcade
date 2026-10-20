@@ -1,0 +1,107 @@
+#! env SHOTS_ADMIN=0
+# Settings from the pad alone: the Arcade menu reaches it; the d-pad moves
+# between rows (and up onto the tabs); LB/RB switch tabs; A presses or
+# flips; B goes back. A on a name's Edit cannot type: it says to use the
+# keyboard, and B puts the name back.
+wait 30
+pad on
+wait 2
+pad tap MENU
+wait 3
+pad tap DOWN
+pad tap DOWN
+wait 2
+expect app focus Settings
+pad tap A
+wait 3
+expect ui SETTINGS
+expect app device 1
+expect app focusrow Arcade name
+shot settings-pad-player
+pad tap A
+wait 3
+expect app typing 1
+expect app board 1
+shot settings-pad-board
+pad tap B
+wait 3
+expect app typing 0
+expect ui SETTINGS
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRG\n
+# Start on, then the names list: down past the sixth name scrolls it.
+pad tap DOWN
+wait 2
+expect app focusrow Start on
+pad tap DOWN
+wait 2
+expect app focusrow Blockfall
+pad tap RIGHT
+wait 2
+expect app focus Clear
+pad hold DOWN 100
+wait 3
+expect app namestop 6
+expect app focusrow Chipforge
+shot settings-pad-names
+pad hold UP 120
+wait 3
+expect app namestop 0
+expect app focus Tabs
+# LB/RB switch tabs, round the ends.
+pad tap LB
+wait 3
+expect app tab Machines
+pad tap RB
+wait 3
+expect app tab Player
+pad tap RB
+wait 3
+expect app tab Sound
+expect app focus Tabs
+pad tap DOWN
+wait 2
+expect app focusrow Music volume
+pad tap RIGHT
+wait 3
+expect prefs music_volume 80
+pad tap DOWN
+pad tap DOWN
+pad tap LEFT
+wait 3
+expect app hallsounds 9
+expect app hallmusic 1
+shot settings-pad-sound
+pad tap RB
+wait 3
+expect app tab Screen
+expect app focusrow Fullscreen
+pad tap A
+wait 3
+expect prefs fullscreen 1
+expect fullscreen 1
+pad tap A
+wait 3
+expect fullscreen 0
+pad tap DOWN
+pad tap A
+wait 3
+expect prefs reduced_flashing 1
+# Up from the first row is the tab bar; there Left/Right change tab.
+pad tap UP
+pad tap UP
+wait 2
+expect app focus Tabs
+pad tap RIGHT
+wait 3
+expect app tab Online
+pad tap DOWN
+wait 2
+expect app focusrow Share my scores
+shot settings-pad-online
+pad tap B
+wait 3
+expect ui MENU
+pad tap B
+wait 3
+expect ui LIST
+pad off

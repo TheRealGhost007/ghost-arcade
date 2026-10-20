@@ -7,29 +7,17 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "palette.h"
+#include "pixtext.h"
+#include "kitdraw.h"
+#include "settings.h"
+#include "jukebox.h"
+#include "rlgl.h"
 
 /* --- Look: a dim arcade hall. Indigo wall, patterned carpet, and a row of
  * cabinets whose only real light is their own marquee. Each game's light
  * colour is pulled from its icon, so the row gets more colourful as the
  * catalog grows without anyone picking colours by hand. */
-static const Color kWallTop = {30, 22, 64, 255};
-static const Color kWallBottom = {21, 16, 43, 255};
-static const Color kFloor = {15, 11, 33, 255};
-static const Color kBaseboard = {62, 53, 110, 255};
-static const Color kCabinet = {43, 36, 80, 255};
-static const Color kCabinetDark = {28, 23, 56, 255};
-static const Color kCabinetEdge = {70, 60, 124, 255};
-static const Color kScreenOff = {10, 8, 22, 255};
-static const Color kScreenOn = {18, 22, 46, 255};
-static const Color kInk = {21, 16, 43, 255};          /* text printed on a lit marquee */
-static const Color kWarmWhite = {255, 246, 224, 255}; /* backlit plexi */
-static const Color kText = {242, 236, 255, 255};
-static const Color kTextDim = {154, 145, 196, 255};
-static const Color kCoinRed = {255, 59, 48, 255};
-static const Color kPink = {255, 79, 163, 255};
-static const Color kTeal = {33, 212, 200, 255};
-static const Color kYellow = {255, 210, 63, 255};
-static const Color kCard = {12, 9, 28, 240};
 
 /* Press Start 2P is drawn on an 8x8 grid, so it only renders with even
  * pixels at multiples of 8. Every piece of text in the launcher uses one of
@@ -38,39 +26,12 @@ static const Color kCard = {12, 9, 28, 240};
 #define TYPE_M 16
 #define TYPE_L 24
 
-static Font sPixelFont;
-static bool sFontLoaded = false;
+static void PText(const char *text, int x, int y, int fontSize, Color color) { Pix_Text(text, x, y, fontSize, color); }
+static int PMeasure(const char *text, int fontSize) { return Pix_Measure(text, fontSize); }
+static void PTextCentered(const char *text, int fontSize, int centerX, int y, Color color) { Pix_TextCentered(text, fontSize, centerX, y, color); }
+static void PTextRight(const char *text, int fontSize, int rightX, int y, Color color) { Pix_TextRight(text, fontSize, rightX, y, color); }
 
-static float PSpacing(float fontSize) { return fontSize * 0.125f; } /* one font pixel */
-
-static void PText(const char *text, int x, int y, int fontSize, Color color) {
-    Font font = sFontLoaded ? sPixelFont : GetFontDefault();
-    DrawTextEx(font, text, (Vector2){(float)x, (float)y}, (float)fontSize, PSpacing((float)fontSize), color);
-}
-
-static int PMeasure(const char *text, int fontSize) {
-    Font font = sFontLoaded ? sPixelFont : GetFontDefault();
-    return (int)MeasureTextEx(font, text, (float)fontSize, PSpacing((float)fontSize)).x;
-}
-
-static void PTextCentered(const char *text, int fontSize, int centerX, int y, Color color) {
-    PText(text, centerX - PMeasure(text, fontSize) / 2, y, fontSize, color);
-}
-
-static void PTextRight(const char *text, int fontSize, int rightX, int y, Color color) {
-    PText(text, rightX - PMeasure(text, fontSize), y, fontSize, color);
-}
-
-static Color Mix(Color a, Color b, float t) {
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
-    return (Color){
-        (unsigned char)((float)a.r + ((float)b.r - (float)a.r) * t),
-        (unsigned char)((float)a.g + ((float)b.g - (float)a.g) * t),
-        (unsigned char)((float)a.b + ((float)b.b - (float)a.b) * t),
-        255,
-    };
-}
+static Color Mix(Color a, Color b, float t) { return Pal_Mix(a, b, t); }
 
 /* --- Icon cache: loaded lazily by path, kept for the process lifetime.
  * Alongside the texture we keep the cabinet light colour derived from it. */
@@ -170,15 +131,7 @@ static Texture2D sGhostIcon;
 static bool sGhostIconLoaded = false;
 
 void Render_Init(const char *assetsDir) {
-    char fontPath[512];
-    snprintf(fontPath, sizeof(fontPath), "%s/fonts/PressStart2P-Regular.ttf", assetsDir);
-    if (FileExists(fontPath)) {
-        sPixelFont = LoadFontEx(fontPath, 64, NULL, 0);
-        if (sPixelFont.texture.id != 0) {
-            SetTextureFilter(sPixelFont.texture, TEXTURE_FILTER_POINT);
-            sFontLoaded = true;
-        }
-    }
+    Pix_Load(assetsDir);
 
     char iconPath[512];
     snprintf(iconPath, sizeof(iconPath), "%s/icons/ghost-launcher.png", assetsDir);
@@ -194,50 +147,16 @@ void Render_Shutdown(void) {
         if (sIconCache[i].loaded) UnloadTexture(sIconCache[i].tex);
     }
     if (sGhostIconLoaded) UnloadTexture(sGhostIcon);
-    if (sFontLoaded) UnloadFont(sPixelFont);
+    Pix_Unload();
 }
 
-/* 7x7 pixel-art X, drawn as blocky flat-filled squares (no rounded corners,
- * no anti-aliased lines) to match the retro pixel-font theme. */
-static const char kCloseXPattern[7][8] = {
-    "X.....X",
-    ".X...X.",
-    "..X.X..",
-    "...X...",
-    "..X.X..",
-    ".X...X.",
-    "X.....X",
-};
-
-static void DrawCloseButton(void) {
-    DrawRectangle(CLOSE_BTN_X, CLOSE_BTN_Y, CLOSE_BTN_SIZE, CLOSE_BTN_SIZE, (Color){48, 18, 30, 255});
-    DrawRectangleLinesEx((Rectangle){(float)CLOSE_BTN_X, (float)CLOSE_BTN_Y, (float)CLOSE_BTN_SIZE, (float)CLOSE_BTN_SIZE},
-                         2.0f, (Color){96, 32, 44, 255});
-    int px = 2;
-    int ox = CLOSE_BTN_X + (CLOSE_BTN_SIZE - 7 * px) / 2;
-    int oy = CLOSE_BTN_Y + (CLOSE_BTN_SIZE - 7 * px) / 2;
-    for (int y = 0; y < 7; y++) {
-        for (int x = 0; x < 7; x++) {
-            if (kCloseXPattern[y][x] == 'X') DrawRectangle(ox + x * px, oy + y * px, px, px, kCoinRed);
-        }
-    }
-}
-
-static void FormatHMS(double seconds, char *out, int outSize) {
-    if (seconds < 0) seconds = 0;
-    long total = (long)seconds;
-    long h = total / 3600;
-    long mnt = (total % 3600) / 60;
-    if (h > 0) snprintf(out, outSize, "%ldh %ldm", h, mnt);
-    else snprintf(out, outSize, "%ldm", mnt);
-}
+static void FormatHMS(double seconds, char *out, int outSize) { Stats_FormatTime(seconds, out, (size_t)outSize); }
 
 /* ------------------------------------------------------------------ hall */
 
-#define FLOOR_Y 436         /* where the cabinets stand */
-#define SLOT_SPACING 200    /* centre-to-centre distance along the row */
-#define CAB_W_UNITS 48      /* wide enough for a 10-letter name at 16px on the marquee */
-#define CAB_H_UNITS 84
+#define FLOOR_Y HALL_FLOOR_Y         /* where the cabinets stand */
+#define CAB_W_UNITS HALL_CAB_W_UNITS /* wide enough for a 10-letter name at 16px on the marquee */
+#define CAB_H_UNITS HALL_CAB_H_UNITS
 
 /* The carpet: every arcade had one. Sparse confetti in three colours from a
  * fixed seed, so it is identical every frame with no stored state. */
@@ -358,15 +277,19 @@ static void DrawNeonTube(float time, Color tint) {
     for (int x = 60; x < WINDOW_WIDTH; x += 180) DrawRectangle(x, y + 3, 4, 8, (Color){40, 34, 84, 255});
 }
 
-static void DrawExitSign(float time) {
+/* A real exit now: under the mouse it lights up fully and glows, and it
+ * presses in like a button. At rest it looks as it always has. */
+static void DrawExitSign(float time, KitLook look) {
     int x = 28, y = 68;
-    float on = fmodf(time, 4.0f) < 3.6f ? 1.0f : 0.55f;
+    bool hot = look == KIT_LOOK_HOVER || look == KIT_LOOK_PRESSED;
+    float on = (hot || fmodf(time, 4.0f) < 3.6f) ? 1.0f : 0.55f;
+    int sink = look == KIT_LOOK_PRESSED ? 2 : 0;
     Color green = {90, 230, 130, 255};
-    DrawRectangle(x - 1, y - 1, 36, 14, (Color){14, 40, 26, 255});
+    DrawRectangle(x - 1, y - 1, 36, 14, look == KIT_LOOK_PRESSED ? (Color){8, 26, 16, 255} : (Color){14, 40, 26, 255});
     BeginBlendMode(BLEND_ADDITIVE);
-    DrawRectangle(x - 6, y - 6, 46, 24, Fade(green, 0.06f * on));
+    DrawRectangle(x - 6, y - 6, 46, 24, Fade(green, (hot ? 0.16f : 0.06f) * on));
     EndBlendMode();
-    PText("EXIT", x + 2, y + 2, TYPE_S, Fade(green, on));
+    PText("EXIT", x + 2, y + 2 + sink, TYPE_S, Fade(hot ? Mix(green, kWarmWhite, 0.4f) : green, on));
 }
 
 static void DrawMotes(float time) {
@@ -448,8 +371,8 @@ static void DrawVignette(void) {
 
 /* full = the hall with its floor (the cabinet row); otherwise a quieter
  * version for the secondary screens, which have text to read. */
-static void DrawHall(bool full) {
-    float time = (float)GetTime();
+static void DrawHall(bool full, KitLook exitLook) {
+    float time = (float)KitDraw_Clock();
     Color tint = sTint;
 
     if (full) {
@@ -461,7 +384,7 @@ static void DrawHall(bool full) {
         DrawSpotlights(time, tint);
         DrawNeonTube(time, tint);
         DrawNeonSign(time, tint);
-        DrawExitSign(time);
+        DrawExitSign(time, exitLook);
         DrawCarpet();
         DrawFloorSheen(tint);
         /* a strip light along the foot of the wall, and its wash on the carpet */
@@ -662,15 +585,102 @@ static void DrawCoin(float cx, float cy, float radius, float spin, float visible
     }
 }
 
-static void DrawCabinet(const GameEntry *game, float centerX, float focus, float marqueePower, bool installed, float coinT) {
+/* Under the pointer a side machine glows softly in its own light, in three
+ * steps so it stays pixel art, and its marquee wakes a little. */
+static void DrawHoverGlow(const CabFrame *f, Color light, bool pressed) {
+    Color c = Mix(light, kWarmWhite, 0.35f);
+    float x = f->x0 - f->u, w = (CAB_W_UNITS + 2) * f->u, h = CAB_H_UNITS * f->u;
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (int i = 3; i >= 1; i--) {
+        float pad = 4.0f * (float)i;
+        DrawRectangle((int)(x - pad), (int)(f->y0 - pad), (int)(w + 2 * pad), (int)(h + pad), Fade(c, pressed ? 0.07f : 0.05f));
+    }
+    EndBlendMode();
+    DrawRectangleLinesEx((Rectangle){x - 2, f->y0 - 2, w + 4, h + 2}, 2.0f, Fade(c, pressed ? 0.75f : 0.5f));
+}
+
+/* The lit machine under the pointer: a click drops the coin, so its slots
+ * light up and wait for it (steady with reduced flashing). */
+static Color WaitingSlot(void) {
+    float t = Prefs_Get()->reducedFlashing ? 0.6f : 0.45f + 0.35f * sinf((float)KitDraw_Clock() * 6.0f);
+    return Mix(kCoinRed, kWarmWhite, t);
+}
+
+/* A favourite's gold star, stuck over the marquee's top left corner like a
+ * sticker: 16 px, with a dark rim so it reads on any marquee light. */
+static void DrawMarqueeStar(const CabFrame *f) {
+    int x = (int)roundf(f->x0 - f->u) - 6, y = (int)roundf(f->y0) - 6;
+    static const int kRim[4][2] = {{-2, 0}, {2, 0}, {0, -2}, {0, 2}};
+    for (int i = 0; i < 4; i++) KitDraw_Star(x + kRim[i][0], y + kRim[i][1], 2, true, kInk);
+    KitDraw_Star(x, y, 2, true, kYellow);
+}
+
+/* The coin door with its two slots, in the same place on every machine (the
+ * jukebox's too), so the coin always lands in the left one. Dark when the
+ * machine is off; waiting under the pointer; flashing once it has the
+ * credit. */
+#define DOOR_X (CAB_W_UNITS / 2.0f - 8.0f)
+
+static void CoinDoor(const CabFrame *f, bool installed, float focus, float coinT, bool waiting) {
+    CabRect(f, DOOR_X, 60, 16, 17, kCabinetDark);
+    CabRect(f, DOOR_X, 60, 16, 1, kCabinetEdge);
+    Color slot = Mix((Color){86, 22, 28, 255}, kCoinRed, installed ? focus : 0.0f);
+    /* Credit accepted: the slots flash white, then strobe until the game is up. */
+    if (coinT >= COIN_DING_AT) slot = (fmodf(coinT * 18.0f, 2.0f) < 1.0f) ? kWarmWhite : kYellow;
+    else if (waiting && installed && coinT < 0.0f) slot = WaitingSlot();
+    CabRect(f, DOOR_X + 3, 63, 3, 5, slot);
+    CabRect(f, DOOR_X + 10, 63, 3, 5, slot);
+    CabRect(f, DOOR_X + 5, 72, 6, 2, kScreenOff);
+}
+
+/* The coin's flight into the left slot, and the screen (in cabinet units)
+ * warming to white as the machine takes the credit. */
+static void CoinDrop(const CabFrame *f, float coinT, float scrX, float scrY, float scrW, float scrH) {
+    if (coinT < 0.0f) return;
+    float u = f->u;
+    if (coinT >= COIN_DING_AT) {
+        float k = (coinT - COIN_DING_AT) / (1.0f - COIN_DING_AT);
+        int sx = (int)roundf(f->x0 + scrX * u), sw = (int)roundf(scrW * u);
+        int sy = (int)roundf(f->y0 + scrY * u), sh = (int)roundf(scrH * u);
+        DrawRectangle(sx, sy, sw, sh, Fade(kWarmWhite, k * k * 0.85f));
+    }
+    /* Flight: tossed up from the player's side of the floor, a lazy arc,
+     * then straight down into the left slot. */
+    float slotX = f->x0 + (DOOR_X + 4.5f) * u;
+    float slotY = f->y0 + 63.0f * u;
+    float flight = 0.46f;
+    if (coinT < flight) {
+        float k = coinT / flight;
+        float ease = 1.0f - (1.0f - k) * (1.0f - k);
+        float startX = slotX + 150.0f, startY = (float)FLOOR_Y + 40.0f;
+        float x = startX + (slotX - startX) * ease;
+        float y = startY + (slotY - 26.0f - startY) * ease - sinf(k * 3.14159f) * 120.0f;
+        DrawCoin(x, y, 10.0f, coinT * 38.0f, 1.0f);
+    } else if (coinT < COIN_DING_AT) {
+        float k = (coinT - flight) / (COIN_DING_AT - flight);
+        /* Face-on, shrinking away from us into the lit slot. */
+        float slotMidY = slotY + 2.5f * u;
+        DrawCoin(slotX, (slotY - 26.0f) + (slotMidY - (slotY - 26.0f)) * k, 10.0f - 7.0f * k, 0.0f, 1.0f);
+    }
+}
+
+static void DrawCabinet(const GameEntry *game, float centerX, float focus, float marqueePower, bool installed, float coinT,
+                        KitLook look, bool favourite) {
     float u = 3.0f + focus; /* 3px units in the row, 4px when selected */
     CabFrame f = {centerX - (CAB_W_UNITS * u) / 2.0f, (float)FLOOR_Y - 4.0f - CAB_H_UNITS * u, u};
+    bool hot = look == KIT_LOOK_HOVER || look == KIT_LOOK_PRESSED;
+    bool front = focus > 0.99f;
 
     IconCacheEntry *icon = GetGameIcon(game);
     Color light = icon ? icon->light : LightFromName(game->name);
     /* A machine that isn't installed is unplugged: even when selected its
      * marquee only gets a little ambient light and the coin slots stay dark. */
     float lit = focus * marqueePower * (installed ? 1.0f : 0.18f);
+    if (hot && !front) {
+        DrawHoverGlow(&f, light, look == KIT_LOOK_PRESSED);
+        float awake = installed ? 0.45f : 0.12f;
+        if (lit < awake) lit = awake;
+    }
 
     /* Light it throws: a pool on the carpet and a halo on the wall. */
     if (lit > 0.02f) {
@@ -703,6 +713,7 @@ static void DrawCabinet(const GameEntry *game, float centerX, float focus, float
         Color nameColor = lit > 0.55f ? kInk : Mix(light, kWarmWhite, 0.25f + 0.5f * lit);
         PTextCentered(name, size, (int)roundf(centerX), ty, nameColor);
     }
+    if (favourite) DrawMarqueeStar(&f);
 
     /* Body, speaker brow, bezel. */
     CabRect(&f, 0, 12, W, 72, kCabinet);
@@ -717,7 +728,7 @@ static void DrawCabinet(const GameEntry *game, float centerX, float focus, float
         float sx0 = roundf(f.x0 + 5 * u), sy0 = roundf(f.y0 + 18 * u), sw0 = roundf((W - 10) * u), sh0 = roundf(26 * u);
         DemoBox box = {sx0, sy0, sw0, sh0, 0.30f + 0.70f * focus};
         BeginScissorMode((int)sx0, (int)sy0, (int)sw0, (int)sh0);
-        drewDemo = DrawDemo(game->name, &box, (float)GetTime());
+        drewDemo = DrawDemo(game->name, &box, (float)KitDraw_Clock());
         EndScissorMode();
     }
     if (icon && !drewDemo) {
@@ -760,72 +771,47 @@ static void DrawCabinet(const GameEntry *game, float centerX, float focus, float
     CabRect(&f, W - 2, 56, 2, 24, stripe);
     CabRect(&f, 3, 56, 1, 24, Mix(kCabinet, stripe, 0.45f));
     CabRect(&f, W - 4, 56, 1, 24, Mix(kCabinet, stripe, 0.45f));
-    float door = W / 2 - 8;
-    CabRect(&f, door, 60, 16, 17, kCabinetDark);
-    CabRect(&f, door, 60, 16, 1, kCabinetEdge);
-    Color slot = Mix((Color){86, 22, 28, 255}, kCoinRed, installed ? focus : 0.0f);
-    bool credited = coinT >= COIN_DING_AT;
-    /* Credit accepted: the slots flash white, then strobe until the game is up. */
-    if (credited) slot = (fmodf(coinT * 18.0f, 2.0f) < 1.0f) ? kWarmWhite : kYellow;
-    CabRect(&f, door + 3, 63, 3, 5, slot);
-    CabRect(&f, door + 10, 63, 3, 5, slot);
-    CabRect(&f, door + 5, 72, 6, 2, kScreenOff);
+    CoinDoor(&f, installed, focus, coinT, hot && front);
     CabRect(&f, 0, 80, W, 4, kCabinetDark);
-
-    if (coinT >= 0.0f) {
-        /* The screen warms to white as the machine takes the credit. */
-        if (credited) {
-            float k = (coinT - COIN_DING_AT) / (1.0f - COIN_DING_AT);
-            int sx = (int)roundf(f.x0 + 5 * u), sw = (int)roundf((W - 10) * u);
-            int sy = (int)roundf(f.y0 + 18 * u), sh = (int)roundf(26 * u);
-            DrawRectangle(sx, sy, sw, sh, Fade(kWarmWhite, k * k * 0.85f));
-        }
-
-        /* Flight: tossed up from the player's side of the floor, a lazy arc,
-         * then straight down into the left slot. */
-        float slotX = f.x0 + (door + 4.5f) * u;
-        float slotY = f.y0 + 63.0f * u;
-        float flight = 0.46f;
-        if (coinT < flight) {
-            float k = coinT / flight;
-            float ease = 1.0f - (1.0f - k) * (1.0f - k);
-            float startX = slotX + 150.0f, startY = (float)FLOOR_Y + 40.0f;
-            float x = startX + (slotX - startX) * ease;
-            float y = startY + (slotY - 26.0f - startY) * ease - sinf(k * 3.14159f) * 120.0f;
-            DrawCoin(x, y, 10.0f, coinT * 38.0f, 1.0f);
-        } else if (coinT < COIN_DING_AT) {
-            float k = (coinT - flight) / (COIN_DING_AT - flight);
-            /* Face-on, shrinking away from us into the lit slot. */
-            float slotMidY = slotY + 2.5f * u;
-            DrawCoin(slotX, (slotY - 26.0f) + (slotMidY - (slotY - 26.0f)) * k, 10.0f - 7.0f * k, 0.0f, 1.0f);
-        }
-    }
+    CoinDrop(&f, coinT, 5, 18, W - 10, 26);
 }
 
-static void DrawHeader(const char *arcadeName, bool adminUnlocked) {
+/* "Playing as TRG", a chip like the Menu chip beside it: screens.c says
+ * what fits where; a click opens Settings > Player. An empty name is a red
+ * "Set your name". */
+static void DrawPlayingAs(const char *arcadeName, bool admin, bool updateBehind, KitLook look) {
+    PlayingAs pa;
+    Screens_PlayingAs(&pa, arcadeName, admin, updateBehind);
+    KitItem block;
+    memset(&block, 0, sizeof(block));
+    block.kind = KIT_BUTTON;
+    block.style = KIT_STYLE_SMALL;
+    block.textSize = 8;
+    block.r = pa.r;
+    KitDraw_Item(&block, look == KIT_LOOK_FOCUSED ? KIT_LOOK_NORMAL : look, KIT_NONE, KIT_NONE);
+    Color label = look == KIT_LOOK_HOVER ? kText : kTextDim, name = pa.empty ? kCoinRed : kYellow;
+    int sink = 0;
+    if (look == KIT_LOOK_PRESSED) {
+        label = name = kInk;
+        sink = 2;
+    }
+    if (pa.label[0]) PText(pa.label, pa.labelX, pa.y + sink, TYPE_S, label);
+    PText(pa.name, pa.nameX, pa.y + sink, TYPE_S, name);
+}
+
+/* The title and, for admin, its badge; the chips come from the view. */
+static void DrawHeader(const char *arcadeName, bool admin, bool updateBehind, KitLook nameLook) {
     if (sGhostIconLoaded) {
         DrawTexturePro(sGhostIcon, (Rectangle){0, 0, (float)sGhostIcon.width, (float)sGhostIcon.height},
                        (Rectangle){24, 12, 32, 32}, (Vector2){0, 0}, 0.0f, WHITE);
     }
     PText("GHOST LAUNCHER", 68, 20, TYPE_M, kWarmWhite);
-
-    int rightX = CLOSE_BTN_X - 24;
-    if (arcadeName && arcadeName[0] != '\0') {
-        char buf[PROFILE_USERNAME_LEN + 16];
-        snprintf(buf, sizeof(buf), "%.24s", arcadeName);
-        PTextRight(buf, TYPE_S, rightX, 24, kYellow);
-        PTextRight("Playing as ", TYPE_S, rightX - PMeasure(buf, TYPE_S), 24, kTextDim);
-    } else {
-        /* An empty name is a prompt to act, not a blank. */
-        PTextRight("Press U to set your name", TYPE_S, rightX, 24, kCoinRed);
-    }
-
-    if (adminUnlocked) {
+    if (admin) {
         int x = 68 + PMeasure("GHOST LAUNCHER", TYPE_M) + 20;
         DrawRectangle(x, 18, PMeasure("ADMIN", TYPE_S) + 16, 20, (Color){80, 28, 70, 255});
         PText("ADMIN", x + 8, 24, TYPE_S, kPink);
-        PText("A add   E edit   Del remove", x + PMeasure("ADMIN", TYPE_S) + 32, 24, TYPE_S, kTextDim);
     }
+    DrawPlayingAs(arcadeName, admin, updateBehind, nameLook);
 }
 
 /* Greedy word-wrap against the pixel font's measured width. Returns the
@@ -857,10 +843,214 @@ static int WrapText(const char *text, int fontSize, int maxWidth, char lines[][W
     return count;
 }
 
-#define CARD_X 40
-#define CARD_Y 474
-#define CARD_W (WINDOW_WIDTH - 80)
-#define CARD_H 122
+/* ------------------------------------------------------------- jukebox
+ * Chipforge's machine: an arched top with a neon tube round it, bubble
+ * tubes up its sides, a speaker grille, and a screen that scrolls the notes
+ * of the hall's song (or, with the music off, shows its title card). It
+ * stands in the same footprint as a cabinet, coin door and all, so the
+ * mouse and the coin find it where they find any machine. */
+
+/* The tubes' colour drifts slowly through the house's three lights; held
+ * still with reduced flashing. */
+static Color TubeColour(float time, float phase) {
+    if (Prefs_Get()->reducedFlashing) return kPink;
+    const Color stops[3] = {kPink, kYellow, kTeal};
+    float t = fmodf(time * 0.12f + phase, 3.0f);
+    if (t < 0.0f) t += 3.0f;
+    int i = (int)t;
+    return Mix(stops[i % 3], stops[(i + 1) % 3], t - (float)i);
+}
+
+/* Half an ellipse, a row of cabinet units at a time, so its edge steps like
+ * pixel art at any size. */
+static void HalfEllipse(const CabFrame *f, float cx, float baseY, float a, float b, Color c) {
+    for (float r = 0.0f; r < b; r += 1.0f) {
+        float dy = b - r - 0.5f;
+        float hw = a * sqrtf(fmaxf(0.0f, 1.0f - (dy / b) * (dy / b)));
+        CabRect(f, cx - hw, baseY - b + r, hw * 2.0f, 1.0f, c);
+    }
+}
+
+/* A note on the screen: its lane's pitch range spread over the lane. */
+static int NoteY(int note, int lo, int hi, int laneTop, int laneH, int blockH) {
+    if (hi <= lo) return laneTop + (laneH - blockH) / 2;
+    return laneTop + (int)((float)(hi - note) / (float)(hi - lo) * (float)(laneH - blockH));
+}
+
+/* The song's title on a jukebox title card, up to three lines. */
+static void DrawTitleCard(int sx, int sy, int sw, int sh, float bright, const char *title) {
+    char lines[3][WRAP_BUF];
+    int n = WrapText(title && title[0] ? title : "Built-in theme", TYPE_S, sw - 20, lines, 3);
+    for (int i = 0; i < n; i++) {
+        int len = (int)strlen(lines[i]);
+        while (len > 1 && PMeasure(lines[i], TYPE_S) > sw - 20) lines[i][--len] = '\0'; /* one long word */
+    }
+    int cardH = 12 + n * 12 + 8, cardW = sw - 12;
+    int cx = sx + 6, cy = sy + (sh - cardH - 14) / 2;
+    Color paper = Mix((Color){150, 142, 128, 255}, kWarmWhite, 0.35f + 0.65f * bright);
+    DrawRectangle(cx, cy, cardW, cardH, paper);
+    DrawRectangle(cx, cy, cardW, 4, Mix(paper, kPink, bright));
+    DrawRectangle(cx, cy + cardH - 4, cardW, 4, Mix(paper, kTeal, bright));
+    for (int i = 0; i < n; i++) PTextCentered(lines[i], TYPE_S, sx + sw / 2, cy + 8 + i * 12, kInk);
+    PTextCentered("MUSIC OFF", TYPE_S, sx + sw / 2, cy + cardH + 6, Fade(kTextDim, 0.4f + 0.6f * bright));
+}
+
+/* The notes of the hall's song scrolling past a playhead a third of the way
+ * in: the lead on top, the arpeggio, the bass at the bottom, the drums as a
+ * row of dots under them. Notes already played are dimmer. */
+static void DrawJukeNotes(int sx, int sy, int sw, int sh, float bright, const JukeView *j) {
+    JukeWindow w;
+    Jukebox_Window(j->song, j->seconds, &w);
+    float colW = (float)sw / (float)(JUKE_STEPS - JUKE_LEAD);
+    float frac = (float)(w.playhead - floor(w.playhead));
+    int headX = sx + (int)roundf((float)JUKE_LEAD * colW);
+    const int order[SONG_TONE_TRACKS] = {TRACK_LEAD, TRACK_ARP, TRACK_BASS};
+    const Color colour[SONG_TONE_TRACKS] = {kYellow, kPink, kTeal};
+    int drumH = 6, laneH = (sh - drumH - 6) / 3, blockH = laneH / 5 < 2 ? 2 : laneH / 5;
+    for (int lane = 0; lane < SONG_TONE_TRACKS; lane++) {
+        int t = order[lane], top = sy + 3 + lane * laneH;
+        for (int c = 0; c < JUKE_STEPS; c++) {
+            JukeNote n = w.tone[t][c];
+            if (n.note == NOTE_NONE) continue;
+            int x0 = sx + (int)roundf(((float)c - frac) * colW), x1 = sx + (int)roundf(((float)c + 1.0f - frac) * colW);
+            if (n.start) x0 += 1; /* a struck note shows where it begins */
+            int y = NoteY(n.note, w.lo[t], w.hi[t], top, laneH, blockH);
+            bool now = c == JUKE_LEAD, past = c < JUKE_LEAD;
+            Color col = now ? Mix(colour[lane], kWarmWhite, 0.5f) : colour[lane];
+            DrawRectangle(x0, y, x1 - x0, blockH, Fade(col, bright * (past ? 0.45f : 1.0f)));
+        }
+    }
+    for (int c = 0; c < JUKE_STEPS; c++) {
+        uint8_t d = w.drums[c];
+        if (!d) continue;
+        int x = sx + (int)roundf(((float)c + 0.5f - frac) * colW), y = sy + sh - drumH;
+        float a = bright * (c < JUKE_LEAD ? 0.45f : 0.9f);
+        if (d & DRUM_KICK) DrawRectangle(x - 2, y, 4, 4, Fade(kWarmWhite, a));
+        else if (d & DRUM_SNARE) DrawRectangle(x - 1, y, 3, 3, Fade(kTextDim, a));
+        else DrawRectangle(x, y + 1, 1, 2, Fade(kTextDim, a));
+    }
+    DrawRectangle(headX, sy + 2, 1, sh - 4, Fade(kWarmWhite, 0.35f * bright));
+}
+
+static void DrawJukeScreen(int sx, int sy, int sw, int sh, float bright, const JukeView *j) {
+    if (!j || !j->song) return;
+    BeginScissorMode(sx, sy, sw, sh);
+    if (j->on) DrawJukeNotes(sx, sy, sw, sh, bright, j);
+    else DrawTitleCard(sx, sy, sw, sh, bright, j->title);
+    EndScissorMode();
+}
+
+/* The arched top: its frame, the neon tube round it, and the lit plate
+ * with the machine's name. */
+static void DrawJukeArch(const CabFrame *f, const char *name, float focus, float lit, Color light, float time) {
+    const float W = CAB_W_UNITS;
+    Color tube = TubeColour(time, 0.0f);
+    float glow = 0.25f + 0.75f * focus;
+    if (focus > 0.3f) { /* the neon tube lights the wall round the arch */
+        BeginBlendMode(BLEND_ADDITIVE);
+        DrawCircleGradient((Vector2){f->x0 + W / 2 * f->u, f->y0 + 16 * f->u}, (W / 2 + 6) * f->u, Fade(tube, 0.10f * focus), Fade(tube, 0.0f));
+        EndBlendMode();
+    }
+    HalfEllipse(f, W / 2, 16, W / 2 + 1, 16, kCabinetDark);
+    HalfEllipse(f, W / 2, 16, W / 2 - 1, 14.5f, Mix(kCabinetDark, tube, 0.35f + 0.65f * glow));
+    HalfEllipse(f, W / 2, 16, W / 2 - 3, 12.5f, kCabinetDark);
+    Color face = Mix(Mix(kCabinetDark, light, 0.16f), light, lit);
+    HalfEllipse(f, W / 2, 16, W / 2 - 5, 10.5f, face);
+    char upper[24];
+    snprintf(upper, sizeof(upper), "%.20s", name);
+    for (char *p = upper; *p; p++) if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 32);
+    int faceW = (int)((W - 14) * f->u);
+    int size = (focus > 0.85f && PMeasure(upper, TYPE_M) <= faceW) ? TYPE_M : TYPE_S;
+    size_t len = strlen(upper);
+    while (len > 1 && PMeasure(upper, size) > faceW) upper[--len] = '\0';
+    Color ink = lit > 0.55f ? kInk : Mix(light, kWarmWhite, 0.25f + 0.5f * lit);
+    PTextCentered(upper, size, (int)roundf(f->x0 + W / 2 * f->u), (int)roundf(f->y0 + 11.0f * f->u) - size / 2, ink);
+}
+
+/* Bubble tubes up both sides, bubbles rising (still with reduced flashing). */
+static void DrawJukeTubes(const CabFrame *f, float focus, float time) {
+    const float W = CAB_W_UNITS;
+    bool still = Prefs_Get()->reducedFlashing;
+    for (int side = 0; side < 2; side++) {
+        float x = side == 0 ? 1.0f : W - 4.0f;
+        Color tube = TubeColour(time, side == 0 ? 0.6f : 1.6f);
+        CabRect(f, x, 17, 3, 61, Mix(kCabinetDark, tube, 0.3f + 0.6f * focus));
+        CabRect(f, x + 1, 17, 1, 61, Mix(kCabinetDark, Mix(tube, kWarmWhite, 0.4f), 0.3f + 0.6f * focus));
+        for (int b = 0; b < 4; b++) {
+            float rise = still ? (float)b * 15.0f : fmodf(time * (5.0f + (float)b) + (float)(b * 17 + side * 9), 58.0f);
+            CabRect(f, x + 1, 76.0f - rise, 1, 1, Fade(kScreenOff, 0.8f));
+        }
+    }
+    if (focus > 0.3f) {
+        BeginBlendMode(BLEND_ADDITIVE);
+        for (int side = 0; side < 2; side++) {
+            float x = f->x0 + (side == 0 ? 0.0f : W - 5.0f) * f->u;
+            DrawRectangle((int)x, (int)(f->y0 + 17 * f->u), (int)(5 * f->u), (int)(61 * f->u), Fade(TubeColour(time, side == 0 ? 0.6f : 1.6f), 0.08f * focus));
+        }
+        EndBlendMode();
+    }
+}
+
+static void DrawJukebox(const GameEntry *game, float centerX, float focus, float marqueePower, bool installed, float coinT, KitLook look,
+                        bool favourite, const JukeView *juke) {
+    float u = 3.0f + focus;
+    CabFrame f = {centerX - (CAB_W_UNITS * u) / 2.0f, (float)FLOOR_Y - 4.0f - CAB_H_UNITS * u, u};
+    const float W = CAB_W_UNITS;
+    bool hot = look == KIT_LOOK_HOVER || look == KIT_LOOK_PRESSED, front = focus > 0.99f;
+    float time = (float)KitDraw_Clock();
+    IconCacheEntry *icon = GetGameIcon(game);
+    Color light = icon ? icon->light : LightFromName(game->name);
+    float lit = focus * marqueePower * (installed ? 1.0f : 0.18f);
+    if (hot && !front) {
+        DrawHoverGlow(&f, light, look == KIT_LOOK_PRESSED);
+        float awake = installed ? 0.45f : 0.12f;
+        if (lit < awake) lit = awake;
+    }
+    if (lit > 0.02f) {
+        DrawEllipse((int)centerX, FLOOR_Y + 12, 150.0f * focus, 16.0f * focus, Fade(light, 0.16f * lit));
+        DrawRectangleGradientV((int)(centerX - 62.0f * focus), FLOOR_Y + 2, (int)(124.0f * focus), 86, Fade(light, 0.12f * lit), Fade(light, 0.0f));
+        DrawCircleGradient((Vector2){centerX, f.y0 + 8 * u}, 170.0f, Fade(light, 0.22f * lit), Fade(light, 0.0f));
+    }
+    CabRect(&f, -2, 84, W + 4, 1.5f, (Color){0, 0, 0, 110}); /* contact shadow */
+
+    /* Body under the arch, a chrome rail, the screen in its bezel. */
+    CabRect(&f, 0, 16, W, 68, kCabinet);
+    DrawJukeArch(&f, game->name, focus, lit, light, time);
+    if (favourite) {
+        int sx = (int)roundf(f.x0 + 4 * u) - 6, sy = (int)roundf(f.y0 + 9 * u) - 6;
+        static const int kRim[4][2] = {{-2, 0}, {2, 0}, {0, -2}, {0, 2}};
+        for (int i = 0; i < 4; i++) KitDraw_Star(sx + kRim[i][0], sy + kRim[i][1], 2, true, kInk);
+        KitDraw_Star(sx, sy, 2, true, kYellow);
+    }
+    DrawJukeTubes(&f, focus, time);
+    CabRect(&f, 5, 16, W - 10, 1, kCabinetEdge);
+    CabRect(&f, 5, 17, W - 10, 27, (Color){18, 14, 38, 255});
+    CabRect(&f, 6, 18, W - 12, 25, Mix(kScreenOff, kScreenOn, focus));
+    int sx = (int)roundf(f.x0 + 6 * u), sy = (int)roundf(f.y0 + 18 * u), sw = (int)roundf((W - 12) * u), sh = (int)roundf(25 * u);
+    if (installed) {
+        DrawJukeScreen(sx, sy, sw, sh, 0.30f + 0.70f * focus, juke);
+        if (focus > 0.5f) for (int y = sy; y < sy + sh; y += 4) DrawRectangle(sx, y, sw, 1, (Color){0, 0, 0, 60});
+    } else {
+        Color paper = Mix((Color){150, 142, 128, 255}, kWarmWhite, 0.35f + 0.65f * focus);
+        CabRect(&f, W / 2 - 15, 24, 30, 14, paper);
+        PTextCentered("NOT", TYPE_S, (int)roundf(centerX), (int)roundf(f.y0 + 26.5f * u), kInk);
+        PTextCentered("INSTALLED", TYPE_S, (int)roundf(centerX), (int)roundf(f.y0 + 32 * u), kInk);
+    }
+
+    /* Chrome rail, then the speaker grille the coin door sits in. */
+    CabRect(&f, 4, 44, W - 8, 2, Mix(kCabinetEdge, kWarmWhite, 0.25f * focus));
+    CabRect(&f, 5, 47, W - 10, 31, kCabinetDark);
+    Color slat = Mix(kCabinet, light, 0.12f + 0.25f * lit);
+    for (float x = 7.0f; x < W - 7.0f; x += 3.0f) CabRect(&f, x, 49, 1.5f, 27, slat);
+    CoinDoor(&f, installed, focus, coinT, hot && front);
+    CabRect(&f, 0, 80, W, 4, kCabinetDark);
+    CoinDrop(&f, coinT, 6, 18, W - 12, 25);
+}
+
+#define CARD_X HALL_CARD_X
+#define CARD_Y HALL_CARD_Y /* 8 px up from where it was: room for the control strip */
+#define CARD_W HALL_CARD_W
+#define CARD_H HALL_CARD_H
 
 static void DrawCardStat(int x, int y, const char *label, const char *value, const char *detail, bool empty) {
     PText(label, x, y, TYPE_S, kTextDim);
@@ -872,47 +1062,65 @@ static void DrawCardStat(int x, int y, const char *label, const char *value, con
     if (detail && detail[0]) PText(detail, x + PMeasure(value, TYPE_M) + 12, y + 22, TYPE_S, kTextDim);
 }
 
-/* The instruction card: what this machine is, and how you're doing on it. */
-static void DrawCard(const GameEntry *game, const GameCard *card, const char *errorMsg) {
-    DrawRectangle(CARD_X, CARD_Y, CARD_W, CARD_H, kCard);
-    DrawRectangleLinesEx((Rectangle){CARD_X, CARD_Y, CARD_W, CARD_H}, 2.0f, kBaseboard);
-
-    int left = CARD_X + 24;
-    char name[40];
-    snprintf(name, sizeof(name), "%.22s", game->name);
-    PText(name, left, CARD_Y + 16, TYPE_L, kWarmWhite);
-
-    char lines[2][WRAP_BUF];
-    int n = WrapText(game->desc, TYPE_S, 500, lines, 2);
-    for (int i = 0; i < n; i++) PText(lines[i], left, CARD_Y + 52 + i * 14, TYPE_S, kTextDim);
-
-    bool blinkOn = fmod(GetTime(), 1.2) < 0.8; /* attract-mode blink */
-    if (card->install == INSTALL_RUNNING) {
-        char msg[24];
-        snprintf(msg, sizeof(msg), "Installing%.*s", (int)(GetTime() * 3.0) % 4, "...");
-        PText(msg, left, CARD_Y + 90, TYPE_M, kYellow);
-    } else if (card->install == INSTALL_FAILED) {
-        PText("The install failed. Details: ~/.local/share/ghost-launcher/install.log",
-              left, CARD_Y + 94, TYPE_S, kCoinRed);
-    } else if (errorMsg && errorMsg[0] != '\0') {
-        char clipped[80];
-        snprintf(clipped, sizeof(clipped), "%.60s", errorMsg);
-        PText(clipped, left, CARD_Y + 94, TYPE_S, kCoinRed);
-    } else if (card->installed) {
-        if (blinkOn) PText("Press Enter to play", left, CARD_Y + 90, TYPE_M, kCoinRed);
-    } else if (card->canInstall) {
-        if (blinkOn) PText("Press Enter to install", left, CARD_Y + 90, TYPE_M, kYellow);
-    } else {
-        PText("Not installed, and the catalog doesn't say where to install it from.",
-              left, CARD_Y + 94, TYPE_S, kTextDim);
+static Color ToneOf(HallTone t) {
+    switch (t) {
+        case HT_PLAY:
+        case HT_BAD: return kCoinRed;
+        case HT_INSTALL:
+        case HT_BUSY:
+        case HT_NOTE: return kYellow;
+        default: return kTextDim;
     }
+}
 
-    int col = CARD_X + 600;
-    DrawRectangle(col - 24, CARD_Y + 14, 2, CARD_H - 28, kBaseboard);
+/* hall.c says what the line is and has made it fit its column. */
+static void DrawStatusLine(const HallStatus *st, int x) {
+    if (!st || !st->text[0]) return;
+    if (st->blink && fmod(KitDraw_Clock(), 1.2) >= 0.8) return; /* attract-mode blink */
+    char text[HALL_STATUS_LEN + 4];
+    if (st->dots) snprintf(text, sizeof(text), "%s%.*s", st->text, (int)(KitDraw_Clock() * 3.0) % 4, "...");
+    else snprintf(text, sizeof(text), "%s", st->text);
+    PText(text, x, CARD_Y + (st->size == TYPE_M ? 90 : 94), st->size == TYPE_M ? TYPE_M : TYPE_S, ToneOf(st->tone));
+}
 
+/* The name in 24 px, cut with "..." before it would reach the Favourite
+ * button (or the scores column). */
+static void DrawCardName(const char *full, int x, int right) {
+    char name[40];
+    snprintf(name, sizeof(name), "%.22s", full);
+    int n = (int)strlen(name);
+    while (n > 1 && PMeasure(name, TYPE_L) > right - x) snprintf(name, sizeof(name), "%.*s...", --n, full);
+    PText(name, x, CARD_Y + 16, TYPE_L, kWarmWhite);
+}
+
+/* Text for the scores column: 16 px if it fits, else 8 px cut to fit. */
+static void DrawCardWords(int x, int y, const char *label, const char *words) {
+    int room = CARD_X + CARD_W - 16 - x;
+    PText(label, x, y, TYPE_S, kTextDim);
+    if (PMeasure(words, TYPE_M) <= room) {
+        PText(words, x, y + 14, TYPE_M, kText);
+        return;
+    }
+    char cut[64];
+    snprintf(cut, sizeof(cut), "%.60s", words);
+    int n = (int)strlen(cut);
+    while (n > 1 && PMeasure(cut, TYPE_S) > room) snprintf(cut, sizeof(cut), "%.*s...", --n, words);
+    PText(cut, x, y + 18, TYPE_S, kText);
+}
+
+/* Chipforge makes music: its card counts your songs and says what the hall
+ * plays, where a game's shows its scores. */
+static void DrawToolStats(const GameCard *card, int col) {
+    char value[48];
+    snprintf(value, sizeof(value), "%d", card->songs);
+    DrawCardStat(col, CARD_Y + 12, "Songs in your library", value, card->songs == 1 ? "song" : "songs", false);
+    DrawCardWords(col, CARD_Y + 48, "Hall song", card->hallSong[0] ? card->hallSong : "Built-in theme");
+}
+
+static void DrawGameStats(const GameCard *card, int col) {
     char value[48], detail[96];
     if (card->localBest.found) {
-        snprintf(value, sizeof(value), "%ld", card->localBest.score);
+        Scores_FormatScore(card->localBest.timed, card->localBest.score, value, sizeof(value));
         snprintf(detail, sizeof(detail), "%.16s", card->localBest.mode);
         DrawCardStat(col, CARD_Y + 12, "Your best", value, detail, false);
     } else {
@@ -920,159 +1128,569 @@ static void DrawCard(const GameEntry *game, const GameCard *card, const char *er
     }
 
     if (card->worldBest.found) {
-        snprintf(value, sizeof(value), "%ld", card->worldBest.score);
+        Scores_FormatScore(card->worldBest.timed, card->worldBest.score, value, sizeof(value));
         snprintf(detail, sizeof(detail), "%.12s", card->worldBest.username);
         DrawCardStat(col, CARD_Y + 48, "World best", value, detail, false);
     } else {
         DrawCardStat(col, CARD_Y + 48, "World best", "Nothing online yet", NULL, true);
     }
+}
 
+static KitLook LookOf(const KitView *kv, int id);
+
+/* The instruction card: what this machine is, and how you're doing on it. */
+static void DrawCard(const GameEntry *game, const GameCard *card, const HallStatus *status, const KitView *kv) {
+    KitLook look = LookOf(kv, WID_CARD); /* a click on it opens the machine's page */
+    Color edge = look == KIT_LOOK_PRESSED ? kPink : (look == KIT_LOOK_HOVER ? Mix(kBaseboard, kText, 0.6f) : kBaseboard);
+    DrawRectangle(CARD_X, CARD_Y, CARD_W, CARD_H, look == KIT_LOOK_HOVER ? Mix(kCard, kPanel, 0.35f) : kCard);
+    DrawRectangleLinesEx((Rectangle){CARD_X, CARD_Y, CARD_W, CARD_H}, 2.0f, edge);
+
+    int left = HALL_CARD_LEFT;
+    const KitItem *fav = kv ? Kit_Get(kv->list, WID_CARD_FAVOURITE) : NULL;
+    DrawCardName(game->name, left, fav ? (int)fav->r.x - 16 : HALL_FAV_RIGHT);
+
+    char lines[2][WRAP_BUF];
+    int n = WrapText(game->desc, TYPE_S, 500, lines, 2);
+    for (int i = 0; i < n; i++) PText(lines[i], left, CARD_Y + 52 + i * 14, TYPE_S, kTextDim);
+    DrawStatusLine(status, left);
+
+    int col = HALL_CARD_COL;
+    DrawRectangle(col - 24, CARD_Y + 14, 2, CARD_H - 28, kBaseboard);
+    if (card->tool) DrawToolStats(card, col);
+    else DrawGameStats(card, col);
+
+    char value[48], detail[96];
     FormatHMS(card->playSeconds, value, sizeof(value));
     detail[0] = '\0';
     if (card->playerName[0] != '\0' && card->nameIsOverride) snprintf(detail, sizeof(detail), "as %.12s", card->playerName);
     DrawCardStat(col, CARD_Y + 84, "Time played", value, detail, false);
 }
 
-/* Row animation state. Only the list screen animates, and only in answer to
- * the player moving along the row. */
-static float sScroll = 0.0f;
-static int sLastSelected = -1;
-static float sSinceSelect = 10.0f;
-
-static int sUpdateBehind = 0;
-void Render_SetUpdateNotice(int behind) { sUpdateBehind = behind > 0 ? behind : 0; }
-
-static void DrawUpdatePill(void) {
-    if (sUpdateBehind <= 0) return;
-    char buf[64];
-    snprintf(buf, sizeof(buf), sUpdateBehind == 1 ? "UPDATE AVAILABLE" : "%d UPDATES AVAILABLE", sUpdateBehind);
-    int w = PMeasure(buf, TYPE_S) + 16;
-    float pulse = Prefs_Get()->reducedFlashing ? 1.0f : 0.75f + 0.25f * sinf((float)GetTime() * 3.0f);
-    int x = WINDOW_WIDTH - 24 - w; /* right side: the left has the hall's EXIT sign */
-    DrawRectangle(x, 52, w, 20, Mix(kCabinetDark, kTeal, 0.35f * pulse));
-    DrawRectangle(x, 52, 4, 20, kTeal);
-    PText(buf, x + 10, 58, TYPE_S, kWarmWhite);
-    PTextRight("V to view", TYPE_S, x - 10, 58, kTextDim);
+/* A hint line's words: the keys, or after pad use the pad's buttons. */
+static const char *ForHints(const KitView *kv, const char *keys, const char *pad) {
+    return kv && kv->hints == DEV_PAD ? pad : keys;
 }
 
-void Render_List(const Manifest *m, int selected, const bool *installed, const GameCard *card,
-                 const char *arcadeName, bool adminUnlocked, const char *errorMsg, float dt, float coinT) {
-    if (selected != sLastSelected) {
-        if (sLastSelected < 0) sScroll = (float)selected; /* first frame: no slide-in */
-        sLastSelected = selected;
-        sSinceSelect = 0.0f;
+/* The look of one of the view's items, or the rest look when it has none. */
+static KitLook LookOf(const KitView *kv, int id) {
+    const KitItem *it = kv ? Kit_Get(kv->list, id) : NULL;
+    return it ? KitDraw_LookOf(kv, it) : KIT_LOOK_NORMAL;
+}
+
+/* "4 / 12" between the strip's arrows. */
+static void DrawCounter(const KitView *kv, int place, int count) {
+    const KitItem *prev = Kit_Get(kv->list, WID_STRIP_PREV), *next = Kit_Get(kv->list, WID_STRIP_NEXT);
+    if (!prev || !next || count <= 0) return;
+    char pos[32];
+    snprintf(pos, sizeof(pos), "%d / %d", place + 1, count);
+    int cx = (int)((prev->r.x + prev->r.w + next->r.x) / 2.0f);
+    PTextCentered(pos, TYPE_S, cx, (int)(prev->r.y + (prev->r.h - TYPE_S) / 2.0f), kText);
+}
+
+/* Over the row: where you are once there is more row than fits, and the
+ * order whenever it is not your own. */
+static void DrawRowPosition(const HallScene *s, int count) {
+    bool ordered = s->order != ORDER_YOURS;
+    if (count == 0 || (count <= 5 && !ordered)) return;
+    char pos[64];
+    if (ordered) snprintf(pos, sizeof(pos), "%s   %d / %d", Row_OrderName(s->order), s->place + 1, count);
+    else snprintf(pos, sizeof(pos), "%d / %d", s->place + 1, count);
+    PTextCentered(pos, TYPE_S, WINDOW_WIDTH / 2, 72, kTextDim);
+}
+
+static void DrawEmptyRow(const HallScene *s) {
+    if (s->allHidden) {
+        PTextCentered("Every machine is hidden", TYPE_M, WINDOW_WIDTH / 2, 230, kWarmWhite);
+        PTextCentered("Settings > Machines puts them back on the row", TYPE_S, WINDOW_WIDTH / 2, 266, kTextDim);
+        return;
     }
-    sSinceSelect += dt;
-    float target = (float)selected;
-    float k = 1.0f - expf(-16.0f * dt); /* frame-rate independent ease-out */
-    sScroll += (target - sScroll) * k;
-    if (fabsf(target - sScroll) < 0.002f) sScroll = target;
+    PTextCentered("The arcade is empty", TYPE_M, WINDOW_WIDTH / 2, 230, kWarmWhite);
+    PTextCentered(s->admin ? "Press A to wheel in the first machine" : "Add games to ~/.config/ghost-launcher/games.txt",
+                  TYPE_S, WINDOW_WIDTH / 2, 266, kTextDim);
+}
 
-    Win_BeginFrame();
+/* The chalkboard on the wall: DAILY, how many of the row's daily games are
+ * played today, and a chalk tally, a box each, filled once played. A real
+ * button: it lights under the pointer and presses in. */
+static void DrawChalkboard(const Desk *d, KitLook look) {
+    if (!d || d->count == 0) return;
+    int x = CHALK_X, y = CHALK_Y, w = CHALK_W, h = CHALK_H;
+    bool hot = look == KIT_LOOK_HOVER || look == KIT_LOOK_PRESSED;
+    int sink = look == KIT_LOOK_PRESSED ? 2 : 0;
+    if (hot) {
+        BeginBlendMode(BLEND_ADDITIVE);
+        DrawRectangle(x - 8, y - 8, w + 16, h + 16, Fade(kWarmWhite, look == KIT_LOOK_PRESSED ? 0.07f : 0.05f));
+        EndBlendMode();
+    }
+    DrawRectangle(x + w / 2 - 2, y - 8, 4, 8, kBaseboard); /* the hook it hangs from */
+    Color frame = hot ? Pal_Mix(kCabinetEdge, kText, 0.35f) : kCabinetEdge;
+    DrawRectangle(x, y, w, h, frame);
+    DrawRectangle(x, y, w, 2, Pal_Mix(frame, kWarmWhite, 0.25f));
+    Color slate = look == KIT_LOOK_PRESSED ? Pal_Mix(kScreenOff, kTeal, 0.04f) : Pal_Mix(kScreenOff, kTeal, 0.08f);
+    DrawRectangle(x + 5, y + 5, w - 10, h - 13, slate);
+    DrawRectangle(x + 14, y + 22, 40, 2, Fade(kWarmWhite, 0.06f)); /* old chalk, wiped */
+    DrawRectangle(x + 96, y + 54, 48, 2, Fade(kWarmWhite, 0.05f));
+    Color chalk = Fade(kWarmWhite, hot ? 0.95f : 0.82f);
+    PTextCentered("DAILY", TYPE_M, x + w / 2, y + 12 + sink, chalk);
+    char line[32];
+    Desk_BoardLine(d, line, sizeof(line));
+    PTextCentered(line, TYPE_S, x + w / 2, y + 36 + sink, chalk);
+    int boxes = d->count < 7 ? d->count : 7, pitch = 16, bx = x + w / 2 - (boxes * pitch - 4) / 2;
+    for (int i = 0; i < boxes; i++) {
+        Rectangle r = {(float)(bx + i * pitch), (float)(y + 58 + sink), 12.0f, 12.0f};
+        if (d->rows[i].played) DrawRectangleRec(r, chalk);
+        else DrawRectangleLinesEx(r, 1.0f, Fade(kWarmWhite, 0.55f));
+        if (d->rows[i].featured) KitDraw_Star((int)r.x + 2, (int)r.y - 10, 1, true, kYellow); /* today's featured game */
+    }
+    DrawRectangle(x + 6, y + h - 8, w - 12, 4, Pal_Mix(frame, kInk, 0.3f)); /* the chalk tray */
+    DrawRectangle(x + w - 40, y + h - 11, 14, 3, chalk);
+}
+
+/* Attract mode: the card has slid away and this stands where it was,
+ * blinking like a cabinet's own prompt (steady with reduced flashing). */
+static void DrawAttractPrompt(float alpha) {
+    if (alpha <= 0.0f) return;
+    bool steady = Prefs_Get()->reducedFlashing;
+    if (!steady && fmod(KitDraw_Clock(), 1.2) >= 0.8) return;
+    const char *text = "PRESS ANY BUTTON";
+    int y = HALL_CARD_Y + 44;
+    PTextCentered(text, TYPE_L, WINDOW_WIDTH / 2 + 3, y + 3, Fade(kInk, alpha));
+    PTextCentered(text, TYPE_L, WINDOW_WIDTH / 2, y, Fade(kYellow, alpha));
+}
+
+void Render_List(const HallScene *s, const KitView *kv) {
+    const Manifest *m = s->m;
+    const Lineup *row = s->lineup;
+    int n = row->count;
+    float scroll = s->row->scroll;
     ClearBackground(kWallBottom);
-    if (m->count > 0) EaseTint(LightFor(&m->games[selected]), dt);
-    DrawHall(true);
+    if (n > 0) EaseTint(LightFor(&m->games[s->lit]), s->dt);
+    DrawHall(true, LookOf(kv, WID_EXIT_SIGN));
+    if (Kit_Get(kv->list, WID_CHALKBOARD)) DrawChalkboard(s->desk, LookOf(kv, WID_CHALKBOARD));
 
-    /* A fluorescent tube warming up: the newly selected marquee stutters on. */
-    float power = 1.0f;
-    if (sSinceSelect < 0.05f) power = 0.9f;
-    else if (sSinceSelect < 0.10f) power = 0.25f;
-    else if (sSinceSelect < 0.15f) power = 1.0f;
-    else if (sSinceSelect < 0.19f) power = 0.5f;
-
-    /* Far cabinets first so the selected one overlaps its neighbours' glow. */
+    float power = Hall_MarqueePower(s->row);
+    /* Far cabinets first so the selected one overlaps its neighbours' glow.
+     * Positions are places in the row; each place shows its catalog machine. */
     for (int pass = 0; pass < 2; pass++) {
-        for (int i = 0; i < m->count; i++) {
-            float offset = (float)i - sScroll;
-            if (fabsf(offset) > 3.2f) continue;
-            float focus = 1.0f - fabsf(offset);
-            if (focus < 0.0f) focus = 0.0f;
-            bool isFront = (i == selected);
+        for (int p = 0; p < n; p++) {
+            float offset = (float)p - scroll;
+            if (fabsf(offset) > HALL_ROW_REACH) continue;
+            bool isFront = (p == s->place);
             if ((pass == 1) != isFront) continue;
-            DrawCabinet(&m->games[i], WINDOW_WIDTH / 2.0f + offset * SLOT_SPACING, focus, isFront ? power : 1.0f,
-                        installed ? installed[i] : true, isFront ? coinT : -1.0f);
+            int i = row->index[p];
+            bool installed = s->installed ? s->installed[i] : true, favourite = s->prefs && i < s->prefs->count && s->prefs->m[i].favourite;
+            float x = Hall_CabinetCenterX(scroll, p), focus = Hall_Focus(offset), lit = isFront ? power : 1.0f, coin = isFront ? s->coinT : -1.0f;
+            KitLook look = LookOf(kv, WID_CABINET + p);
+            if (Manifest_IsTool(&m->games[i])) DrawJukebox(&m->games[i], x, focus, lit, installed, coin, look, favourite, s->juke);
+            else DrawCabinet(&m->games[i], x, focus, lit, installed, coin, look, favourite);
         }
     }
 
     DrawVignette();
-    DrawHeader(arcadeName, adminUnlocked);
-    DrawUpdatePill();
-    DrawCloseButton();
+    DrawHeader(s->arcadeName, s->admin, s->updateBehind, LookOf(kv, WID_PLAYING_AS));
 
-    if (m->count == 0) {
-        PTextCentered("The arcade is empty", TYPE_M, WINDOW_WIDTH / 2, 230, kWarmWhite);
-        PTextCentered(adminUnlocked ? "Press A to wheel in the first machine"
-                                    : "Add games to ~/.config/ghost-launcher/games.txt",
-                      TYPE_S, WINDOW_WIDTH / 2, 266, kTextDim);
-    } else if (card) {
-        DrawCard(&m->games[selected], card, errorMsg);
+    if (n == 0) DrawEmptyRow(s);
+    else if (s->card && s->cardSlide < (float)(WINDOW_HEIGHT - CARD_Y)) {
+        /* Attract mode slides it down and away; its buttons (screens.c) go with it. */
+        rlPushMatrix();
+        rlTranslatef(0.0f, s->cardSlide, 0.0f);
+        DrawCard(&m->games[s->selected], s->card, s->status, kv);
+        rlPopMatrix();
     }
+    DrawRowPosition(s, n);
 
-    /* Row position, only once there is more row than fits. */
-    if (m->count > 5) {
-        char pos[24];
-        snprintf(pos, sizeof(pos), "%d / %d", selected + 1, m->count);
-        PTextCentered(pos, TYPE_S, WINDOW_WIDTH / 2, 72, kTextDim);
-    }
-
-    PTextCentered((card && card->supportsDaily) ? "Left/Right choose    Enter play    D daily    L stats    H trophies    U your name    O online" : "Left/Right choose    Enter play    L stats    H trophies    U your name    Shift+U name for this game",
-                  TYPE_S, WINDOW_WIDTH / 2, WINDOW_HEIGHT - 24, kTextDim);
-
-    Win_EndFrame();
+    KitDraw_List(kv);
+    DrawCounter(kv, s->place, n);
+    if (n > 0 && s->attract) DrawAttractPrompt(s->cardOut);
 }
 
 /* ------------------------------------------------------- secondary screens */
 
 static void BeginScreen(const char *title) {
-    Win_BeginFrame();
     ClearBackground(kWallBottom);
-    DrawHall(false);
-    DrawCloseButton();
+    DrawHall(false, KIT_LOOK_NORMAL);
     PText(title, 80, 56, TYPE_L, kWarmWhite);
     DrawRectangle(80, 92, PMeasure(title, TYPE_L), 4, kPink);
 }
 
-static const char *kStepPrompts[MANIFEST_FIELD_COUNT] = {
-    "Game name",
-    "Path to the executable",
-    "Path to an icon (optional)",
-    "One-line description (optional)",
-    "Source folder to install it from (optional)",
-};
-
-void Render_GameForm(const char *title, int step, const char buffers[MANIFEST_FIELD_COUNT][MANIFEST_FIELD_LEN], const char *errorMsg) {
-    BeginScreen(title);
-
-    int y = 128;
-    for (int i = 0; i < MANIFEST_FIELD_COUNT; i++) {
-        bool active = (step == i);
-        bool done = (step > i);
-        PText(kStepPrompts[i], 80, y, TYPE_S, active ? kYellow : (done ? kTeal : kTextDim));
-
-        char shown[MANIFEST_FIELD_LEN + 2];
-        if (active) snprintf(shown, sizeof(shown), "%s_", buffers[i]);
-        else snprintf(shown, sizeof(shown), "%s", buffers[i][0] ? buffers[i] : "-");
-        /* Long paths: keep the END visible, that's where the typing happens. */
-        const char *visible = shown;
-        while (PMeasure(visible, TYPE_M) > WINDOW_WIDTH - 160 && *visible) visible++;
-        PText(visible, 80, y + 18, TYPE_M, active ? kText : kTextDim);
-
-        if (active) DrawRectangle(80, y + 40, WINDOW_WIDTH - 160, 2, kYellow);
-        y += 78;
-    }
-
-    if (errorMsg && errorMsg[0] != '\0') PText(errorMsg, 80, y, TYPE_S, kCoinRed);
-
-    if (step == MANIFEST_FIELD_COUNT) {
-        PText("Enter saves this game    Esc cancels", 80, WINDOW_HEIGHT - 48, TYPE_S, kYellow);
-    } else {
-        PText("Type, then Enter for the next field    Esc cancels", 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
-    }
-
-    Win_EndFrame();
+/* Solid while it moves and for a moment after, then a slow blink; always
+ * solid with reduced flashing. */
+static bool CursorShows(const TextField *f) {
+    double rest = GetTime() - f->steadySince;
+    return Prefs_Get()->reducedFlashing || rest < 0.6 || fmod(rest - 0.6, 1.0) >= 0.4;
 }
 
-void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *sums) {
+/* What kind of path each field is, for the note beside its prompt. */
+static bool FieldIsPath(int field, PathKind *kind) {
+    switch (field) {
+        case 1: *kind = PATH_PROGRAM; return true;
+        case 2: *kind = PATH_FILE; return true;
+        case 4: *kind = PATH_FOLDER; return true;
+        default: return false;
+    }
+}
+
+/* One box: the field with the keys is lit, with its cursor; the others
+ * show what they hold (a long one its end, where it was typed). */
+static void DrawFormField(const GameForm *f, int i, KitLook look) {
+    KitRect b = GameForm_BoxRect(i);
+    bool active = f->active == i && f->field.editing, bad = f->errorField == i;
+    int y = FORM_Y + i * FORM_PITCH;
+    PText(GameForm_Prompt(i), FORM_X, y, TYPE_S, active ? kYellow : (bad ? kCoinRed : kTextDim));
+    PathKind kind;
+    PathStatus st = FieldIsPath(i, &kind) ? Manifest_PathStatus(GameForm_Text(f, i), kind) : PATH_EMPTY;
+    if (st != PATH_EMPTY) PTextRight(Manifest_PathWords(st), TYPE_S, FORM_X + FORM_W, y, st == PATH_FOUND ? kTeal : kCoinRed);
+    Color fill = active ? kPanel : (look == KIT_LOOK_HOVER ? Mix(kCabinetDark, kCabinet, 0.5f) : kCabinetDark);
+    DrawRectangle((int)b.x, (int)b.y, (int)b.w, (int)b.h, fill);
+    Color edge = active ? kYellow : (bad ? kCoinRed : (look == KIT_LOOK_HOVER ? kText : kCabinetEdge));
+    DrawRectangleLinesEx((Rectangle){b.x, b.y, b.w, b.h}, active || bad ? 2.0f : 1.0f, edge);
+    int tx = (int)b.x + FORM_PAD, ty = (int)(b.y + (b.h - 16.0f) / 2.0f), chars = GameForm_Chars();
+    const char *text = GameForm_Text(f, i);
+    char shown[TEXTFIELD_CAP];
+    if (active) {
+        snprintf(shown, sizeof(shown), "%.*s", chars, text + f->field.view);
+        PText(shown, tx, ty, TYPE_M, kWarmWhite);
+        if (CursorShows(&f->field)) DrawRectangle(tx + (f->field.cursor - f->field.view) * FORM_CHAR_W - 2, ty - 2, 2, 20, kYellow);
+        return;
+    }
+    int view, lead;
+    if (!GameForm_RestCut(i, text, &view, &lead)) snprintf(shown, sizeof(shown), "%s", text);
+    else if (lead) snprintf(shown, sizeof(shown), "...%.*s", chars - 3, text + view);
+    else snprintf(shown, sizeof(shown), "%.*s...", chars - 3, text);
+    PText(shown, tx, ty, TYPE_M, kText);
+}
+
+static void DrawFormNotes(const FormScene *s, const KitView *kv) {
+    if (s->stays && s->stays[0]) PText(s->stays, FORM_X, FORM_STAYS_Y, TYPE_S, kYellow);
+    if (s->scores && s->scores[0]) PText(s->scores, FORM_X, FORM_STAYS_Y + 16, TYPE_S, kTextDim);
+    const KitItem *carry = Kit_Get(kv->list, WID_FORM_CARRY);
+    if (carry) {
+        PText("Carry them over", FORM_X, (int)carry->r.y + 8, TYPE_M, kText);
+        const char *line = carry->value ? s->moves : "Off: they stay where they are, under the old name.";
+        PText(line, FORM_X, FORM_MOVES_Y, TYPE_S, kTextDim);
+    }
+    if (s->form->error[0]) PText(s->form->error, FORM_X, FORM_ERROR_Y, TYPE_S, kCoinRed);
+}
+
+static const char *FormHint(const GameForm *f, const KitView *kv) {
+    if (f->active == FORM_ON_BUTTONS)
+        return ForHints(kv, "Left/Right choose   Enter press   Up back to the fields   Esc leaves", "D-pad choose   A press   B leaves");
+    return ForHints(kv, "Type   Enter next field   Tab or Up/Down move   Ctrl+V pastes   Esc leaves",
+                    "Type with the keyboard   D-pad move   A next field   B leaves");
+}
+
+void Render_GameForm(const FormScene *s, const KitView *kv) {
+    BeginScreen(s->title);
+    const GameForm *f = s->form;
+    for (int i = 0; i < MANIFEST_FIELD_COUNT; i++) {
+        const KitItem *box = Kit_Get(kv->list, WID_FORM_FIELD + i);
+        DrawFormField(f, i, box ? KitDraw_LookOf(kv, box) : KIT_LOOK_NORMAL);
+    }
+    DrawFormNotes(s, kv);
+    for (int i = 0; i < kv->list->count; i++) {
+        const KitItem *it = &kv->list->items[i];
+        if (it->kind == KIT_AREA || (it->flags & KIT_SELFDRAWN)) continue;
+        KitLook look = GameForm_Look(f, KitDraw_LookOf(kv, it));
+        KitDraw_Item(it, look, Kit_HoverCell(kv->state, it, kv->device), Kit_PressedCell(kv->state, it));
+    }
+    PText(FormHint(f, kv), FORM_X, WINDOW_HEIGHT - 24, TYPE_S, kTextDim);
+}
+
+/* ------------------------------------------------------- machine page */
+
+static void DrawScrollBar(int x, int y, int h, int top, int visible, int count);
+
+/* The name in 24 px with the house's pink bar, cut before whatever sits to
+ * its right (admin's buttons, or the arrows to the next machine). */
+static void DrawPageTitle(const char *full, int right) {
+    char name[64];
+    snprintf(name, sizeof(name), "%.40s", full);
+    int n = (int)strlen(name);
+    while (n > 1 && PMeasure(name, TYPE_L) > right - PAGE_X) snprintf(name, sizeof(name), "%.*s...", --n, full);
+    PText(name, PAGE_X, PAGE_TITLE_Y, TYPE_L, kWarmWhite);
+    DrawRectangle(PAGE_X, 92, PMeasure(name, TYPE_L), 4, kPink);
+}
+
+/* Text cut with "..." to a width. */
+static void Fit(char *out, size_t size, const char *text, int size8or16, int maxW) {
+    snprintf(out, size, "%s", text);
+    int n = (int)strlen(out);
+    while (n > 1 && PMeasure(out, size8or16) > maxW) snprintf(out, size, "%.*s...", --n, text);
+}
+
+static void DrawPageStrip(const PageScene *s) {
+    PageStripCell cells[PAGE_STRIP_MAX];
+    int n = GamePage_Strip(s->data, (time_t)s->now, cells);
+    for (int i = 0; i < n; i++) {
+        const PageStripCell *c = &cells[i];
+        int right = i + 1 < n ? cells[i + 1].x - 12 : PAGE_X + 800;
+        PText(c->label, c->x, PAGE_STRIP_Y, TYPE_S, kTextDim);
+        char value[64];
+        if (c->dim) {
+            PText(c->value, c->x, PAGE_STRIP_Y + 18, TYPE_S, kTextDim);
+            continue;
+        }
+        if (PMeasure(c->value, TYPE_M) <= right - c->x) {
+            PText(c->value, c->x, PAGE_STRIP_Y + 14, TYPE_M, kText);
+            int dx = c->x + PMeasure(c->value, TYPE_M) + 10;
+            char detail[40];
+            Fit(detail, sizeof(detail), c->detail, TYPE_S, right - dx); /* a long board name beside a big score */
+            if (c->detail[0] && PMeasure("W...", TYPE_S) <= right - dx) PText(detail, dx, PAGE_STRIP_Y + 22, TYPE_S, kTextDim);
+        } else {
+            Fit(value, sizeof(value), c->value, TYPE_S, right - c->x); /* a long song title */
+            PText(value, c->x, PAGE_STRIP_Y + 18, TYPE_S, kText);
+        }
+    }
+}
+
+/* The cabinet's screen, big: its attract demo with scanlines, or the
+ * operator's paper sign when it is not installed. */
+static void DrawPageScreen(const PageScene *s) {
+    int x = PAGE_X, y = PAGE_DEMO_Y, w = PAGE_LEFT_W, h = PAGE_DEMO_H;
+    IconCacheEntry *icon = GetGameIcon(s->game);
+    Color light = icon ? icon->light : LightFromName(s->game->name);
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (int i = 3; i >= 1; i--) DrawRectangle(x - 4 * i, y - 4 * i, w + 8 * i, h + 8 * i, Fade(light, s->installed ? 0.035f : 0.012f));
+    EndBlendMode();
+    DrawRectangle(x, y, w, h, kCabinetDark);
+    DrawRectangleLinesEx((Rectangle){(float)x, (float)y, (float)w, (float)h}, 2.0f, Mix(kCabinetEdge, light, s->installed ? 0.5f : 0.15f));
+    int sx = x + 10, sy = y + 10, sw = w - 20, sh = h - 20;
+    DrawRectangle(sx, sy, sw, sh, s->installed ? kScreenOn : kScreenOff);
+    bool drew = false;
+    if (s->installed && s->juke) { /* Chipforge: the jukebox's screen, big */
+        DrawJukeScreen(sx, sy, sw, sh, 1.0f, s->juke);
+        drew = true;
+    } else if (s->installed) {
+        DemoBox box = {(float)sx, (float)sy, (float)sw, (float)sh, 1.0f};
+        BeginScissorMode(sx, sy, sw, sh);
+        drew = DrawDemo(s->game->name, &box, (float)KitDraw_Clock());
+        EndScissorMode();
+    }
+    if (!drew && icon) {
+        float side = 128.0f;
+        unsigned char v = s->installed ? 255 : 60;
+        DrawTexturePro(icon->tex, (Rectangle){0, 0, (float)icon->tex.width, (float)icon->tex.height},
+                       (Rectangle){(float)(sx + (sw - 128) / 2), (float)(sy + (sh - 128) / 2), side, side}, (Vector2){0, 0}, 0.0f,
+                       (Color){v, v, v, 255});
+    } else if (!drew) {
+        PTextCentered("?", TYPE_L, sx + sw / 2, sy + sh / 2 - 12, Mix(kCabinetEdge, light, 0.5f));
+    }
+    if (!s->installed) {
+        Color paper = Mix((Color){150, 142, 128, 255}, kWarmWhite, 0.6f);
+        int pw = 224, ph = 64, px = sx + (sw - pw) / 2, py = sy + (sh - ph) / 2;
+        DrawRectangle(px, py, pw, ph, paper);
+        DrawRectangle(px - 6, py - 4, 40, 10, (Color){255, 210, 63, 150});
+        DrawRectangle(px + pw - 34, py - 4, 40, 10, (Color){255, 210, 63, 150});
+        PTextCentered(s->installing ? "INSTALLING" : "NOT", TYPE_M, px + pw / 2, py + (s->installing ? 24 : 12), kInk);
+        if (!s->installing) PTextCentered("INSTALLED", TYPE_M, px + pw / 2, py + 36, kInk);
+        return;
+    }
+    for (int ly = sy; ly < sy + sh; ly += 4) DrawRectangle(sx, ly, sw, 1, (Color){0, 0, 0, 70});
+}
+
+static void DrawPageAbout(const PageScene *s) {
+    int x = PAGE_RIGHT_X, y = PAGE_BODY_Y, w = PAGE_RIGHT_W;
+    char lines[6][WRAP_BUF];
+    const HowTo *h = s->data->howto;
+    if (!h) {
+        int n = WrapText(s->game->desc[0] ? s->game->desc : "A machine of your own.", TYPE_S, w, lines, 4);
+        for (int i = 0; i < n; i++, y += 14) PText(lines[i], x, y, TYPE_S, kText);
+        PText("The games' own how-to cards do not know this machine.", x, y + 12, TYPE_S, kTextDim);
+        return;
+    }
+    int n = WrapText(h->goal, TYPE_S, w, lines, 6);
+    for (int i = 0; i < n; i++, y += 14) PText(lines[i], x, y, TYPE_S, kText);
+    y += 12;
+    PText("Controls", x, y, TYPE_S, kYellow);
+    y += 18;
+    const int whatX = x + 188, whatW = x + w - whatX;
+    for (int i = 0; i < HOWTO_MAX_CONTROLS && h->controls[i][0]; i++) {
+        PText(h->controls[i][0], x, y, TYPE_S, kTeal);
+        char what[2][WRAP_BUF];
+        int m = WrapText(h->controls[i][1], TYPE_S, whatW, what, 2);
+        for (int k = 0; k < m; k++) PText(what[k], whatX, y + k * 12, TYPE_S, kText);
+        y += 16 + (m > 1 ? 12 : 0);
+    }
+    if (!h->tip || !h->tip[0]) return;
+    y += 10;
+    PText("Tip", x, y, TYPE_S, kYellow);
+    y += 18;
+    n = WrapText(h->tip, TYPE_S, w, lines, 4);
+    for (int i = 0; i < n && y < PAGE_HELP_Y - 12; i++, y += 14) PText(lines[i], x, y, TYPE_S, kTextDim);
+}
+
+static void DrawBoardColumn(const BoardRow *rows, int n, bool timed, int x, const char *title, const char *empty) {
+    PText(title, x, PAGE_ROWS_Y - 18, TYPE_S, kYellow);
+    if (n == 0) {
+        PText(empty, x, PAGE_ROWS_Y, TYPE_S, kTextDim);
+        return;
+    }
+    for (int r = 0; r < n; r++) {
+        int y = PAGE_ROWS_Y + r * PAGE_ROW_PITCH;
+        bool you = rows[r].you;
+        Color c = you ? kYellow : kText;
+        if (you) DrawRectangle(x - 4, y - 4, PAGE_COL_W - 8, 16, kPanel); /* yours, though not a selection: no bar */
+        char rank[16], name[24], score[24];
+        snprintf(rank, sizeof(rank), "%d", r + 1);
+        PTextRight(rank, TYPE_S, x + 16, y, you ? kYellow : kTextDim);
+        Fit(name, sizeof(name), rows[r].name, TYPE_S, 104);
+        PText(name, x + 28, y, TYPE_S, c);
+        Scores_FormatScore(timed, rows[r].score, score, sizeof(score)); /* a Sprint 40 time, not 9 992 760 */
+        PTextRight(score, TYPE_S, x + PAGE_COL_W - 12, y, c);
+    }
+}
+
+/* Under the boards: where you stand in the world, when the boards came
+ * down, and how today's daily went. */
+static void DrawBoardNotes(const PageScene *s, const Board *bd) {
+    int x = PAGE_RIGHT_X, y = PAGE_ROWS_Y + BOARD_TOP * PAGE_ROW_PITCH + 8;
+    char line[128];
+    if (bd && bd->worldRank == 1) PText("You hold #1 in the world on this board.", x, y, TYPE_S, kYellow);
+    else if (bd && bd->worldRank > 1) {
+        snprintf(line, sizeof(line), "You are #%d in the world on this board.", bd->worldRank);
+        PText(line, x, y, TYPE_S, kText);
+    } else if (bd && bd->worldCount > 0) PText("You are not on this world board yet.", x, y, TYPE_S, kTextDim);
+    y += 18;
+    char ago[48];
+    Settings_Ago(s->syncedAt, s->now, ago, sizeof(ago));
+    if (!s->sharing) snprintf(line, sizeof(line), "Turn on Share my scores for world boards.");
+    else if (s->syncedAt > 0) snprintf(line, sizeof(line), "World boards synced %s.", ago);
+    else snprintf(line, sizeof(line), "The world boards have not come down yet.");
+    PText(line, x, y, TYPE_S, kTextDim);
+    if (!s->dailyGame) return;
+    y += 18;
+    char today[24];
+    GamePage_Today((time_t)s->now, today, sizeof(today));
+    int at = Boards_Find(&s->data->boards, today);
+    const Board *d = at >= 0 ? &s->data->boards.b[at] : NULL;
+    if (!d || d->localCount == 0) snprintf(line, sizeof(line), "Today's daily: not played yet.");
+    else snprintf(line, sizeof(line), "Today's daily: your best %ld.", d->local[0].score);
+    if (d && d->worldCount > 0) {
+        size_t used = strlen(line);
+        snprintf(line + used, sizeof(line) - used, " The world's: %ld.", d->world[0].score);
+    }
+    PText(line, x, y, TYPE_S, kText);
+}
+
+static void DrawPageScores(const PageScene *s) {
+    const Boards *b = &s->data->boards;
+    int at = GamePage_Board(s->page, b);
+    if (at < 0) {
+        PText("No scores yet. Play a run and its board shows up here.", PAGE_RIGHT_X, PAGE_BODY_Y + 8, TYPE_S, kTextDim);
+        DrawBoardNotes(s, NULL);
+        return;
+    }
+    const Board *bd = &b->b[at];
+    DrawBoardColumn(bd->local, bd->localCount, bd->timed, PAGE_RIGHT_X, "This computer", "No runs on this board yet.");
+    DrawBoardColumn(bd->world, bd->worldCount, bd->timed, PAGE_RIGHT_X + PAGE_COL_W + 16, "World", s->sharing ? "Nothing online yet." : "Not shared.");
+    DrawBoardNotes(s, bd);
+}
+
+static void DrawPageTrophies(const PageScene *s) {
+    const char *slug = s->data->slug;
+    int n = Ach_CountForGame(slug), x = PAGE_RIGHT_X;
+    if (n == 0) PText("No trophies for this game yet.", x, PAGE_BODY_Y + 8, TYPE_S, kTextDim);
+    for (int i = 0; i < n; i++) {
+        const AchDef *d = Ach_ForGame(slug, i);
+        if (!d) break;
+        int y = PAGE_BODY_Y + i * 54;
+        char date[12] = "";
+        bool have = Ach_IsUnlocked(slug, d->id, date);
+        DrawRectangle(x, y, 32, 32, have ? kYellow : kCabinetEdge);
+        DrawRectangle(x + 4, y + 4, 24, 24, have ? Mix(kYellow, kInk, 0.15f) : kCabinetDark);
+        if (have) { DrawRectangle(x + 10, y + 14, 4, 4, kInk); DrawRectangle(x + 14, y + 18, 4, 4, kInk); DrawRectangle(x + 18, y + 10, 4, 4, kInk); }
+        else { DrawRectangle(x + 11, y + 13, 10, 9, kCabinetEdge); DrawRectangle(x + 13, y + 8, 6, 5, kCabinetEdge); }
+        const char *title = have ? d->title : "???";
+        int tx = x + 44, room = PAGE_RIGHT_X + PAGE_RIGHT_W - tx - (have ? 96 : 0);
+        if (PMeasure(title, TYPE_M) <= room) PText(title, tx, y, TYPE_M, have ? kText : kTextDim);
+        else PText(title, tx, y + 4, TYPE_S, have ? kText : kTextDim);
+        char desc[64];
+        Fit(desc, sizeof(desc), d->desc, TYPE_S, PAGE_RIGHT_X + PAGE_RIGHT_W - tx);
+        PText(desc, tx, y + 22, TYPE_S, kTextDim);
+        if (have) PTextRight(date, TYPE_S, PAGE_RIGHT_X + PAGE_RIGHT_W, y + 4, kTeal);
+    }
+}
+
+/* Chipforge's Songs, the hall's song: the rows are the view's buttons; under
+ * them, how many songs there are and where more come from. */
+static void DrawPageHallSongs(const PageScene *s) {
+    const GamePageData *d = s->data;
+    int count = GamePage_SongCount(d), top = s->page->songs.top;
+    int shown = count - top < PAGE_SONGS_VISIBLE ? count - top : PAGE_SONGS_VISIBLE;
+    DrawScrollBar(PAGE_RIGHT_X + PAGE_RIGHT_W + 4, PAGE_SONGS_Y, PAGE_SONGS_VISIBLE * PAGE_SONG_PITCH - 4, top, PAGE_SONGS_VISIBLE, count);
+    char line[96];
+    if (d->libraryCount == 0) snprintf(line, sizeof(line), "No songs of yours yet: Chipforge makes them.");
+    else snprintf(line, sizeof(line), "%d song%s in your library. A press gives the hall one.", d->libraryCount, d->libraryCount == 1 ? "" : "s");
+    PText(line, PAGE_RIGHT_X, PAGE_SONGS_Y + shown * PAGE_SONG_PITCH + 6, TYPE_S, kTextDim);
+}
+
+/* Chipforge's Songs, who plays what: every machine and the song it plays. */
+static void DrawPageSongs(const PageScene *s) {
+    const GamePageData *d = s->data;
+    if (GamePage_SongsShown(s->page, s->view)) {
+        DrawPageHallSongs(s);
+        return;
+    }
+    int x = PAGE_RIGHT_X, y = PAGE_SONGS_Y;
+    for (int i = 0; i < d->useCount && y < PAGE_HELP_Y - 40; i++, y += 18) {
+        char song[48];
+        PText(d->uses[i].machine, x, y, TYPE_S, kText);
+        Fit(song, sizeof(song), d->uses[i].song, TYPE_S, PAGE_RIGHT_W - 184);
+        PText(song, x + 184, y, TYPE_S, d->uses[i].custom ? kTeal : kTextDim);
+    }
+    PText("Ctrl+G in Chipforge gives a game (or the hall) a song.", x, y + 8, TYPE_S, kTextDim);
+}
+
+static void DrawPageCounter(const KitView *kv, int place, int count) {
+    const KitItem *prev = Kit_Get(kv->list, WID_PAGE_PREV), *next = Kit_Get(kv->list, WID_PAGE_NEXT);
+    if (!prev || !next || count <= 0) return;
+    char pos[32];
+    snprintf(pos, sizeof(pos), "%d / %d", place + 1, count);
+    PTextCentered(pos, TYPE_S, (int)((prev->r.x + prev->r.w + next->r.x) / 2.0f), (int)(prev->r.y + (prev->r.h - TYPE_S) / 2.0f), kText);
+}
+
+void Render_GamePage(const PageScene *s, const KitView *kv) {
+    ClearBackground(kWallBottom);
+    DrawHall(false, KIT_LOOK_NORMAL);
+    const KitItem *edit = Kit_Get(kv->list, WID_PAGE_EDIT);
+    DrawPageTitle(s->game->name, edit ? (int)edit->r.x - 16 : PAGE_X + 800);
+    char desc[128];
+    Fit(desc, sizeof(desc), s->game->desc, TYPE_S, 800);
+    PText(desc, PAGE_X, PAGE_DESC_Y, TYPE_S, kTextDim);
+    DrawPageStrip(s);
+    DrawPageScreen(s);
+    DrawRectangle(PAGE_RIGHT_X, PAGE_TABS_Y + PAGE_TABS_H, PAGE_RIGHT_W, 2, kBaseboard);
+    switch (GamePage_ShownTab(s->page, s->view->tool)) {
+        case GT_SCORES: DrawPageScores(s); break;
+        case GT_TROPHIES: DrawPageTrophies(s); break;
+        case GT_SONGS: DrawPageSongs(s); break;
+        default: DrawPageAbout(s); break;
+    }
+    if (s->help && s->help[0]) PText(s->help, PAGE_X, PAGE_HELP_Y, TYPE_S, kTextDim);
+    const HallStatus *st = s->status;
+    if (st && st->text[0]) {
+        char text[HALL_STATUS_LEN + 4];
+        if (st->dots) snprintf(text, sizeof(text), "%s%.*s", st->text, (int)(KitDraw_Clock() * 3.0) % 4, "...");
+        else snprintf(text, sizeof(text), "%s", st->text);
+        PText(text, PAGE_X, PAGE_STATUS_Y, TYPE_S, ToneOf(st->tone));
+    }
+    if (s->hint) PText(s->hint, PAGE_X, WINDOW_HEIGHT - 24, TYPE_S, kTextDim);
+    KitDraw_List(kv);
+    DrawPageCounter(kv, s->view->place, s->view->count);
+}
+
+/* A slim bar at the right of a list that is longer than the screen. */
+static void DrawScrollBar(int x, int y, int h, int top, int visible, int count) {
+    if (count <= visible) return;
+    DrawRectangle(x, y, 4, h, kCabinetDark);
+    int thumb = h * visible / count;
+    if (thumb < 12) thumb = 12;
+    int maxTop = count - visible;
+    int ty = y + (h - thumb) * top / maxTop;
+    DrawRectangle(x, ty, 4, thumb, kCabinetEdge);
+}
+
+void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *sums, int top, const KitView *kv) {
     BeginScreen("Stats");
 
     char totalBuf[32], line[120];
@@ -1081,8 +1699,9 @@ void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *s
     double gameSeconds = 0.0;
     for (int i = 0; i < m->count; i++) {
         char slug[64];
-        totalRuns += sums[i].runs;
         gameSeconds += Stats_GetGameTime(stats, m->games[i].name);
+        if (Manifest_IsTool(&m->games[i])) continue; /* Chipforge's time counts; it has no runs or trophies */
+        totalRuns += sums[i].runs;
         if (Scores_SlugFromExec(m->games[i].exec, slug, sizeof(slug))) {
             trophies += Ach_UnlockedForGame(slug);
             trophyTotal += Ach_CountForGame(slug);
@@ -1102,7 +1721,7 @@ void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *s
     PText("Trophies", cTro, y, TYPE_S, kTextDim);
     PTextRight("Last run", TYPE_S, WINDOW_WIDTH - 80, y, kTextDim);
     DrawRectangle(80, y + 16, WINDOW_WIDTH - 160, 2, kCabinetEdge);
-    y += 26;
+    y = STATS_ROW_Y;
 
     /* Most-played first. */
     int order[MANIFEST_MAX_GAMES];
@@ -1115,7 +1734,7 @@ void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *s
     }
     double longest = m->count > 0 ? Stats_GetGameTime(stats, m->games[order[0]].name) : 0.0;
     if (m->count == 0) PText("No games in the catalog.", 80, y, TYPE_S, kTextDim);
-    for (int k = 0; k < m->count && y < 486; k++) {
+    for (int k = top; k < m->count && k < top + STATS_VISIBLE; k++) {
         int i = order[k];
         const GameEntry *g = &m->games[i];
         double secs = Stats_GetGameTime(stats, g->name);
@@ -1132,15 +1751,24 @@ void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *s
         DrawRectangle(cName + 200, y + 3, 110, 4, kCabinetDark);
         DrawRectangle(cName + 200, y + 3, bw * 110 / 120, 4, k == 0 ? kPink : kTeal);
         PTextRight(timeBuf, TYPE_S, cTime + 90, y, kText);
+        if (Manifest_IsTool(g)) { /* a tool: no runs, no trophies, nothing to count */
+            PTextRight("-", TYPE_S, cRuns + 60, y, kTextDim);
+            PText("-", cTro, y, TYPE_S, kTextDim);
+            PTextRight("a tool", TYPE_S, WINDOW_WIDTH - 80, y, kTextDim);
+            y += STATS_ROW_PITCH;
+            continue;
+        }
         PTextRight(runs, TYPE_S, cRuns + 60, y, kText);
         PText(tro, cTro, y, TYPE_S, (n > 0 && done == n) ? kYellow : kText);
         PTextRight(sums[i].last[0] ? sums[i].last : "never", TYPE_S, WINDOW_WIDTH - 80, y, sums[i].last[0] ? kTeal : kTextDim);
-        y += 26;
+        y += STATS_ROW_PITCH;
     }
+    DrawScrollBar(WINDOW_WIDTH - 64, STATS_ROW_Y, STATS_VISIBLE * STATS_ROW_PITCH - 18, top, STATS_VISIBLE, m->count);
 
     /* The last two weeks, all games together. */
     int perDay[RUNSTATS_DAYS] = {0}, peak = 1;
-    for (int i = 0; i < m->count; i++) for (int d = 0; d < RUNSTATS_DAYS; d++) perDay[d] += sums[i].perDay[d];
+    for (int i = 0; i < m->count; i++)
+        if (!Manifest_IsTool(&m->games[i])) for (int d = 0; d < RUNSTATS_DAYS; d++) perDay[d] += sums[i].perDay[d];
     for (int d = 0; d < RUNSTATS_DAYS; d++) if (perDay[d] > peak) peak = perDay[d];
     PText("Runs, last two weeks", 80, 500, TYPE_S, kTextDim);
     int baseY = 590, bx = 80, colW = (WINDOW_WIDTH - 160) / RUNSTATS_DAYS;
@@ -1154,24 +1782,31 @@ void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *s
     PText("14 days ago", 80, baseY + 6, TYPE_S, kTextDim);
     PTextRight("today", TYPE_S, WINDOW_WIDTH - 80, baseY + 6, kTextDim);
 
-    PText("Esc goes back", 80, WINDOW_HEIGHT - 26, TYPE_S, kTextDim);
-    Win_EndFrame();
+    const char *hint = m->count > STATS_VISIBLE ? ForHints(kv, "Up/Down scroll    Esc goes back", "D-pad scroll    B goes back")
+                                                : ForHints(kv, "Esc goes back", "B goes back");
+    PText(hint, 80, WINDOW_HEIGHT - 26, TYPE_S, kTextDim);
+    KitDraw_List(kv);
 }
 
 /* The trophy room: every game's achievements, one game at a time. */
-void Render_Achievements(const Manifest *m, int selected) {
+void Render_Achievements(const Manifest *m, int selected, int top, const KitView *kv) {
     BeginScreen("Trophies");
     int totalDone = 0, total = 0;
     for (int i = 0; i < m->count; i++) {
         char slug[64];
-        if (!Scores_SlugFromExec(m->games[i].exec, slug, sizeof(slug))) continue;
+        if (Manifest_IsTool(&m->games[i]) || !Scores_SlugFromExec(m->games[i].exec, slug, sizeof(slug))) continue;
         total += Ach_CountForGame(slug);
         totalDone += Ach_UnlockedForGame(slug);
     }
     char line[96];
     snprintf(line, sizeof(line), "%d of %d unlocked across the arcade", totalDone, total);
     PText(line, 80, 116, TYPE_S, kTextDim);
-    if (m->count == 0) { PText("No games in the catalog.", 80, 164, TYPE_S, kTextDim); PText("Esc goes back", 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim); Win_EndFrame(); return; }
+    if (m->count == 0) {
+        PText("No games in the catalog.", 80, 164, TYPE_S, kTextDim);
+        PText(ForHints(kv, "Esc goes back", "B goes back"), 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+        KitDraw_List(kv);
+        return;
+    }
     if (selected < 0) selected = 0;
     if (selected >= m->count) selected = m->count - 1;
 
@@ -1180,19 +1815,17 @@ void Render_Achievements(const Manifest *m, int selected) {
     Scores_SlugFromExec(g->exec, slug, sizeof(slug));
     int n = Ach_CountForGame(slug), done = Ach_UnlockedForGame(slug);
 
-    /* game name with arrows, and its own progress bar */
-    char head[80];
-    snprintf(head, sizeof(head), "< %.24s >", g->name);
-    PText(head, 80, 156, TYPE_M, kYellow);
+    /* "< Game >" is the stepper button (screens.c); its count and progress bar */
     snprintf(line, sizeof(line), "%d / %d", done, n);
     PTextRight(line, TYPE_M, WINDOW_WIDTH - 80, 156, kText);
     int barW = WINDOW_WIDTH - 160;
     DrawRectangle(80, 186, barW, 6, kCabinetDark);
     if (n > 0) DrawRectangle(80, 186, (int)((float)barW * (float)done / (float)n), 6, kPink);
 
-    int y = 214;
-    if (n == 0) PText("No achievements for this game yet.", 80, y, TYPE_S, kTextDim);
-    for (int i = 0; i < n && y < WINDOW_HEIGHT - 80; i++) {
+    int y = TROPHY_ROW_Y;
+    if (n == 0 && Manifest_IsTool(g)) PText("A tool, not a game: it has no trophies.", 80, y, TYPE_S, kTextDim);
+    else if (n == 0) PText("No achievements for this game yet.", 80, y, TYPE_S, kTextDim);
+    for (int i = top; i < n && i < top + TROPHY_VISIBLE; i++) {
         const AchDef *d = Ach_ForGame(slug, i);
         if (!d) break;
         char date[12] = "";
@@ -1205,25 +1838,41 @@ void Render_Achievements(const Manifest *m, int selected) {
         PText(have ? d->title : "???", 132, y + 2, TYPE_M, have ? kText : kTextDim);
         PText(d->desc, 132, y + 24, TYPE_S, kTextDim);
         if (have) PTextRight(date, TYPE_S, WINDOW_WIDTH - 80, y + 6, kTeal);
-        y += 56;
+        y += TROPHY_ROW_PITCH;
     }
-    PText("Left/Right change game    Esc goes back", 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
-    Win_EndFrame();
+    DrawScrollBar(WINDOW_WIDTH - 64, TROPHY_ROW_Y, TROPHY_VISIBLE * TROPHY_ROW_PITCH - 20, top, TROPHY_VISIBLE, n);
+    const char *hint = n > TROPHY_VISIBLE
+                           ? ForHints(kv, "Left/Right change game    Up/Down scroll    Esc goes back",
+                                      "D-pad left/right change game    Up/down scroll    B goes back")
+                           : ForHints(kv, "Left/Right change game    Esc goes back", "D-pad change game    B goes back");
+    PText(hint, 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+    KitDraw_List(kv);
 }
 
-void Render_Update(const UpdateState *u, const char *sourceDir) {
+static void UpdateHeadline(const UpdateState *u, int y) {
+    if (u->status == UPDATE_BEHIND) PText("A newer version is on GitHub.", 80, y, TYPE_M, kYellow);
+    else if (u->status == UPDATE_CURRENT) PText("You have the newest version.", 80, y, TYPE_M, kTeal);
+    else if (u->checkedAt > 0) PText("GitHub does not know this build.", 80, y, TYPE_M, kWarmWhite); /* it answered */
+    else PText("No answer yet.", 80, y, TYPE_M, kWarmWhite);
+}
+
+static void CheckedAgo(long long checkedAt, char *out, size_t size) { Settings_Ago(checkedAt, (long long)time(NULL), out, size); }
+
+/* Beside Check now: why it cannot, or that the last press got no answer.
+ * While it checks, the button itself says so. */
+static void CheckNowNote(const UpdateView *v, const KitView *kv) {
+    const KitItem *b = Kit_Get(kv->list, WID_CHECK_NOW);
+    if (!b) return;
+    int x = (int)(b->r.x + b->r.w) + 24, y = (int)(b->r.y + b->r.h / 2) - 4;
+    if (v->checksOff) PText("Update checks are off in Settings > Online.", x, y, TYPE_S, kTextDim);
+    else if (v->noAnswer && !v->checking) PText("No answer from GitHub. Try again later.", x, y, TYPE_S, kCoinRed);
+}
+
+void Render_Update(const UpdateState *u, const char *sourceDir, const UpdateView *v, const KitView *kv) {
     BeginScreen("Updates");
     char line[200];
     int y = 120;
-
-    if (u->status == UPDATE_BEHIND) {
-        snprintf(line, sizeof(line), u->behind == 1 ? "A newer version is on GitHub." : "%d newer versions are on GitHub.", u->behind);
-        PText(line, 80, y, TYPE_M, kYellow);
-    } else if (u->status == UPDATE_CURRENT) {
-        PText("You have the newest version.", 80, y, TYPE_M, kTeal);
-    } else {
-        PText("No answer yet.", 80, y, TYPE_M, kWarmWhite);
-    }
+    UpdateHeadline(u, y);
     y += 44;
 
     PText("This build", 80, y, TYPE_S, kTextDim);
@@ -1233,6 +1882,11 @@ void Render_Update(const UpdateState *u, const char *sourceDir) {
     PText("Newest on GitHub", 80, y, TYPE_S, kTextDim);
     snprintf(line, sizeof(line), "%.7s", u->latest[0] ? u->latest : "unknown");
     PText(line, 300, y, TYPE_S, u->status == UPDATE_BEHIND ? kYellow : kText);
+    if (u->status == UPDATE_BEHIND) {
+        char more[48];
+        snprintf(more, sizeof(more), u->behind == 1 ? "1 change newer" : "%d changes newer", u->behind);
+        PText(more, 300 + PMeasure(line, TYPE_S) + 24, y, TYPE_S, kTextDim);
+    }
     y += 26;
     if (u->title[0]) {
         PText("Latest change", 80, y, TYPE_S, kTextDim);
@@ -1241,14 +1895,7 @@ void Render_Update(const UpdateState *u, const char *sourceDir) {
         y += 26;
     }
     PText("Last checked", 80, y, TYPE_S, kTextDim);
-    if (u->checkedAt > 0) {
-        long long ago = (long long)time(NULL) - u->checkedAt;
-        if (ago < 0) ago = 0;
-        if (ago < 120) snprintf(line, sizeof(line), "just now");
-        else if (ago < 7200) snprintf(line, sizeof(line), "%lld minutes ago", ago / 60);
-        else if (ago < 172800) snprintf(line, sizeof(line), "%lld hours ago", ago / 3600);
-        else snprintf(line, sizeof(line), "%lld days ago", ago / 86400);
-    } else snprintf(line, sizeof(line), "never");
+    CheckedAgo(u->checkedAt, line, sizeof(line));
     PText(line, 300, y, TYPE_S, kText);
     y += 44;
 
@@ -1261,18 +1908,25 @@ void Render_Update(const UpdateState *u, const char *sourceDir) {
         PText("./install.sh --update", 96, y + 24, TYPE_S, kTeal);
         y += 72;
         PText("Nothing is downloaded or installed until you do that.", 80, y, TYPE_S, kTextDim);
+    } else if (u->status == UPDATE_UNKNOWN && u->checkedAt > 0) {
+        PText("It is not among the newest changes on GitHub: it was made from", 80, y, TYPE_S, kTextDim); y += 22;
+        PText("your own work in progress, or it is very old.", 80, y, TYPE_S, kTextDim);
     } else if (u->status == UPDATE_UNKNOWN) {
         PText("Either GitHub has not been reached yet, or this build was made", 80, y, TYPE_S, kTextDim); y += 22;
         PText("from changes that are not on GitHub (your own work in progress).", 80, y, TYPE_S, kTextDim);
     }
 
+    CheckNowNote(v, kv);
     PText("The check is one anonymous request to GitHub, at most every six hours.", 80, WINDOW_HEIGHT - 96, TYPE_S, kTextDim);
-    PText("check_updates=0 in ~/.config/ghost-launcher/online.conf turns it off.", 80, WINDOW_HEIGHT - 74, TYPE_S, kTextDim);
-    PText("R checks again now    Esc goes back", 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
-    Win_EndFrame();
+    PText("Settings > Online turns it off.", 80, WINDOW_HEIGHT - 74, TYPE_S, kTextDim);
+    /* R does nothing while checks are off or one is under way: say so by leaving it out. */
+    const char *hint = (v->checksOff || v->checking) ? ForHints(kv, "Esc goes back", "B goes back")
+                                                     : ForHints(kv, "R checks again now    Esc goes back", "View checks again now    B goes back");
+    PText(hint, 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+    KitDraw_List(kv);
 }
 
-void Render_OnlineAsk(bool choice, bool firstTime) {
+void Render_OnlineAsk(bool firstTime, bool sharingNow, const KitView *kv) {
     BeginScreen("Share scores online?");
     int y = 120;
     PText("Yes: your scores go to the Ghost Arcade leaderboard, so", 80, y, TYPE_S, kText); y += 22;
@@ -1281,37 +1935,436 @@ void Render_OnlineAsk(bool choice, bool firstTime) {
     PText("Your arcade name, the game, the mode, the score and the", 80, y, TYPE_S, kTextDim); y += 20;
     PText("date, plus a random ID made on this computer so repeats", 80, y, TYPE_S, kTextDim); y += 20;
     PText("are not counted twice. No account, nothing else.", 80, y, TYPE_S, kTextDim); y += 40;
-    PText("No: nothing leaves this machine. Local scores still work.", 80, y, TYPE_S, kText); y += 60;
-
-    int bx = 80;
-    const char *labels[2] = {"No, keep it local", "Yes, share my scores"};
-    for (int i = 0; i < 2; i++) {
-        bool sel = (i == 1) == choice;
-        int w = PMeasure(labels[i], TYPE_M) + 40;
-        DrawRectangle(bx, y, w, 48, sel ? kPink : kCabinetDark);
-        DrawRectangle(bx, y, 4, 48, sel ? kYellow : kCabinetEdge);
-        PText(labels[i], bx + 22, y + 14, TYPE_M, sel ? kWarmWhite : kTextDim);
-        bx += w + 24;
+    PText("No: nothing leaves this machine. Local scores still work.", 80, y, TYPE_S, kText);
+    /* The old screen lit the saved answer; a pointer user, who sees no focus,
+     * is told in words instead. */
+    if (!firstTime) {
+        const KitItem *no = Kit_Get(kv->list, WID_ONLINE_NO);
+        int ny = no ? (int)(no->r.y + no->r.h) + 20 : y + 128;
+        PText(sharingNow ? "Right now your scores are shared." : "Right now your scores stay on this computer.", 80, ny, TYPE_S, kTextDim);
     }
-    PText(firstTime ? "Left/Right choose    Enter confirms    Esc means no" : "Left/Right choose    Enter saves    Esc leaves it as it was",
-          80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
-    Win_EndFrame();
+    const char *hint = firstTime ? ForHints(kv, "Left/Right choose    Enter confirms    Esc means no", "D-pad choose    A confirms    B means no")
+                                 : ForHints(kv, "Left/Right choose    Enter saves    Esc leaves it as it was",
+                                            "D-pad choose    A saves    B leaves it as it was");
+    PText(hint, 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+    KitDraw_List(kv);
 }
 
-void Render_Profile(const char *gameName, const char *buffer) {
-    BeginScreen(gameName ? "Name for this game" : "Your name");
+/* ---------------------------------------------------------- daily desk */
 
-    char explain[160];
-    if (gameName) snprintf(explain, sizeof(explain), "Only %.40s uses this. Leave it blank to use your arcade name.", gameName);
-    else snprintf(explain, sizeof(explain), "Every game uses this on its score tables, online ones included.");
-    PText(explain, 80, 116, TYPE_S, kTextDim);
+/* A cell of the strip, its value cut before the next cell (a machine the
+ * admin gave a long name). */
+static void DeskCell(int x, int right, const char *label, const char *value, Color valueColour, const char *detail, Color detailColour) {
+    char fit[64];
+    Fit(fit, sizeof(fit), value, TYPE_M, right - x);
+    PText(label, x, DESK_STRIP_Y, TYPE_S, kTextDim);
+    PText(fit, x, DESK_STRIP_Y + 14, TYPE_M, valueColour);
+    if (detail && detail[0]) PText(detail, x, DESK_STRIP_Y + 36, TYPE_S, detailColour);
+}
 
-    char shown[PROFILE_USERNAME_LEN + 2];
-    snprintf(shown, sizeof(shown), "%s_", buffer);
-    PText(shown, 80, 184, TYPE_L, kText);
-    DrawRectangle(80, 220, WINDOW_WIDTH - 160, 2, kYellow);
+static void DayWords(int n, char *out, size_t size) { snprintf(out, size, "%d day%s", n, n == 1 ? "" : "s"); }
 
-    PText("Online boards show up to 32 characters.", 80, 236, TYPE_S, kTextDim);
-    PText("Enter saves    Esc cancels", 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
-    Win_EndFrame();
+/* The streak, the best one, today's featured game and the last fourteen
+ * days as dots (filled when a daily was played; today ringed). */
+static void DrawDeskStrip(const Desk *d) {
+    char value[32];
+    DayWords(d->streak.current, value, sizeof(value));
+    const char *how = d->streak.today ? "Played today" : (d->streak.current > 0 ? "Keep it going today" : "One today starts it");
+    DeskCell(DESK_X, DESK_CELL_BEST - 16, "Streak", value, d->streak.current > 0 ? kYellow : kTextDim, how, d->streak.today ? kTeal : kTextDim);
+    DayWords(d->streak.best, value, sizeof(value));
+    DeskCell(DESK_CELL_BEST, DESK_CELL_FEATURED - 16, "Best streak", value, d->streak.best > 0 ? kText : kTextDim, NULL, kTextDim);
+    const char *slug = Desk_GameSlug(d->featured);
+    int at = -1;
+    for (int r = 0; r < d->count; r++) if (strcmp(d->rows[r].slug, slug) == 0) at = r;
+    char name[24];
+    snprintf(name, sizeof(name), "%c%.20s", slug[0] ? (char)(slug[0] - 32) : ' ', slug[0] ? slug + 1 : "");
+    DeskCell(DESK_CELL_FEATURED, DESK_DOT_X - 16, "Featured today", at >= 0 ? d->rows[at].name : name, at >= 0 ? kWarmWhite : kTextDim, at >= 0 ? "Starred below" : "Not on your row",
+             kTextDim);
+    PText("Last 14 days", DESK_DOT_X, DESK_STRIP_Y, TYPE_S, kTextDim);
+    static const char kInitial[7] = {'M', 'T', 'W', 'T', 'F', 'S', 'S'};
+    for (int k = 0; k < DESK_DOTS; k++) {
+        int x = DESK_DOT_X + k * DESK_DOT_PITCH, y = DESK_STRIP_Y + 16;
+        bool today = k == DESK_DOTS - 1;
+        if (today) DrawRectangleLinesEx((Rectangle){(float)x - 2, (float)y - 2, DESK_DOT_SIZE + 4, DESK_DOT_SIZE + 4}, 2.0f, kPink);
+        if (d->dots[k]) DrawRectangle(x, y, DESK_DOT_SIZE, DESK_DOT_SIZE, kYellow);
+        else {
+            DrawRectangle(x, y, DESK_DOT_SIZE, DESK_DOT_SIZE, kCabinetDark);
+            DrawRectangleLinesEx((Rectangle){(float)x, (float)y, DESK_DOT_SIZE, DESK_DOT_SIZE}, 1.0f, kCabinetEdge);
+        }
+        char letter[2] = {kInitial[Desk_Weekday(d->today - (DESK_DOTS - 1) + k)], '\0'};
+        PTextCentered(letter, TYPE_S, x + DESK_DOT_SIZE / 2 + 1, y + DESK_DOT_SIZE + 6, today ? kPink : kTextDim);
+    }
+}
+
+/* A number in its column: 16 px, or 8 px when it would reach the next. */
+static void DeskNumber(const char *text, int x, int y, int room, Color c) {
+    if (PMeasure(text, TYPE_M) <= room) PText(text, x, y, TYPE_M, c);
+    else PText(text, x, y + 4, TYPE_S, c);
+}
+
+/* A chalk tick: two strokes. */
+static void DrawTick(int x, int y, Color c) {
+    for (int i = 0; i < 4; i++) DrawRectangle(x + i * 2, y + 4 + i * 2, 2, 2, c);
+    for (int i = 0; i < 6; i++) DrawRectangle(x + 8 + i * 2, y + 10 - i * 2, 2, 2, c);
+}
+
+/* One game's row: lit as the house lights a row (panel and a pink bar),
+ * its columns in their places. */
+static void DrawDeskRow(const DeskRow *r, KitRect rect, KitLook look) {
+    int x = (int)rect.x, y = (int)rect.y, w = (int)rect.w, h = (int)rect.h;
+    Color name = kText, value = kText, dim = kTextDim;
+    int sink = 0;
+    switch (look) {
+        case KIT_LOOK_HOVER: DrawRectangle(x, y, w, h, Pal_Mix(kPanel, kCabinet, 0.5f)); name = kWarmWhite; break;
+        case KIT_LOOK_FOCUSED: DrawRectangle(x, y, w, h, kPanel); DrawRectangle(x, y, 4, h, kPink); name = kPink; break;
+        case KIT_LOOK_PRESSED: DrawRectangle(x, y, w, h, kPink); name = value = dim = kInk; sink = 2; break;
+        case KIT_LOOK_DISABLED: name = value = dim = kFaint; break;
+        default: break;
+    }
+    if (r->featured) KitDraw_Star(x + 8, y + 6 + sink, 2, true, look == KIT_LOOK_PRESSED ? kInk : kYellow);
+    char text[48];
+    Fit(text, sizeof(text), r->name, TYPE_M, DESK_COL_TODAY - (x + 32) - 12);
+    PText(text, x + 32, y + 6 + sink, TYPE_M, name);
+    if (!r->installed) PText("Not installed", x + 32, y + 26 + sink, TYPE_S, dim);
+    else if (r->featured) PText("Featured today", x + 32, y + 26 + sink, TYPE_S, look == KIT_LOOK_PRESSED ? kInk : kYellow);
+    else if (r->runsToday > 1) {
+        snprintf(text, sizeof(text), "%d runs today", r->runsToday);
+        PText(text, x + 32, y + 26 + sink, TYPE_S, dim);
+    }
+    if (r->played) {
+        DrawTick(DESK_COL_TODAY, y + 8 + sink, look == KIT_LOOK_PRESSED ? kInk : kTeal);
+        PText("Played", DESK_COL_TODAY + 24, y + 12 + sink, TYPE_S, look == KIT_LOOK_PRESSED ? kInk : kTeal);
+    } else {
+        PText("Not yet", DESK_COL_TODAY, y + 12 + sink, TYPE_S, dim);
+    }
+    if (r->hasBest) {
+        snprintf(text, sizeof(text), "%ld", r->best);
+        DeskNumber(text, DESK_COL_BEST, y + 6 + sink, DESK_COL_WORLD - DESK_COL_BEST - 12, value);
+    } else PText("-", DESK_COL_BEST, y + 6 + sink, TYPE_M, dim);
+    if (r->hasWorld) {
+        snprintf(text, sizeof(text), "%ld", r->world);
+        DeskNumber(text, DESK_COL_WORLD, y + 6 + sink, DESK_COL_RANK - DESK_COL_WORLD - 12, value);
+        snprintf(text, sizeof(text), "%.16s", r->worldName);
+        PText(text, DESK_COL_WORLD, y + 26 + sink, TYPE_S, dim);
+    } else PText("-", DESK_COL_WORLD, y + 6 + sink, TYPE_M, dim);
+    if (r->rank > 0) {
+        snprintf(text, sizeof(text), "#%d", r->rank);
+        PText(text, DESK_COL_RANK, y + 6 + sink, TYPE_M, r->rank == 1 && look != KIT_LOOK_PRESSED ? kYellow : value);
+    } else PText("-", DESK_COL_RANK, y + 6 + sink, TYPE_M, dim);
+}
+
+static void DrawDeskNote(const DeskScene *s) {
+    char ago[48], line[96];
+    Settings_Ago(s->syncedAt, s->now, ago, sizeof(ago));
+    if (!s->sharing) snprintf(line, sizeof(line), "Turn on Share my scores for the world's best and your rank.");
+    else if (s->syncedAt > 0) snprintf(line, sizeof(line), "World boards synced %s.", ago);
+    else snprintf(line, sizeof(line), "The world boards have not come down yet.");
+    PText(line, DESK_X, DESK_NOTE_Y, TYPE_S, kTextDim);
+}
+
+void Render_Desk(const DeskScene *s, const KitView *kv) {
+    const Desk *d = s->desk;
+    BeginScreen("Daily challenge");
+    char date[48];
+    Desk_DateWords(d->today, date, sizeof(date));
+    PTextRight(date, TYPE_M, DESK_RIGHT, 62, kText);
+    PText("Every daily game plays the same seed for everyone today, on a board of its own.", DESK_X, DESK_INTRO_Y, TYPE_S, kTextDim);
+    DrawDeskStrip(d);
+    if (d->count == 0) {
+        PTextCentered("No daily games on your row", TYPE_M, WINDOW_WIDTH / 2, 300, kWarmWhite);
+        PTextCentered("Settings > Machines shows hidden machines", TYPE_S, WINDOW_WIDTH / 2, 332, kTextDim);
+    } else {
+        static const struct { int x; const char *label; } kHead[] = {
+            {DESK_X + 32, "Game"}, {DESK_COL_TODAY, "Today"}, {DESK_COL_BEST, "Your best"}, {DESK_COL_WORLD, "World best"}, {DESK_COL_RANK, "Your rank"}};
+        for (size_t i = 0; i < sizeof(kHead) / sizeof(kHead[0]); i++) PText(kHead[i].label, kHead[i].x, DESK_HEAD_Y, TYPE_S, kTextDim);
+        for (int i = 0; i < kv->list->count; i++) {
+            const KitItem *it = &kv->list->items[i];
+            int r = Desk_RowOf(it->id);
+            if (r >= 0 && r < d->count) DrawDeskRow(&d->rows[r], it->r, KitDraw_LookOf(kv, it));
+        }
+        DrawScrollBar(DESK_RIGHT + 4, DESK_ROW_Y, DESK_VISIBLE * DESK_ROW_PITCH - 4, s->top, DESK_VISIBLE, d->count);
+        DrawDeskNote(s);
+    }
+    if (s->help && s->help[0]) PText(s->help, DESK_X, DESK_HELP_Y, TYPE_S, kTextDim);
+    if (s->hint) PText(s->hint, DESK_X, WINDOW_HEIGHT - 24, TYPE_S, kTextDim);
+    KitDraw_List(kv);
+}
+
+/* --------------------------------------------------------------- settings */
+
+static const Color kVeil = {6, 4, 14, 255}; /* what dims a page under a menu, a box or the name board */
+
+static Color ToneColor(NoteTone t) {
+    switch (t) {
+        case NOTE_TEXT: return kText;
+        case NOTE_GOOD: return kTeal;
+        case NOTE_HOT: return kYellow;
+        case NOTE_BAD: return kCoinRed;
+        default: return kTextDim;
+    }
+}
+
+static bool Typed(const SettingsRow *r, const Settings *s) {
+    return r->field && s->field.editing && s->fieldFor == r->nameIndex;
+}
+
+/* The row the keys are on (or the one being typed in): panel and bar. The
+ * mouse lights controls, not rows. */
+static const SettingsRow *LitRow(const SettingsPage *p, const Settings *s, const KitView *kv) {
+    for (int i = 0; i < p->rowCount; i++) if (Typed(&p->rows[i], s)) return &p->rows[i];
+    if (!kv->state || kv->device == DEV_MOUSE) return NULL;
+    return Settings_RowOf(p, kv->state->focus);
+}
+
+static void DrawRowText(const SettingsRow *r, bool lit) {
+    int cy = (int)(r->r.y + r->r.h / 2.0f);
+    if (r->kind == SROW_HEADING) {
+        PText(r->label, SET_LABEL_X, (int)r->r.y + 4, TYPE_S, kYellow);
+        return;
+    }
+    if (lit) {
+        DrawRectangle((int)r->r.x, (int)r->r.y, (int)r->r.w, (int)r->r.h, kPanel);
+        DrawRectangle((int)r->r.x, (int)r->r.y, 4, (int)r->r.h, kPink);
+    }
+    int labelY = r->sub[0] ? (int)r->r.y + 1 : cy - 8; /* a machine's status goes under its name */
+    if (r->star) KitDraw_Star(SET_LABEL_X, labelY, 2, true, kYellow); /* 16 px: never mistaken for the shared rows' teal * */
+    if (r->label[0]) {
+        Color c = r->kind == SROW_INFO ? kTextDim : (lit ? kPink : (r->dim ? kTextDim : kText));
+        int x = SET_LABEL_X + r->labelPad;
+        PText(r->label, x, labelY, TYPE_M, c);
+        if (r->shared) PText("*", x + PMeasure(r->label, TYPE_M) + 6, labelY, TYPE_M, kTeal);
+    }
+    if (r->sub[0]) PText(r->sub, SET_LABEL_X + r->labelPad, (int)r->r.y + 22, TYPE_S, ToneColor(r->subTone));
+    bool two = r->note[1][0] != '\0';
+    for (int l = 0; l < 2; l++) {
+        if (!r->note[l][0]) continue;
+        int y = two ? cy - 11 + l * 14 : cy - 4;
+        PText(r->note[l], r->noteX, y, TYPE_S, ToneColor(r->tone[l]));
+    }
+}
+
+/* The cursor sits in the gap before character `cursor`, between glyphs. */
+static void DrawCursor(int textX, int y, const TextField *f) {
+    if (!CursorShows(f)) return;
+    DrawRectangle(textX + (f->cursor - f->view) * SET_CHAR_W - 2, y - 2, 2, 20, kYellow);
+}
+
+static void DrawTyping(KitRect b, const TextField *f) {
+    DrawRectangle((int)b.x, (int)b.y, (int)b.w, (int)b.h, kPanel);
+    DrawRectangleLinesEx((Rectangle){b.x, b.y, b.w, b.h}, 2.0f, kYellow);
+    int textX = (int)b.x + SET_FIELD_PAD, y = (int)(b.y + (b.h - 16.0f) / 2.0f);
+    char shown[TEXTFIELD_CAP];
+    snprintf(shown, sizeof(shown), "%.*s", Settings_FieldChars(true), f->text + f->view);
+    PText(shown, textX, y, TYPE_M, kWarmWhite);
+    DrawCursor(textX, y, f);
+    char count[24];
+    int len = TextField_Length(f);
+    snprintf(count, sizeof(count), "%d / %d", len, f->limit);
+    Color c = len > f->limit ? kCoinRed : (len == f->limit ? kYellow : kTextDim);
+    PTextRight(count, TYPE_S, (int)(b.x + b.w) - SET_FIELD_PAD, (int)(b.y + b.h / 2.0f) - 4, c);
+}
+
+/* A name at rest: the name, or a faint hint where there is none. */
+static void DrawNameAtRest(KitRect b, const SettingsRow *r, KitLook look) {
+    bool hover = look == KIT_LOOK_HOVER, pressed = look == KIT_LOOK_PRESSED;
+    DrawRectangle((int)b.x, (int)b.y, (int)b.w, (int)b.h, hover ? Mix(kCabinetDark, kCabinet, 0.5f) : kCabinetDark);
+    DrawRectangleLinesEx((Rectangle){b.x, b.y, b.w, b.h}, 1.0f, hover || pressed ? kText : kCabinetEdge);
+    int textX = (int)b.x + SET_FIELD_PAD, cy = (int)(b.y + b.h / 2.0f);
+    if (r->placeholder) {
+        PText(r->value, textX, cy - 4, TYPE_S, r->nameIndex == SET_ARCADE_NAME ? kCoinRed : kTextDim);
+        return;
+    }
+    int room = Settings_FieldChars(false), len = (int)strlen(r->value);
+    char shown[TEXTFIELD_CAP];
+    if (len > room) snprintf(shown, sizeof(shown), "%.*s...", room - 3, r->value); /* the whole name is one Edit away */
+    else snprintf(shown, sizeof(shown), "%s", r->value);
+    PText(shown, textX, cy - 8, TYPE_M, r->nameIndex == SET_ARCADE_NAME ? kYellow : kText);
+}
+
+static void DrawNameField(const SettingsRow *r, const Settings *s, const KitView *kv) {
+    const KitItem *box = Kit_Get(kv->list, r->field);
+    if (!box) return;
+    if (Typed(r, s)) DrawTyping(box->r, &s->field);
+    else DrawNameAtRest(box->r, r, KitDraw_LookOf(kv, box));
+}
+
+/* A row with one control shows its focus on the row; only a row of several
+ * marks which of them has it. */
+static void DrawSettingsControls(const SettingsPage *p, const Settings *s, const SettingsRow *lit, const KitView *kv) {
+    for (int i = 0; i < kv->list->count; i++) {
+        const KitItem *it = &kv->list->items[i];
+        if (it->kind == KIT_AREA || (it->flags & KIT_SELFDRAWN)) continue;
+        KitLook look = KitDraw_LookOf(kv, it);
+        const SettingsRow *row = Settings_RowOf(p, it->id);
+        /* A heading's button (Add a machine) has no lit row behind it to show it. */
+        if (look == KIT_LOOK_FOCUSED && row && row == lit && row->controlCount == 1 && row->kind == SROW_CONTROL) look = KIT_LOOK_NORMAL;
+        look = Settings_TypingLook(s, look, kv->device);
+        KitDraw_Item(it, look, Kit_HoverCell(kv->state, it, kv->device), Kit_PressedCell(kv->state, it));
+    }
+}
+
+static void DrawKeyCard(const SettingsPage *p) {
+    int y = SET_CARD_Y;
+    PText("What", SET_CARD_WHAT_X, y, TYPE_S, kYellow);
+    PText("Keyboard", SET_CARD_KEYS_X, y, TYPE_S, kYellow);
+    PText("Xbox pad", SET_CARD_PAD_X, y, TYPE_S, kYellow);
+    PText("Mouse", SET_CARD_MOUSE_X, y, TYPE_S, kYellow);
+    DrawRectangle(SET_CARD_WHAT_X, y + 14, SET_CARD_END_X - SET_CARD_WHAT_X, 2, kCabinetEdge);
+    y += 24;
+    for (int i = 0; i < p->cardLines; i++, y += SET_CARD_PITCH) {
+        const KeymapLine *l = &p->lines[i];
+        PText(l->what, SET_CARD_WHAT_X, y, TYPE_S, kText);
+        PText(l->keys[0] ? l->keys : "-", SET_CARD_KEYS_X, y, TYPE_S, l->keys[0] ? kTeal : kFaint);
+        PText(l->pad[0] ? l->pad : "-", SET_CARD_PAD_X, y, TYPE_S, l->pad[0] ? kTeal : kFaint);
+        if (l->mouse[0]) PText(l->mouse, SET_CARD_MOUSE_X, y, TYPE_S, kTeal);
+    }
+    /* Under the table, not in the help line: the keys and the pad keep the
+     * stepper chosen, so the help line always holds its sentence. */
+    if (p->cardNote && p->cardNote[0]) PText(p->cardNote, SET_CARD_WHAT_X, y + 8, TYPE_S, kTextDim);
+}
+
+/* The sentence for the chosen row, or why a control cannot be used. */
+static void DrawHelp(const SettingsPage *p, const Settings *s, const SettingsRow *lit, const KitView *kv) {
+    if (s->field.editing && s->board) return; /* the board and the hint line say it all */
+    const char *text = NULL;
+    Color c = kTextDim;
+    if (kv->state && kv->device == DEV_MOUSE) {
+        const char *why = Kit_Reason(kv->state, kv->list, kv->device);
+        const SettingsRow *hovered = Settings_RowOf(p, kv->state->hover);
+        if (why[0]) { text = why; c = kTextDim; }
+        else if (hovered) text = hovered->help;
+    } else if (kv->state) {
+        const KitItem *f = Kit_Get(kv->list, kv->state->focus);
+        if (f && (f->flags & KIT_DISABLED)) text = f->reason;
+        else if (lit) text = lit->help;
+    }
+    if (text && text[0]) PText(text, SET_LABEL_X, SET_HELP_Y, TYPE_S, c);
+}
+
+static void DrawFootnote(const char *text) {
+    if (!text || !text[0]) return;
+    if (text[0] == '*') {
+        PText("*", SET_LABEL_X, SET_FOOT_Y, TYPE_S, kTeal);
+        PText(text + 1, SET_LABEL_X + PMeasure("*", TYPE_S), SET_FOOT_Y, TYPE_S, kTextDim);
+    } else {
+        PText(text, SET_LABEL_X, SET_FOOT_Y, TYPE_S, kTextDim);
+    }
+}
+
+/* The hint line, named from the keymap; after pad use, the pad's buttons.
+ * Left/Right are named only where they do something. */
+static void DrawSettingsHint(const SettingsPage *p, const Settings *s, const KitView *kv) {
+    InputDevice device = kv->hints;
+    char a[24], b[24], c[24], d[24], e[24], line[256];
+    if (s->field.editing && s->board && device == DEV_PAD) {
+        char f[24];
+        Keymap_Hint(KA_BOARD_TYPE, DEV_PAD, a, sizeof(a));
+        Keymap_Hint(KA_BOARD_DELETE, DEV_PAD, b, sizeof(b));
+        Keymap_Hint(KA_BOARD_SPACE, DEV_PAD, c, sizeof(c));
+        Keymap_Hint(KA_BOARD_DONE, DEV_PAD, d, sizeof(d));
+        Keymap_Hint(KA_TEXT_CANCEL, DEV_PAD, f, sizeof(f));
+        snprintf(line, sizeof(line), "D-pad choose    %s types    %s deletes    %s space    %s saves    %s puts it back", a, b, c, d, f);
+    } else if (s->field.editing) {
+        Keymap_Hint(KA_TEXT_SAVE, DEV_KEYBOARD, a, sizeof(a));
+        Keymap_Hint(KA_TEXT_CANCEL, DEV_KEYBOARD, b, sizeof(b));
+        Keymap_Hint(KA_TEXT_PASTE, DEV_KEYBOARD, c, sizeof(c));
+        snprintf(line, sizeof(line), "Type a name    %s saves    %s puts it back    %s pastes", a, b, c);
+    } else if (device == DEV_PAD) {
+        Keymap_Hint(KA_UI_PRESS, DEV_PAD, a, sizeof(a));
+        Keymap_Hint(KA_UI_PREV_TAB, DEV_PAD, b, sizeof(b));
+        Keymap_Hint(KA_UI_NEXT_TAB, DEV_PAD, c, sizeof(c));
+        Keymap_Hint(KA_BACK, DEV_PAD, d, sizeof(d));
+        snprintf(line, sizeof(line), "D-pad choose    %s press    %s/%s tabs    %s back", a, b, c, d);
+    } else {
+        char f[24], g[24], side[64] = "";
+        Keymap_Hint(KA_UI_UP, DEV_KEYBOARD, a, sizeof(a));
+        Keymap_Hint(KA_UI_DOWN, DEV_KEYBOARD, b, sizeof(b));
+        Keymap_Hint(KA_UI_LEFT, DEV_KEYBOARD, f, sizeof(f));
+        Keymap_Hint(KA_UI_RIGHT, DEV_KEYBOARD, g, sizeof(g));
+        Keymap_Hint(KA_UI_PRESS, DEV_KEYBOARD, c, sizeof(c));
+        Keymap_Hint(KA_UI_NEXT_TAB, DEV_KEYBOARD, d, sizeof(d));
+        Keymap_Hint(KA_BACK, DEV_KEYBOARD, e, sizeof(e));
+        const char *what = kv->state ? Settings_SideKeys(p, kv->state->focus) : NULL;
+        if (what) snprintf(side, sizeof(side), "%s/%s %s    ", f, g, what);
+        snprintf(line, sizeof(line), "%s/%s choose    %s%s press    %s next tab    %s back", a, b, side, c, d, e);
+    }
+    PText(line, SET_LABEL_X, WINDOW_HEIGHT - 24, TYPE_S, kTextDim);
+}
+
+/* The pad's name board over the page: every cell a block in the kit's
+ * looks; the pad's cursor is the house focus (panel and a 4 px bar), shown
+ * while the pad is in use, since the keyboard types without it. */
+static void DrawNameBoard(const SettingsPage *p, const Settings *s, const SettingsRow *typed, const KitView *kv) {
+    KitList layer;
+    Settings_EditLayer(p, s, &layer);
+    KitRect b = Settings_BoardPanel(p, s);
+    /* The rows round it dim, as the hall does under the menu, so the buttons
+     * it half covers read as behind it; the name being typed stays lit. */
+    int top = SET_TABS_Y + SET_TABS_H + 2, rowY = typed ? (int)typed->r.y : NB_BOTTOM, rowEnd = typed ? (int)(typed->r.y + typed->r.h) : NB_BOTTOM;
+    DrawRectangle(0, top, WINDOW_WIDTH, rowY - top, Fade(kVeil, 0.55f));
+    DrawRectangle(0, rowEnd, WINDOW_WIDTH, NB_BOTTOM - rowEnd, Fade(kVeil, 0.55f));
+    DrawRectangle((int)b.x, (int)b.y, (int)b.w, (int)b.h, (Color){12, 9, 28, 250});
+    DrawRectangleLinesEx((Rectangle){b.x, b.y, b.w, b.h}, 2.0f, kBaseboard);
+    DrawRectangle((int)b.x, (int)b.y, (int)b.w, 4, kPink);
+    for (int i = 0; i < NameBoard_Count(); i++) {
+        const KitItem *cell = Kit_Get(&layer, WID_SET_BOARD + i);
+        if (!cell) continue;
+        KitItem it = *cell;
+        it.style = KIT_STYLE_BLOCK;
+        it.textSize = Kit_TextWidth(it.label, 16) <= it.r.w - 8 ? 16 : 8;
+        KitLook look = kv->state ? Kit_Look(kv->state, &it, kv->device) : KIT_LOOK_NORMAL;
+        if (look == KIT_LOOK_NORMAL && kv->device == DEV_PAD && i == s->boardPos.cell) look = KIT_LOOK_FOCUSED;
+        KitDraw_Item(&it, look, KIT_NONE, KIT_NONE);
+    }
+}
+
+void Render_Settings(const SettingsPage *p, const Settings *s, const KitView *kv) {
+    BeginScreen("Settings");
+    DrawRectangle(40, SET_TABS_Y + SET_TABS_H, WINDOW_WIDTH - 80, 2, kBaseboard);
+    if (p->intro) PText(p->intro, SET_LABEL_X, SET_INTRO_Y, TYPE_S, kTextDim);
+    const SettingsRow *lit = LitRow(p, s, kv);
+    for (int i = 0; i < p->rowCount; i++) DrawRowText(&p->rows[i], &p->rows[i] == lit);
+    for (int i = 0; i < p->rowCount; i++) if (p->rows[i].field) DrawNameField(&p->rows[i], s, kv);
+    DrawSettingsControls(p, s, lit, kv);
+    const SettingsTable *t = &p->table;
+    if (t->shown) DrawScrollBar(SET_ROW_X + SET_ROW_W + 8, (int)t->y, (int)((float)t->visible * t->pitch) - 4, t->top, t->visible, t->count);
+    if (p->cardLines > 0) DrawKeyCard(p);
+    DrawHelp(p, s, lit, kv);
+    DrawFootnote(p->footnote);
+    if (s->field.editing && s->board) DrawNameBoard(p, s, lit, kv);
+    DrawSettingsHint(p, s, kv);
+}
+
+/* ------------------------------------------------------------- overlays */
+
+void Render_ArcadeMenu(const KitView *kv) {
+    DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Fade(kVeil, 0.55f)); /* the hall dims but keeps moving */
+    DrawRectangle(0, 0, MENU_PANEL_W, WINDOW_HEIGHT, (Color){12, 9, 28, 255}); /* opaque: the hall's text must not show through */
+    DrawRectangle(MENU_PANEL_W - 2, 0, 2, WINDOW_HEIGHT, kBaseboard);
+    int x = MENU_ROW_X + 20;
+    PText("Arcade menu", x, 56, TYPE_L, kWarmWhite);
+    DrawRectangle(x, 92, PMeasure("Arcade menu", TYPE_L), 4, kPink);
+    KitDraw_List(kv);
+    PText(ForHints(kv, "Enter open    Esc close", "A open    B close"), x, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+}
+
+void Render_Dialog(const KitDialog *d, const KitView *kv) {
+    DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Fade(kVeil, 0.6f));
+    int x = KIT_DLG_X, y = KIT_DLG_Y;
+    DrawRectangle(x, y, KIT_DLG_W, KIT_DLG_H, (Color){12, 9, 28, 250});
+    DrawRectangleLinesEx((Rectangle){(float)x, (float)y, (float)KIT_DLG_W, (float)KIT_DLG_H}, 2.0f, kBaseboard);
+    DrawRectangle(x, y, KIT_DLG_W, 4, kPink);
+    PText(d->title, x + 32, y + 32, TYPE_M, kWarmWhite);
+    for (int i = 0; i < 2; i++) if (d->body[i][0]) PText(d->body[i], x + 32, y + 68 + i * 20, TYPE_S, kTextDim);
+    KitDraw_List(kv);
+}
+
+void Render_Toast(const char *text, bool bad, float alpha, bool onHall) {
+    if (!text || !text[0] || alpha <= 0.0f) return;
+    if (alpha > 1.0f) alpha = 1.0f;
+    int w = PMeasure(text, TYPE_S) + 36, h = 24;
+    int x = WINDOW_WIDTH / 2 - w / 2, y = onHall ? 44 : 16; /* on the hall: over the neon tube, above the row counter */
+    DrawRectangle(x, y, w, h, Fade(kPanel, alpha));
+    DrawRectangle(x, y, 4, h, Fade(bad ? kCoinRed : kTeal, alpha));
+    PText(text, x + 20, y + 8, TYPE_S, Fade(bad ? kCoinRed : kText, alpha));
 }

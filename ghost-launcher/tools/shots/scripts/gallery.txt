@@ -1,0 +1,45 @@
+#! env SHOTS_GALLERY=1
+# The button kit's gallery (tools/shots/gallery.c): every control in each
+# look, then the live set below driven by the mouse, the keys and the pad.
+wait 10
+shot kit-gallery
+mouse 200 508
+wait 3
+shot kit-live-hover-button
+mdown left
+wait 2
+shot kit-live-pressed-button
+mup left
+wait 2
+click 352 508
+wait 2
+click 604 508
+click 604 508
+wheel 1
+wait 2
+mouse 700 508
+mdown left
+wait 1
+mouse 760 510
+wait 2
+mouse 800 512
+wait 2
+shot kit-live-dragging
+mup left
+wait 2
+mouse 700 572
+wait 3
+shot kit-live-disabled-reason
+pad on
+wait 2
+pad tap RB
+wait 2
+pad tap UP
+wait 2
+shot kit-live-pad-focus
+pad off
+tap DOWN
+wait 2
+tap RIGHT
+wait 2
+shot kit-live-keys

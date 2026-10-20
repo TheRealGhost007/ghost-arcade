@@ -1,0 +1,176 @@
+#! env SHOTS_ADMIN=0 SHOTS_UPDATE=behind
+# Phase 3 verification. A mouse button held on the lit machine while Enter
+# drops the coin must not drop a second one when it is let go after the
+# game is up. With the pad on the name board its cursor there is the one
+# focus (Save is Enter's button, shown for the keyboard only). Hint lines
+# name the pad's buttons after pad use, and a nudge of the mouse leaves
+# them so, as on the hall's strip.
+wait 30
+mouse 480 300
+wait 2
+mdown left
+wait 2
+tap ENTER
+wait 80
+expect launches 1
+mup left
+wait 80
+expect launches 1
+gameexit
+wait 5
+
+# The board: one focus.
+pad on
+pad tap MENU
+wait 3
+pad tap DOWN
+pad tap DOWN
+wait 3
+pad tap A
+wait 10
+expect ui SETTINGS
+pad tap A
+wait 10
+expect app typing 1
+expect app board 1
+expect app boardcell A
+expect app look:Save normal
+shot verify-p3-board-pad
+# The keyboard's Enter saves: Save shows it once a key is used.
+tap END
+wait 3
+expect app look:Save focused
+pad tap A
+wait 3
+expect app look:Save normal
+expect profile TRGA
+pad tap B
+wait 3
+expect app typing 0
+expect app focus Edit
+
+# Pad hints on every screen the pad reaches; a mouse nudge keeps them.
+pad tap B
+wait 3
+expect ui MENU
+pad tap B
+wait 3
+expect ui LIST
+pad tap VIEW
+wait 5
+expect ui STATS
+mouse 300 300
+wait 3
+expect app hint 1
+shot verify-p3-stats-pad
+pad tap VIEW
+wait 3
+pad tap X
+wait 5
+expect ui GAME
+mouse 300 300
+wait 3
+expect app hint 1
+shot verify-p3-page-pad
+pad tap B
+wait 3
+expect ui LIST
+# Phase 5: pad X is the machine's page now; Trophies is in the Arcade menu (H on the keys).
+pad tap MENU
+wait 3
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+wait 2
+pad tap A
+wait 5
+expect ui TROPHIES
+shot verify-p3-trophies-pad
+pad tap B
+wait 3
+expect ui MENU
+pad tap B
+wait 3
+expect ui LIST
+pad tap MENU
+wait 3
+pad tap UP
+pad tap UP
+wait 2
+pad tap A
+wait 5
+expect ui UPDATE
+shot verify-p3-updates-pad
+pad tap B
+wait 3
+expect ui MENU
+mouse 200 300
+wait 3
+shot verify-p3-menu-pad-mouse
+pad tap B
+wait 3
+expect ui LIST
+# A key turns them back.
+tap LEFT
+wait 3
+expect app hint 0
+expect selected 11
+
+# Settings > Screen > Button hints: Auto follows the device; Keyboard and
+# Xbox pad hold whatever is used, on the strip, the card and the menu.
+tap TAB
+wait 3
+expect ui SETTINGS
+tap TAB
+tap TAB
+wait 3
+expect app tab Screen
+tap DOWN
+tap DOWN
+tap DOWN
+wait 3
+expect app focusrow Button hints
+tap RIGHT
+wait 3
+expect file .config/ghost-launcher/launcher.ini button_hints=keys\n
+expect app toast Saved
+shot verify-p3-button-hints
+tap ESC
+wait 3
+expect ui LIST
+pad tap RIGHT
+wait 3
+expect app hint 1
+expect app hints 0
+expect app chip:Play Enter normal
+expect app status Press Enter to play
+tap TAB
+wait 3
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap RIGHT
+wait 3
+expect file .config/ghost-launcher/launcher.ini button_hints=pad\n
+tap ESC
+wait 3
+expect app hint 0
+expect app hints 1
+expect app chip:Play A normal
+expect app chip:Daily Y disabled
+shot verify-p3-hints-pad-forced
+tap TAB
+wait 3
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap RIGHT
+wait 3
+expect file .config/ghost-launcher/launcher.ini button_hints=auto\n
+tap ESC
+wait 3
+expect app hints 0
+expect app chip:Play Enter normal

@@ -30,6 +30,9 @@ void Profiles_SetUsername(Profiles *p, const char *gameName, const char *usernam
 /* The name a game will actually play under: its own override if set,
  * otherwise the arcade-wide name. Returns "" (never NULL) if neither. */
 const char *Profiles_GetUsername(const Profiles *p, const char *gameName);
+/* Moves the entry kept under `from` (a game's old name) to `into`, replacing
+ * any there. False when `from` had none. */
+bool Profiles_Rename(Profiles *p, const char *from, const char *into);
 /* Only the entry stored under exactly this key (a game name or
  * PROFILE_DEFAULT_KEY), with no fallback -- what the edit screens show. */
 const char *Profiles_GetOwnUsername(const Profiles *p, const char *key);

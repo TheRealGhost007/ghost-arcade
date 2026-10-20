@@ -1,0 +1,98 @@
+#! env SHOTS_ADMIN=1
+# Phase 1 verifier's regressions. Two keys landing on one frame do one
+# thing: a coin and the remove question together would start the machine
+# after the one removed; Delete with E would leave the edit form pointing at
+# a removed machine. (tap A B C presses A and B together, then C.)
+wait 30
+expect selected 0
+tap DELETE ENTER F1
+wait 3
+expect app dialog none
+log coin, no question
+wait 70
+expect launched Blockfall
+expect count 1 launch
+gameexit
+wait 5
+tap DELETE E F1
+wait 3
+expect app dialog remove
+expect ui LIST
+expect app depth 1
+tap ESC
+wait 3
+expect app dialog none
+expect ui LIST
+
+# While a coin drops the header keeps its Menu chip and update notice in
+# sight (they take no clicks until it lands).
+tap ENTER
+wait 20
+shot verify-coin-header
+mouse 870 28
+wait 3
+expect app hover
+expect app cursor default
+click 870 28
+wait 60
+expect ui LIST
+expect count 2 launch
+gameexit
+wait 5
+
+# A box opened by the mouse shows its safe answer, as keys would; the
+# pointer on an answer takes over.
+tap ENTER
+wait 70
+mouse 46 74
+wait 3
+click 46 74
+wait 4
+expect app dialog leave
+mouse 600 560
+wait 3
+expect app look:Stay focused
+expect app look:Leave normal
+shot verify-dialog-mouse
+mouse 584 358
+wait 3
+expect app look:Leave hover
+expect app look:Stay normal
+tap ESC
+wait 3
+expect app dialog none
+
+# Enter on the trophy stepper steps it on, as its lit right arrow says.
+tap H
+wait 3
+expect trophy 0
+down ENTER
+wait 2
+expect app look:Blockfall pressed
+up ENTER
+wait 3
+expect trophy 1
+pad on
+pad tap A
+wait 3
+expect trophy 2
+tap ESC
+wait 3
+
+# Online sharing opened by the mouse (Settings > Online): no focus shows,
+# and the switch's lit half says the saved answer.
+mouse 100 600
+click 860 28
+wait 4
+expect ui MENU
+click 120 244
+wait 4
+expect ui SETTINGS
+click 535 128
+wait 4
+expect app tab Online
+mouse 500 500
+wait 3
+expect app look:Share my scores normal
+expect app sharing 0
+shot verify-online-mouse

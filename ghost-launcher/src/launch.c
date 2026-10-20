@@ -135,6 +135,20 @@ static void SpawnSync(const char *flag) {
     waitpid(pid, &status, 0); /* the intermediate child exits at once */
 }
 
+int Launch_RunningCount(void) {
+    int n = 0;
+    for (int i = 0; i < MAX_ACTIVE_LAUNCHES; i++) if (sActive[i].active) n++;
+    return n;
+}
+
+void Launch_InstallLogPath(char *out, size_t size) {
+    const char *xdgData = getenv("XDG_DATA_HOME");
+    const char *home = getenv("HOME");
+    if (xdgData && xdgData[0] != '\0') snprintf(out, size, "%s/ghost-launcher/install.log", xdgData);
+    else if (home && home[0] != '\0') snprintf(out, size, "%s/.local/share/ghost-launcher/install.log", home);
+    else if (size > 0) out[0] = '\0';
+}
+
 bool Launch_InstallGame(const char *sourceDir, const char *gameName,
                         char *outError, int outErrorSize) {
     if (sInstall.status == INSTALL_RUNNING) {
@@ -150,11 +164,9 @@ bool Launch_InstallGame(const char *sourceDir, const char *gameName,
         return false;
     }
 
-    char logPath[700] = "/dev/null";
-    const char *xdgData = getenv("XDG_DATA_HOME");
-    const char *home = getenv("HOME");
-    if (xdgData && xdgData[0] != '\0') snprintf(logPath, sizeof(logPath), "%s/ghost-launcher/install.log", xdgData);
-    else if (home && home[0] != '\0') snprintf(logPath, sizeof(logPath), "%s/.local/share/ghost-launcher/install.log", home);
+    char logPath[700];
+    Launch_InstallLogPath(logPath, sizeof(logPath));
+    if (!logPath[0]) snprintf(logPath, sizeof(logPath), "/dev/null");
 
     pid_t pid = fork();
     if (pid < 0) {

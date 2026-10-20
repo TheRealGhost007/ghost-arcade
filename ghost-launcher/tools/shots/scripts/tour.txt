@@ -1,0 +1,262 @@
+#! env SHOTS_ADMIN=1 SHOTS_CHECKS=1
+# A regression tour of what the launcher could do before the rework, with
+# the keys it always had: the admin form (add, refuse an empty name, edit,
+# Esc, Delete, both now asking first), an install that fails, the reason a machine cannot start,
+# the daily coin, Updates (R and the pad's View), online sharing (keys
+# and pad), Stats and Trophies left with pad B, per-game names, F11 on a
+# secondary screen, and pad A saving a name and playing once.
+wait 40
+expect ui LIST
+shot tour-hall-admin
+
+# Add a machine. An empty name is refused; icon, description and
+# install-from may stay empty.
+tap A
+wait 5
+expect ui ADD_GAME
+shot form-add
+tap ENTER
+wait 3
+expect ui ADD_GAME
+shot form-add-error
+text Nopath
+tap ENTER
+text ~/bin/nothing-here
+tap ENTER
+tap ENTER
+text A machine with no program
+tap ENTER
+tap ENTER
+wait 3
+shot form-add-confirm
+tap ENTER
+wait 5
+expect ui LIST
+expect selected 12
+expect file .config/ghost-launcher/games.txt Nopath|~/bin/nothing-here||A machine with no program|\n
+
+# Enter on it: not installed and nothing to install from, so the card says why.
+tap ENTER
+wait 10
+expect launches 0
+shot hall-error
+
+# Edit, change the name, Esc: asked first, then the change is thrown away.
+tap E
+wait 5
+expect ui EDIT_GAME
+tap BACKSPACE
+tap BACKSPACE
+text XY
+wait 2
+shot form-edit
+tap ESC
+wait 3
+expect ui EDIT_GAME
+expect app dialog discard
+expect app focus Keep editing
+tap ENTER
+wait 3
+expect app dialog none
+expect ui EDIT_GAME
+tap ESC
+wait 3
+tap RIGHT
+tap ENTER
+wait 3
+expect app dialog none
+expect ui LIST
+expect file .config/ghost-launcher/games.txt Nopath|
+
+# Delete asks first: Keep keeps it, Remove takes it off the row.
+tap DELETE
+wait 5
+expect app dialog remove
+expect app dialogtitle Remove Nopath?
+tap ENTER
+wait 3
+expect app dialog none
+expect selected 12
+expect file .config/ghost-launcher/games.txt Nopath|
+tap DELETE
+wait 3
+tap RIGHT
+tap ENTER
+wait 5
+expect selected 11
+expect nofile .config/ghost-launcher/games.txt Nopath
+expect app toast Saved
+
+# Gemdive is not installed: Enter installs. It fails, then is tried again.
+tap LEFT
+tap LEFT
+wait 30
+expect selected 9
+tap ENTER
+wait 10
+expect count 1 install Gemdive
+shot hall-installing
+install fail
+wait 10
+shot hall-install-failed
+tap ENTER
+wait 5
+expect count 2 install Gemdive
+install ok
+wait 10
+expect launches 0
+
+# D: nothing on Blockfall (no daily), a coin and the daily on Brickburst.
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect selected 0
+tap D
+wait 80
+expect launches 0
+tap RIGHT
+tap RIGHT
+wait 30
+expect selected 2
+tap D
+wait 20
+shot hall-daily-coin
+wait 60
+expect launched launch Brickburst --daily
+expect launches 1
+gameexit
+wait 5
+
+# Updates: R checks now, V closes; the pad's View checks, B closes.
+tap V
+wait 5
+expect ui UPDATE
+tap R
+wait 3
+expect count 1 --check-update-now
+expect app checking 1
+shot updates-after-r
+# A second R while it waits for GitHub asks nothing more.
+tap R
+wait 3
+expect count 1 --check-update-now
+# ghost-sync writes its answer: Checking... ends.
+write .local/share/ghost-launcher/update.txt status=current\nbehind=0\ncurrent=0123456789abcdef0123456789abcdef01234567\nlatest=0123456789abcdef0123456789abcdef01234567\nchecked=1700000000\n
+wait 70
+expect app checking 0
+tap V
+wait 3
+expect ui LIST
+pad on
+wait 2
+tap V
+wait 3
+pad tap VIEW
+wait 3
+expect count 2 --check-update-now
+pad tap B
+wait 3
+expect ui LIST
+
+# Online sharing (Settings > Online, where O goes): Right turns it on and
+# saves at once, and syncs; Enter flips it back; the pad's d-pad does the
+# same. Other lines of online.conf stay.
+tap O
+wait 5
+expect ui SETTINGS
+expect app focusrow Share my scores
+tap RIGHT
+wait 2
+shot online-yes
+expect file .config/ghost-launcher/online.conf enabled=1\n
+expect file .config/ghost-launcher/online.conf check_updates=1\n
+# one sync at start-up, one for turning sharing on
+expect count 2 sync scores
+tap ESC
+wait 3
+expect ui LIST
+expect file .config/ghost-launcher/online.conf enabled=1\n
+tap O
+wait 3
+tap ENTER
+wait 3
+expect file .config/ghost-launcher/online.conf enabled=0\n
+pad tap RIGHT
+wait 2
+expect file .config/ghost-launcher/online.conf enabled=1\n
+pad tap LEFT
+wait 2
+pad tap B
+wait 3
+expect ui LIST
+expect file .config/ghost-launcher/online.conf enabled=0\n
+
+# Stats and Trophies from their keys; the pad leaves them.
+tap L
+wait 5
+expect ui STATS
+pad tap B
+wait 3
+expect ui LIST
+tap H
+wait 5
+expect trophy 2
+pad tap RIGHT
+wait 2
+expect trophy 3
+shot trophies-skyraid
+pad tap B
+wait 3
+expect ui LIST
+
+# Shift+U on Blockfall edits its own name ("Arcade" in the fixtures).
+tap LEFT
+tap LEFT
+wait 30
+expect selected 0
+tap SHIFT U
+wait 5
+expect ui SETTINGS
+expect app typing 1
+expect profile Arcade
+shot name-for-blockfall
+pad tap B
+wait 3
+expect ui LIST
+
+# F11 on a secondary screen toggles fullscreen and nothing else.
+tap L
+wait 3
+tap F11
+wait 3
+expect fullscreen 1
+expect ui STATS
+tap F11
+wait 3
+expect fullscreen 0
+tap ESC
+wait 3
+expect ui LIST
+
+# Pad A no longer saves a name at once: the pad's first press brings up
+# the name board and types nothing. Enter saves; then pad A plays exactly
+# one game.
+tap U
+wait 3
+text Z
+pad tap A
+wait 3
+expect ui SETTINGS
+expect app board 1
+expect profile TRGZ
+shot name-pad-board
+tap ENTER
+wait 3
+expect ui LIST
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRGZ\n
+pad hold A 30
+wait 80
+expect count 1 launch Blockfall
+expect launches 2
+pad off

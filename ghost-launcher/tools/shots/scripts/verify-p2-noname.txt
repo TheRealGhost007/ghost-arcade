@@ -1,0 +1,27 @@
+#! env SHOTS_ADMIN=0 SHOTS_NAME=
+# Phase 2 verifier: no arcade name yet. The header's prompt is the button
+# into Settings > Player, where the row says so in red.
+wait 30
+expect app name 
+mouse 620 28
+wait 2
+expect app cursor hand
+expect app look:Set your name hover
+shot verify-noname-hall
+click 620 28
+wait 3
+expect ui SETTINGS
+expect app tab Player
+expect app focus Edit
+shot verify-noname-settings
+tap ENTER
+wait 3
+expect app typing 1
+expect profile 
+text Ace
+tap ENTER
+wait 3
+expect app name Ace
+tap ESC
+wait 3
+expect ui LIST

@@ -1,0 +1,181 @@
+#! env SHOTS_ADMIN=1
+# Phase 5: Settings > Machines as admin: every machine's status, Add a
+# machine, and each row's Edit and Remove. The form shows all five fields;
+# a rename carries playtime and the game's own name over (or not, with the
+# switch off); a new program carries your row settings and warns that
+# scores and trophies stay with the old one; Remove asks first; '|' and a
+# second machine of the same name are refused.
+wait 30
+tap TAB
+wait 3
+tap SHIFT TAB
+wait 5
+expect app tab Machines
+expect app status:Blockfall Installed
+expect app status:Coilrush Installed
+mouse 900 600
+wait 3
+expect app look:Add a machine normal
+shot machines-admin
+tap DOWN
+wait 2
+expect app focus Add a machine
+tap DOWN
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 2
+expect app focus Edit
+expect app focusrow Blockfall
+tap RIGHT
+wait 2
+expect app focus Remove
+shot machines-admin-focus
+# Gemdive, further down, is not installed.
+mouse 480 400
+wheel -5
+wait 3
+expect app status:Gemdive Not installed
+shot machines-admin-scrolled
+wheel 5
+wait 3
+
+# Edit Coilrush by its Edit: all five fields at once, typing in the name.
+click 712 314
+wait 5
+expect ui EDIT_GAME
+expect profile Coilrush
+expect app formactive Name
+expect app carry none
+shot machines-form-edit
+tap END
+tap SPACE
+text Two
+wait 3
+expect profile Coilrush Two
+expect app carry on
+shot form-rename
+click 168 536
+wait 5
+expect ui SETTINGS
+expect app tab Machines
+expect app toast Saved
+expect file .config/ghost-launcher/games.txt Coilrush Two|~/bin/coilrush|
+expect file .local/share/ghost-launcher/playtime.txt Coilrush Two|610.0
+expect nofile .local/share/ghost-launcher/playtime.txt Coilrush|
+
+# Skyraid renamed with Carry them over off: its time stays under Skyraid.
+click 712 394
+wait 5
+expect ui EDIT_GAME
+expect profile Skyraid
+tap END
+text Jet
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+wait 2
+expect app formactive buttons
+expect app focus Carry them over
+tap LEFT
+wait 2
+expect app carry off
+shot form-carry-off
+tap DOWN
+wait 2
+expect app focus Save
+tap ENTER
+wait 5
+expect ui SETTINGS
+expect file .config/ghost-launcher/games.txt SkyraidJet|
+expect file .local/share/ghost-launcher/playtime.txt Skyraid|425.0
+expect nofile .local/share/ghost-launcher/playtime.txt SkyraidJet|
+
+# Lanehop, a favourite, gets a new program: the star goes with it, and the
+# form says its scores and trophies stay with lanehop.
+click 404 514
+wait 3
+expect app fav:Lanehop 1
+click 712 274
+wait 5
+expect ui EDIT_GAME
+expect profile Lanehop
+tap TAB
+tap END
+text 2
+wait 3
+expect app formactive Path to the program
+expect app carry on
+shot form-program
+tap ENTER
+tap ENTER
+tap ENTER
+tap ENTER
+wait 2
+expect app focus Save
+tap ENTER
+wait 5
+expect ui SETTINGS
+expect file .config/ghost-launcher/games.txt Lanehop|~/bin/lanehop2|
+expect file .config/ghost-launcher/launcher.ini fav.lanehop2=1
+expect nofile .config/ghost-launcher/launcher.ini fav.lanehop=
+
+# Remove asks first: Keep keeps it, Remove takes it out.
+click 792 474
+wait 3
+expect app dialog remove
+expect app dialogtitle Remove Ghostmaze?
+tap ESCAPE
+wait 3
+expect app games 12
+click 792 474
+wait 3
+tap RIGHT
+tap ENTER
+wait 5
+expect app dialog none
+expect app games 11
+expect nofile .config/ghost-launcher/games.txt Ghostmaze|
+expect app focus Edit
+expect app focusrow Rockdrift
+
+# Add a machine: '|' never goes in; a name another machine has is refused.
+click 812 242
+wait 5
+expect ui ADD_GAME
+expect app formactive Name
+text Block|fall
+wait 2
+expect profile Blockfall
+tap TAB
+text ~/bin/x
+click 168 536
+wait 5
+expect ui ADD_GAME
+expect app formerror Another machine is already called Blockfall.
+expect app formactive Name
+shot form-error
+tap BACKSPACE
+tap BACKSPACE
+tap BACKSPACE
+tap BACKSPACE
+text bump
+tap ENTER
+wait 2
+expect app formactive Path to the program
+tap ENTER
+tap ENTER
+tap ENTER
+tap ENTER
+wait 2
+tap ENTER
+wait 5
+expect ui SETTINGS
+expect app games 12
+expect file .config/ghost-launcher/games.txt Blockbump|~/bin/x|||\n
+tap ESCAPE
+wait 5
+expect ui LIST
+expect app lit Blockbump

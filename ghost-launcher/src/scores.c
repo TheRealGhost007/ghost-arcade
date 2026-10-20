@@ -19,7 +19,7 @@ bool Scores_SlugFromExec(const char *execPath, char *out, size_t outSize) {
     return true;
 }
 
-static bool ScoresPath(const char *slug, bool global, char *out, size_t outSize) {
+bool Scores_FilePath(const char *slug, bool global, char *out, size_t outSize) {
     const char *xdgData = getenv("XDG_DATA_HOME");
     const char *sub = global ? "scores/global" : "scores";
     if (xdgData && xdgData[0] != '\0') {
@@ -32,11 +32,22 @@ static bool ScoresPath(const char *slug, bool global, char *out, size_t outSize)
     return true;
 }
 
+bool Scores_IsTimeBoard(const char *slug, const char *mode) {
+    if (!slug || !mode || strcmp(slug, "blockfall") != 0) return false;
+    return strcmp(mode, "sprint40") == 0 || strncmp(mode, "sprint40-", 9) == 0;
+}
+
+void Scores_FormatScore(bool timed, long score, char *out, size_t size) {
+    if (!timed) { snprintf(out, size, "%ld", score); return; }
+    long centis = (score > 0 && score <= SCORES_TIME_BASE) ? SCORES_TIME_BASE - score : 0;
+    snprintf(out, size, "%ld:%02ld.%02ld", centis / 6000, (centis / 100) % 60, centis % 100);
+}
+
 ScoreBest Scores_LoadBest(const char *slug, bool global) {
-    ScoreBest best = {0};
+    ScoreBest best = {0}, fastest = {0};
 
     char path[700];
-    if (!ScoresPath(slug, global, path, sizeof(path))) return best;
+    if (!Scores_FilePath(slug, global, path, sizeof(path))) return best;
     FILE *f = fopen(path, "r");
     if (!f) return best;
 
@@ -59,12 +70,14 @@ ScoreBest Scores_LoadBest(const char *slug, bool global) {
         if (n < 4) continue;
 
         long score = atol(fields[2]);
-        if (score <= 0 || (best.found && score <= best.score)) continue;
-        best.found = true;
-        best.score = score;
-        snprintf(best.mode, sizeof(best.mode), "%s", fields[0]);
-        snprintf(best.username, sizeof(best.username), "%s", fields[1]);
+        ScoreBest *into = Scores_IsTimeBoard(slug, fields[0]) ? &fastest : &best;
+        if (score <= 0 || (into->found && score <= into->score)) continue;
+        into->found = true;
+        into->timed = into == &fastest;
+        into->score = score;
+        snprintf(into->mode, sizeof(into->mode), "%s", fields[0]);
+        snprintf(into->username, sizeof(into->username), "%s", fields[1]);
     }
     fclose(f);
-    return best;
+    return best.found ? best : fastest;
 }

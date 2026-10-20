@@ -1,0 +1,63 @@
+# Leaving asks while a game the launcher started is still running, and
+# Stay is the safe answer (Esc, pad B, a click beside the box). The menu's
+# Leave the arcade and the EXIT sign both ask; Leave quits.
+quits
+wait 30
+tap ENTER
+wait 80
+expect launches 1
+tap ESC
+wait 3
+tap UP
+wait 2
+expect app focus Leave the arcade
+tap ENTER
+wait 3
+expect app dialog leave
+expect app dialogtitle Leave the arcade?
+expect app focus Stay
+shot dialog-leave
+tap ESC
+wait 3
+expect app dialog none
+expect ui MENU
+expect app focus Leave the arcade
+tap ENTER
+wait 3
+expect app dialog leave
+pad on
+wait 2
+pad tap B
+wait 3
+expect app dialog none
+pad off
+tap ENTER
+wait 3
+click 40 600
+wait 3
+expect app dialog none
+expect ui MENU
+tap ESC
+wait 3
+expect ui LIST
+
+# The EXIT sign lights under the pointer and asks too.
+mouse 46 74
+wait 3
+expect app look:EXIT hover
+expect app cursor hand
+shot hall-exit-hover
+mdown left
+wait 2
+expect app look:EXIT pressed
+shot hall-exit-pressed
+mup left
+wait 3
+expect app dialog leave
+mouse 584 358
+wait 3
+expect app look:Leave hover
+expect app look:Stay normal
+shot dialog-leave-hover
+click 584 358
+wait 5

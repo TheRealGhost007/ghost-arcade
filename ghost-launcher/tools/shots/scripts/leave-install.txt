@@ -1,0 +1,22 @@
+# An install still going also makes Leave ask; once it is done (and no
+# game runs) the EXIT sign quits at once.
+quits
+wait 30
+tap LEFT
+tap LEFT
+tap LEFT
+wait 30
+tap ENTER
+wait 5
+expect count 1 install Gemdive
+click 46 74
+wait 3
+expect app dialog leave
+shot dialog-leave-install
+tap ENTER
+wait 3
+expect app dialog none
+install ok
+wait 5
+click 46 74
+wait 5

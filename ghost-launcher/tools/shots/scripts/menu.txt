@@ -1,0 +1,238 @@
+# The Arcade menu. Esc, pad B, pad Menu and the Menu chip open it; Esc, B,
+# Menu, the mouse's back button and a click beside the panel close it. Each
+# item opens its screen, and Back from there returns to the menu, on the
+# item you left from. Every screen can be reached and left with the pad.
+wait 30
+expect ui LIST
+tap ESC
+wait 10
+expect ui MENU
+expect app depth 2
+expect app focus Back to the hall
+shot menu
+tap DOWN
+tap DOWN
+tap DOWN
+wait 3
+expect app focus Stats
+expect app look:Stats focused
+shot menu-focus-stats
+down ENTER
+wait 2
+expect ui MENU
+expect app look:Stats pressed
+shot menu-pressed-stats
+up ENTER
+wait 3
+expect ui STATS
+expect app under MENU
+tap ESC
+wait 3
+expect ui MENU
+expect app focus Stats
+tap ESC
+wait 3
+expect ui LIST
+expect app depth 1
+
+# Up from the top wraps round to Leave the arcade (asked, never pressed here).
+tap ESC
+wait 3
+tap UP
+wait 2
+expect app focus Leave the arcade
+tap ESC
+wait 3
+expect ui LIST
+
+# The letters work in the menu as on the hall; the key that opened a
+# screen closes it again.
+tap ESC
+wait 3
+tap H
+wait 3
+expect ui TROPHIES
+expect app under MENU
+tap H
+wait 3
+expect ui MENU
+tap V
+wait 3
+expect ui UPDATE
+tap V
+wait 3
+expect ui MENU
+tap L
+wait 3
+expect ui STATS
+tap L
+wait 3
+expect ui MENU
+tap O
+wait 3
+expect ui SETTINGS
+expect app tab Online
+expect app under MENU
+tap ESC
+wait 3
+expect ui MENU
+tap U
+wait 3
+expect ui SETTINGS
+expect app typing 1
+expect profile TRG
+tap ESC
+wait 3
+expect ui MENU
+tap SHIFT U
+wait 3
+expect ui SETTINGS
+expect profile Arcade
+tap ESC
+wait 3
+expect ui MENU
+tap TAB
+wait 3
+expect ui SETTINGS
+expect app under MENU
+tap ESC
+wait 3
+expect ui MENU
+expect app focus Back to the hall
+tap ENTER
+wait 3
+expect ui LIST
+
+# The mouse: the chip opens it; a row lights under the pointer, with the
+# hand; dragging off a pressed row cancels it; a click beside the panel,
+# or the mouse's back button, closes the menu; [< Back] goes back.
+mouse 872 28
+wait 3
+expect app look:Menu hover
+expect app cursor hand
+shot hall-menu-chip-hover
+click 872 28
+wait 3
+expect ui MENU
+mouse 196 340
+wait 3
+expect app look:Trophies hover
+expect app focus Trophies
+expect app cursor hand
+shot menu-hover-trophies
+mdown left
+wait 2
+expect app look:Trophies pressed
+mouse 600 300
+wait 2
+expect app look:Trophies normal
+expect app cursor default
+mup left
+wait 3
+expect ui MENU
+click 600 300
+wait 3
+expect ui LIST
+click 872 28
+wait 3
+expect ui MENU
+click back 600 300
+wait 3
+expect ui LIST
+click 872 28
+wait 3
+click 196 292
+wait 3
+expect ui STATS
+expect app under MENU
+mouse 52 28
+wait 3
+expect app look:Back hover
+shot stats-back-hover
+click 52 28
+wait 3
+expect ui MENU
+click 196 148
+wait 3
+expect ui LIST
+
+# The pad alone: B and Menu open and close the menu; every screen in it is
+# reached with the d-pad and A, and left with B.
+pad on
+wait 2
+pad tap B
+wait 3
+expect ui MENU
+expect app device 1
+shot menu-pad
+pad tap B
+wait 3
+expect ui LIST
+pad tap MENU
+wait 3
+expect ui MENU
+pad tap MENU
+wait 3
+expect ui LIST
+pad tap MENU
+wait 3
+pad tap DOWN
+pad tap A
+wait 3
+expect ui DAILY
+expect app under MENU
+pad tap B
+wait 3
+expect ui MENU
+expect app focus Daily challenge
+pad tap DOWN
+pad tap A
+wait 3
+expect ui SETTINGS
+pad tap RB
+wait 3
+expect app tab Sound
+pad tap LB
+pad tap LB
+wait 3
+expect app tab Machines
+pad tap B
+wait 3
+expect ui MENU
+expect file .config/ghost-launcher/online.conf enabled=0\n
+pad tap DOWN
+pad tap A
+wait 3
+expect ui STATS
+pad tap B
+wait 3
+pad tap DOWN
+pad tap A
+wait 3
+expect ui TROPHIES
+pad tap RIGHT
+wait 2
+expect trophy 1
+pad tap B
+wait 3
+pad tap DOWN
+pad tap A
+wait 3
+expect ui UPDATE
+pad tap B
+wait 3
+expect ui MENU
+expect app focus Updates
+pad tap UP
+pad tap UP
+pad tap UP
+pad tap UP
+pad tap UP
+wait 2
+expect app focus Back to the hall
+pad tap A
+wait 3
+expect ui LIST
+expect app depth 1
+expect launches 0
+pad off

@@ -1,0 +1,166 @@
+#! env SHOTS_ADMIN=0 SHOTS_DAILIES=1 SHOTS_UNINSTALLED=gemdive,moondrop
+# Phase 6: the Daily challenge desk. The chalkboard on the hall's wall says
+# how many of the row's daily games are played today and opens the desk; so
+# do Shift+D, the Arcade menu and a machine page's Daily challenge. The desk
+# shows the streak, the last fourteen days and a row per daily game; Up/Down
+# skip a machine that is not installed; a row pressed goes back to the hall
+# and drops that machine's daily coin. D on the hall still starts the lit
+# machine's daily at once. (The featured game is picked from the real date,
+# so this script never names it.)
+wait 30
+expect ui LIST
+expect app chalk 2 of 7 today
+expect app desk 2/7
+expect app streak 3/6
+expect app deskrows Brickburst*,Skyraid*,Rockdrift,Lanehop,Crawlshot,Moondrop,Girderclimb
+shot hall-chalkboard
+
+# The chalkboard is a button on the wall.
+mouse 792 114
+wait 3
+expect app look:Daily challenge hover
+expect app cursor hand
+shot hall-chalkboard-hover
+mdown left
+wait 2
+expect app look:Daily challenge pressed
+mup left
+wait 5
+expect ui DAILY
+expect app depth 2
+mouse 940 600
+wait 3
+shot desk
+tap ESCAPE
+wait 3
+expect ui LIST
+
+# Shift+D opens it on the lit machine's row; Up/Down skip Moondrop (not
+# installed) and go round; Shift+D closes it again.
+tap RIGHT
+wait 3
+tap RIGHT
+wait 30
+expect app lit Brickburst
+tap SHIFT D
+wait 5
+expect ui DAILY
+expect app deskfocus Brickburst
+expect app look:Brickburst focused
+tap DOWN
+wait 2
+expect app deskfocus Skyraid
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app deskfocus Girderclimb
+tap DOWN
+wait 2
+expect app deskfocus Brickburst
+tap UP
+wait 2
+expect app deskfocus Girderclimb
+shot desk-keys
+tap SHIFT D
+wait 3
+expect ui LIST
+expect app depth 1
+
+# D on the hall still starts the lit machine's daily at once.
+tap D
+wait 70
+expect launched launch Brickburst --daily
+expect launches 1
+gameexit
+wait 10
+
+# From the Arcade menu; a row clicked goes back to the hall, lights that
+# machine and drops its daily's coin there.
+tap ESCAPE
+wait 3
+tap DOWN
+wait 2
+expect app focus Daily challenge
+shot menu-daily
+tap ENTER
+wait 5
+expect ui DAILY
+expect app under MENU
+expect app deskfocus Brickburst
+mouse 400 284
+wait 3
+expect app look:Skyraid hover
+expect app cursor hand
+shot desk-hover
+click 400 284
+wait 3
+expect ui LIST
+expect app depth 1
+expect app lit Skyraid
+wait 70
+expect launched launch Skyraid --daily
+expect count 2 --daily
+gameexit
+wait 10
+
+# A machine that is not installed: faint, its reason under the pointer,
+# and a click does nothing.
+tap SHIFT D
+wait 5
+mouse 400 460
+wait 3
+expect app look:Moondrop disabled
+expect app cursor default
+shot desk-not-installed
+click 400 460
+wait 3
+expect ui DAILY
+expect launches 2
+tap ESCAPE
+wait 3
+expect ui LIST
+
+# A machine page's Daily challenge opens the desk on that machine.
+tap I
+wait 8
+expect ui GAME
+expect app pagefor Skyraid
+tap DOWN
+wait 2
+expect app focus Daily challenge
+tap ENTER
+wait 5
+expect ui DAILY
+expect app under GAME
+expect app deskfocus Skyraid
+tap ESCAPE
+wait 3
+expect ui GAME
+tap ESCAPE
+wait 3
+expect ui LIST
+
+# The pad alone: Menu, down to Daily challenge, A; the d-pad; B back.
+pad on
+wait 2
+pad tap MENU
+wait 3
+pad tap DOWN
+wait 2
+pad tap A
+wait 5
+expect ui DAILY
+expect app deskfocus Skyraid
+pad tap DOWN
+wait 2
+expect app deskfocus Rockdrift
+shot desk-pad
+pad tap B
+wait 3
+expect ui MENU
+pad tap B
+wait 3
+expect ui LIST
+expect launches 2

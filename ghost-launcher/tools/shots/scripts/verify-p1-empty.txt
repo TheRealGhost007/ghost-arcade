@@ -1,0 +1,99 @@
+#! env SHOTS_ADMIN=1
+# Phase 1 verifier: an empty catalog reached at run time (the file is
+# emptied behind the launcher, then a remove that cannot be saved reloads
+# what is on disk). Every key, the pad, the menu and each screen must cope.
+wait 30
+write .config/ghost-launcher/games.txt # nothing here\n
+chmod .config/ghost-launcher 555
+tap DELETE
+wait 3
+tap RIGHT
+wait 2
+tap ENTER
+wait 3
+expect app toast Couldn't save
+expect app games 0
+expect selected 0
+shot verify-empty-hall
+tap DELETE
+wait 2
+tap E
+wait 2
+tap D
+wait 2
+tap ENTER
+wait 2
+tap SPACE
+wait 2
+pad on
+pad tap A
+wait 2
+pad tap Y
+wait 2
+expect ui LIST
+expect app dialog none
+tap LEFT
+tap RIGHT
+wait 2
+tap H
+wait 3
+expect ui TROPHIES
+tap LEFT
+tap RIGHT
+tap ENTER
+wheel 2
+wait 3
+shot verify-empty-trophies
+tap ESC
+wait 3
+tap L
+wait 3
+expect ui STATS
+wheel -3
+tap END
+wait 2
+shot verify-empty-stats
+tap ESC
+wait 3
+tap SHIFT U
+wait 3
+expect ui SETTINGS
+expect app typing 1
+text Solo
+tap ENTER
+wait 3
+expect ui LIST
+# Settings with no machines: the names list says so; the arrows cope
+# (they stop on Start on, the last row with a control).
+tap TAB
+wait 3
+expect ui SETTINGS
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app focusrow Start on
+shot verify-empty-settings
+tap ESC
+wait 3
+expect ui LIST
+tap ESC
+wait 3
+expect ui MENU
+shot verify-empty-menu
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+expect ui TROPHIES
+tap ESC
+wait 3
+tap ESC
+wait 3
+tap A
+wait 3
+expect ui ADD_GAME
+chmod .config/ghost-launcher 755

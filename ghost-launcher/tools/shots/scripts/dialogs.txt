@@ -1,0 +1,96 @@
+#! env SHOTS_ADMIN=1
+# "Are you sure?": Delete asks before a machine leaves the row, and a
+# changed Add/Edit form asks before it is thrown away. The safe answer has
+# the focus; the mouse, the keys and the pad all answer.
+wait 30
+tap DELETE
+wait 5
+expect app dialog remove
+expect app dialogtitle Remove Blockfall?
+expect app focus Keep
+shot dialog-remove
+mouse 584 358
+wait 3
+expect app look:Remove hover
+expect app look:Keep normal
+shot dialog-remove-hover
+mdown left
+wait 2
+expect app look:Remove pressed
+shot dialog-remove-pressed
+mouse 584 500
+mup left
+wait 3
+expect app dialog remove
+click 376 358
+wait 3
+expect app dialog none
+expect app games 12
+tap DELETE
+wait 3
+click 40 600
+wait 3
+expect app dialog none
+expect app games 12
+tap DELETE
+wait 3
+tap LEFT
+tap ENTER
+wait 3
+expect app games 12
+pad on
+wait 2
+tap DELETE
+wait 3
+pad tap RIGHT
+wait 2
+expect app focus Remove
+pad tap A
+wait 3
+expect app dialog none
+expect app games 11
+expect app toast Saved
+expect nofile .config/ghost-launcher/games.txt Blockfall|
+shot toast-removed
+pad off
+
+# The form: nothing changed, Esc leaves at once; something typed, it asks.
+tap E
+wait 3
+tap ESC
+wait 3
+expect ui LIST
+expect app dialog none
+tap A
+wait 3
+text Newgame
+tap ESC
+wait 3
+expect app dialog discard
+expect app focus Keep editing
+shot dialog-discard
+click 343 358
+wait 3
+expect ui ADD_GAME
+expect app dialog none
+click 52 28
+wait 3
+expect app dialog discard
+click 635 358
+wait 3
+expect ui LIST
+expect nofile .config/ghost-launcher/games.txt Newgame
+
+# A catalog that cannot be written: Couldn't save, and the row keeps the
+# machine (what is shown is what is on disk).
+chmod .config/ghost-launcher 555
+tap DELETE
+wait 3
+tap RIGHT
+tap ENTER
+wait 3
+expect app toast Couldn't save
+expect app games 11
+expect file .config/ghost-launcher/games.txt Coilrush|
+shot toast-remove-failed
+chmod .config/ghost-launcher 755

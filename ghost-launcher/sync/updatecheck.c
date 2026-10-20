@@ -138,7 +138,7 @@ bool Update_ParseCommits(const char *json, const char *currentSha, UpdateState *
             if (*next == ',') next = SkipSpace(next + 1);
             if (Update_IsSha(sha) && MatchKey(next, "node_id")) {
                 if (index == 0) {
-                    snprintf(out->latest, sizeof(out->latest), "%s", sha);
+                    snprintf(out->latest, sizeof(out->latest), "%.40s", sha); /* Update_IsSha: exactly 40 */
                     wantTitle = true;
                 } else {
                     wantTitle = false;

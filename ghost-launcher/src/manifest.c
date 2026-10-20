@@ -49,6 +49,37 @@ void Manifest_ExpandPath(const char *in, char *out, size_t outSize) {
     snprintf(out, outSize, "%s", in);
 }
 
+PathStatus Manifest_PathStatus(const char *path, PathKind kind) {
+    if (!path || !path[0]) return PATH_EMPTY;
+    char full[600];
+    Manifest_ExpandPath(path, full, sizeof(full));
+    struct stat st;
+    if (stat(full, &st) != 0) return PATH_MISSING;
+    switch (kind) {
+        case PATH_PROGRAM: return S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR) ? PATH_FOUND : PATH_NOT_PROGRAM;
+        case PATH_FILE: return S_ISREG(st.st_mode) ? PATH_FOUND : PATH_NOT_FILE;
+        case PATH_FOLDER: return S_ISDIR(st.st_mode) ? PATH_FOUND : PATH_NOT_FOLDER;
+    }
+    return PATH_MISSING;
+}
+
+bool Manifest_IsTool(const GameEntry *e) {
+    const char *slash = e ? strrchr(e->exec, '/') : NULL;
+    const char *base = slash ? slash + 1 : (e ? e->exec : "");
+    return strcmp(base, "chipforge") == 0;
+}
+
+const char *Manifest_PathWords(PathStatus st) {
+    switch (st) {
+        case PATH_FOUND: return "found";
+        case PATH_MISSING: return "not found";
+        case PATH_NOT_PROGRAM: return "not executable";
+        case PATH_NOT_FILE: return "not a file";
+        case PATH_NOT_FOLDER: return "not a folder";
+        default: return "";
+    }
+}
+
 static char *TrimNewline(char *s) {
     size_t len = strlen(s);
     while (len > 0 && (s[len - 1] == '\n' || s[len - 1] == '\r')) s[--len] = '\0';
@@ -139,8 +170,7 @@ bool Manifest_Save(const Manifest *m) {
         const GameEntry *e = &m->games[i];
         fprintf(f, "%s|%s|%s|%s|%s\n", e->name, e->exec, e->icon, e->desc, e->install);
     }
-    SafeFile_Close(f);
-    return true;
+    return SafeFile_Close(f); /* a full disk shows up here, not at the open */
 }
 
 bool Manifest_AddGame(Manifest *m, const char *name, const char *exec,

@@ -1,0 +1,182 @@
+#! env SHOTS_ADMIN=0
+# Typing a name in Settings > Player: a cursor (Left/Right/Home/End),
+# Backspace and Delete, Ctrl+V, a counter, never '|'; Enter saves ("Saved"),
+# Esc puts the old name back; letters never open screens while typing. New
+# names stop at 32 characters. U and Shift+U start typing at once and come
+# back where they began, as the old name screens did.
+wait 30
+tap TAB
+wait 3
+expect app focus Edit
+expect app focusrow Arcade name
+tap ENTER
+wait 3
+expect app typing 1
+expect profile TRG
+expect app cursor_at 3
+text Ghost
+wait 2
+expect profile TRGGhost
+tap LEFT
+tap LEFT
+wait 2
+expect app cursor_at 6
+shot settings-typing
+tap HOME
+tap DELETE
+wait 2
+expect profile RGGhost
+expect app cursor_at 0
+tap END
+tap BACKSPACE
+wait 2
+expect profile RGGhos
+clip Ace|X
+tap CTRL V
+wait 2
+expect profile RGGhosAceX
+# Letters (and Tab) only type here.
+text lhvo
+tap TAB
+wait 3
+expect ui SETTINGS
+expect app typing 1
+expect app tab Player
+expect profile RGGhosAceXlhvo
+shot settings-typing-letters
+# Enter saves; begun with Edit, it stays in Settings.
+tap ENTER
+wait 3
+expect app typing 0
+expect ui SETTINGS
+expect app toast Saved
+expect app focus Edit
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|RGGhosAceXlhvo\n
+# Esc puts the old name back, and nothing is written; a second Esc leaves.
+tap ENTER
+wait 3
+text ZZZ
+tap ESC
+wait 3
+expect app typing 0
+expect ui SETTINGS
+expect profile RGGhosAceXlhvo
+expect nofile .local/share/ghost-launcher/profiles.txt ZZZ
+tap ESC
+wait 3
+expect ui LIST
+expect app depth 1
+
+# U types at once; new names stop at 32, and the counter says so.
+tap U
+wait 3
+expect ui SETTINGS
+expect app typing 1
+hold BACKSPACE 200
+text abcdefghijklmnopqrstuvwxyz0123456789
+wait 2
+expect profile abcdefghijklmnopqrstuvwxyz012345
+shot settings-typing-full
+tap ENTER
+wait 3
+expect ui LIST
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|abcdefghijklmnopqrstuvwxyz012345\n
+expect app toast Saved
+mouse 600 300
+wait 3
+shot hall-long-name
+
+# Shift+U: the selected machine's own name, scrolled into sight.
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect selected 3
+tap SHIFT U
+wait 3
+expect app typing 1
+expect app focusrow Skyraid
+text Sky
+tap ENTER
+wait 3
+expect ui LIST
+expect file .local/share/ghost-launcher/profiles.txt Skyraid|Sky\n
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect selected 10
+tap SHIFT U
+wait 3
+expect app focusrow Girderclimb
+expect app namestop 5
+shot settings-typing-scrolled
+tap ESC
+wait 3
+expect ui LIST
+expect nofile .local/share/ghost-launcher/profiles.txt Girderclimb|
+
+# The mouse: a click on a game's name box types there.
+tap TAB
+wait 3
+click 330 358
+wait 3
+expect app typing 1
+expect app focusrow Coilrush
+text Coily
+mouse 820 358
+wait 3
+expect app look:Cancel hover
+shot settings-typing-game
+# A click elsewhere keeps what was typed, and does nothing else.
+click 600 580
+wait 3
+expect app typing 0
+expect ui SETTINGS
+expect file .local/share/ghost-launcher/profiles.txt Coilrush|Coily\n
+expect app toast Saved
+# Clear puts the game back on the arcade name.
+click 820 358
+wait 3
+expect file .local/share/ghost-launcher/profiles.txt Coilrush|\n
+expect app toast Saved
+# Cancel puts the old name back.
+click 700 318
+wait 3
+expect app typing 1
+expect profile Arcade
+text Q
+click 820 318
+wait 3
+expect app typing 0
+expect file .local/share/ghost-launcher/profiles.txt Blockfall|Arcade\n
+# Save is a button.
+click 700 318
+wait 3
+text 2
+click 700 318
+wait 3
+expect app typing 0
+expect file .local/share/ghost-launcher/profiles.txt Blockfall|Arcade2\n
+# A click in the text moves the cursor there.
+click 700 318
+wait 3
+click 330 318
+wait 3
+expect app cursor_at 1
+text x
+wait 2
+expect profile Axrcade2
+# Back while typing cancels the typing first; then it goes back.
+click 52 28
+wait 3
+expect ui SETTINGS
+expect app typing 0
+expect nofile .local/share/ghost-launcher/profiles.txt Axrcade2
+click 52 28
+wait 3
+expect ui LIST

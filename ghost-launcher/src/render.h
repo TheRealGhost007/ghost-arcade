@@ -9,17 +9,26 @@
 #include "profile.h"
 #include "scores.h"
 #include "launch.h"
+#include "kit.h"
+#include "screens.h"
+#include "textfield.h"
+#include "settings.h"
+#include "hall.h"
+#include "lineup.h"
+#include "gamepage.h"
+#include "gameform.h"
+#include "desk.h"
+#include "song.h"
 
 /* Wide enough for a row of five arcade cabinets (the selected one full
  * size in the middle, two smaller ones either side). */
 #define WINDOW_WIDTH 960
 #define WINDOW_HEIGHT 640
 
-/* Shared geometry for the top-right close ("X") button, so main.c can hit-
- * test mouse clicks against exactly what render.c draws. */
-#define CLOSE_BTN_SIZE 24
-#define CLOSE_BTN_X (WINDOW_WIDTH - CLOSE_BTN_SIZE - 16)
-#define CLOSE_BTN_Y 16
+/* Every Render_* below draws one screen into the frame main.c has begun
+ * (Win_BeginFrame), so an overlay (the Arcade menu, a dialog, the "Saved"
+ * note) can be drawn on top before the frame ends. Each takes the screen's
+ * button list (screens.h) as a KitView and draws its buttons from it. */
 
 void Render_Init(const char *assetsDir);
 void Render_Shutdown(void);
@@ -41,18 +50,54 @@ typedef struct {
     bool installed;         /* the catalog's exec exists */
     bool canInstall;        /* not installed, but the catalog has a source folder */
     bool supportsDaily;     /* installed, and plays a daily challenge (D) */
+    bool dailyGame;         /* plays a daily challenge once installed */
     InstallStatus install;  /* state of an install OF THIS GAME (IDLE if none) */
+    bool tool;              /* Chipforge: its library and the hall's song instead of scores */
+    int songs;              /* songs in the player's library */
+    char hallSong[48];      /* what the hall plays: "Built-in theme" or the song's title */
 } GameCard;
 
-/* The arcade floor: one cabinet per catalog entry, the selected one lit.
- * installed[i] says whether game i's executable exists; machines that
- * aren't installed stay dark with a paper sign on the screen. card may be
- * NULL when the catalog is empty. arcadeName is the player's
- * arcade-wide name ("" if unset). errorMsg (may be NULL/empty) replaces the
- * play prompt briefly, e.g. after a failed launch. dt drives the scroll and
- * marquee animation. coinT: see COIN_ANIM_SECONDS below. */
-void Render_List(const Manifest *m, int selected, const bool *installed, const GameCard *card,
-                 const char *arcadeName, bool adminUnlocked, const char *errorMsg, float dt, float coinT);
+/* Chipforge's machine is a jukebox: arched top, glowing tubes, and a screen
+ * that scrolls the notes of the hall's song (jukebox.h), or with the music
+ * off shows the song's title card. */
+typedef struct {
+    const Song *song;   /* what the hall plays, as notes */
+    double seconds;     /* how long it has been playing */
+    bool on;            /* Hall music is on */
+    const char *title;  /* "Built-in theme" or the song's title */
+} JukeView;
+
+/* The arcade floor: one cabinet per machine on the row, in the row's order,
+ * the selected one lit, where the row is now (main.c steps it before
+ * drawing, so the mouse hits what is drawn). Machines that aren't installed
+ * stay dark with a paper sign on the screen; favourites wear a gold star.
+ * The card under them says what the selected one is, its scores, and one
+ * status line; the header, the card's Favourite and the control strip are
+ * the view's buttons. coinT: see COIN_ANIM_SECONDS below. */
+typedef struct {
+    const Manifest *m;
+    const Lineup *lineup;      /* the row: place -> catalog index */
+    int selected;              /* catalog index of the lit machine */
+    int place;                 /* ...and its place in the row */
+    int order;                 /* RowOrder: named over the row unless it is your own */
+    bool allHidden;            /* the row is empty because every machine is hidden */
+    const bool *installed;     /* per catalog index: its program exists */
+    const RowPrefs *prefs;     /* per catalog index: which machines are favourites */
+    const GameCard *card;      /* NULL when the catalog is empty */
+    const char *arcadeName;    /* "" if unset */
+    bool admin, updateBehind;
+    const HallRow *row;
+    float dt;                  /* the room's light eases toward the selected machine */
+    float coinT;
+    const HallStatus *status;  /* the card's line */
+    int lit;                   /* catalog index of the machine lit in the middle: attract mode tours */
+    float cardOut;             /* attract mode: 0 the card in place .. 1 slid away */
+    float cardSlide;           /* ...that is, this far down */
+    bool attract;              /* attract mode: PRESS ANY BUTTON where the card was */
+    const Desk *desk;          /* the chalkboard's count (none without a daily game on the row) */
+    const JukeView *juke;      /* Chipforge's screen */
+} HallScene;
+void Render_List(const HallScene *s, const KitView *kv);
 
 /* The coin-drop that plays between pressing Enter and the game starting.
  * coinT runs 0..1 over COIN_ANIM_SECONDS (pass a negative value when no
@@ -61,28 +106,79 @@ void Render_List(const Manifest *m, int selected, const bool *installed, const G
 #define COIN_ANIM_SECONDS 0.95f
 #define COIN_DING_AT 0.58f
 
-/* The "add/edit game" form, one catalog field per step. title is e.g.
- * "Add a game". step: 0=name,1=exec,2=icon,3=desc,4=install-from,
- * MANIFEST_FIELD_COUNT=confirm. buffers holds the in-progress text.
- * errorMsg (may be NULL/empty) shows inline validation feedback. */
-void Render_GameForm(const char *title, int step, const char buffers[MANIFEST_FIELD_COUNT][MANIFEST_FIELD_LEN], const char *errorMsg);
+/* Admin's Add / Edit form (gameform.h): five boxes, the one with the keys
+ * lit with its cursor, a path's "found" / "not found" beside its prompt;
+ * under them what a rename leaves behind (machines.h words, "" for none)
+ * and the "Carry them over" switch, the error, Save and Cancel. */
+typedef struct {
+    const char *title;
+    const GameForm *form;
+    const char *stays, *scores, *moves;
+} FormScene;
+void Render_GameForm(const FormScene *s, const KitView *kv);
+
+/* A machine's page (gamepage.h). */
+typedef struct {
+    const GameEntry *game;
+    const GamePageData *data;
+    const GamePage *page;
+    const GamePageView *view;
+    bool installed;           /* its program is there: the demo plays */
+    bool installing;
+    bool dailyGame;           /* it has a daily: Scores says how today's went */
+    const HallStatus *status; /* under the buttons: a note, an error, an install */
+    const char *help;         /* the chosen button's sentence, or why it is faint */
+    const char *hint;
+    long long syncedAt, now;  /* when the world boards came down, in seconds; 0 = never */
+    bool sharing;             /* Share my scores is on */
+    const JukeView *juke;     /* Chipforge: its big screen is the jukebox's */
+} PageScene;
+void Render_GamePage(const PageScene *s, const KitView *kv);
+
+/* The Daily challenge desk (desk.h): today, the streak, the last fourteen
+ * days, and a row per daily game, the view's rows lit as buttons. */
+typedef struct {
+    const Desk *desk;
+    int top;                  /* the first row shown */
+    const char *help, *hint;
+    long long syncedAt, now;  /* when the world boards came down, in seconds; 0 = never */
+    bool sharing;
+} DeskScene;
+void Render_Desk(const DeskScene *s, const KitView *kv);
 
 /* Local playtime board: total time the launcher has been open, and
- * per-game cumulative time, most-played first. */
-void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *sums);
+ * per-game cumulative time, most-played first. top = the first row shown
+ * (STATS_VISIBLE fit). */
+void Render_Stats(const PlayStats *stats, const Manifest *m, const RunSummary *sums, int top, const KitView *kv);
 
-/* Name entry. gameName == NULL edits the arcade-wide name; otherwise the
- * override for that one game. buffer is the in-progress text. */
-void Render_Profile(const char *gameName, const char *buffer);
-/* The trophy room: one game's achievements at a time (selected = catalog index). */
-void Render_Achievements(const Manifest *m, int selected);
-/* The opt-in question for the online leaderboard. choice is the highlighted
- * answer (true = share); firstTime changes the wording of the footer. */
-void Render_OnlineAsk(bool choice, bool firstTime);
+/* Settings: the page settings.c laid out, the name being typed (if any),
+ * and the buttons' state (while typing, the typing layer's). */
+void Render_Settings(const SettingsPage *page, const Settings *s, const KitView *kv);
+/* The trophy room: one game's achievements at a time (selected = catalog
+ * index), from achievement `top` (TROPHY_VISIBLE fit). */
+void Render_Achievements(const Manifest *m, int selected, int top, const KitView *kv);
+/* The opt-in question for the online leaderboard. The answers are the
+ * view's buttons; firstTime changes the wording of the footer; sharingNow
+ * is the saved answer, said under the buttons on later visits. */
+void Render_OnlineAsk(bool firstTime, bool sharingNow, const KitView *kv);
 
-/* Update notice. The list screen shows a pill while `behind` > 0 (0 hides it). */
-void Render_SetUpdateNotice(int behind);
-/* The details screen: this build, the newest on GitHub, and how to update. */
-void Render_Update(const UpdateState *u, const char *sourceDir);
+/* The details screen: this build, the newest on GitHub, how to update, and
+ * Check now. */
+typedef struct {
+    bool checking;   /* a check is under way: the button says Checking... */
+    bool noAnswer;   /* the last Check now got no answer in time */
+    bool checksOff;  /* check_updates=0 */
+} UpdateView;
+void Render_Update(const UpdateState *u, const char *sourceDir, const UpdateView *v, const KitView *kv);
+
+/* The Arcade menu, over the hall that was just drawn: the hall dims and the
+ * panel covers its left wall. */
+void Render_ArcadeMenu(const KitView *kv);
+/* An "are you sure?" box over whatever was just drawn. */
+void Render_Dialog(const KitDialog *d, const KitView *kv);
+/* "Saved" or "Couldn't save" (bad), centred at the top, fading out with
+ * alpha. onHall: the hall's header is full, so it hangs just under it. */
+void Render_Toast(const char *text, bool bad, float alpha, bool onHall);
+
 
 #endif

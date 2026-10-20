@@ -1,0 +1,291 @@
+#! env SHOTS_ADMIN=0 SHOTS_CHECKS=1
+# Settings: tabs across the top (Tab, LB/RB or a click), every row a real
+# control that saves at once and says "Saved". The four shared rows read
+# and write the games' prefs.ini, read again right before each save; hall
+# sounds go to launcher.ini; sharing and update checks to online.conf.
+wait 30
+
+# The Playing as chip opens Settings on Player.
+mouse 620 28
+wait 3
+expect app look:TRG hover
+expect app cursor hand
+shot hall-playing-as-hover
+click 620 28
+wait 3
+expect ui SETTINGS
+expect app tab Player
+expect app depth 2
+expect app under LIST
+mouse 480 600
+wait 3
+shot settings-player
+tap ESC
+wait 3
+expect ui LIST
+
+# Tab opens it too; inside, Tab steps the tabs and Shift+Tab steps back.
+tap TAB
+wait 3
+expect ui SETTINGS
+expect app tab Player
+expect app focus Edit
+expect app focusrow Arcade name
+shot settings-player-focus
+tap TAB
+wait 3
+expect app tab Sound
+expect app focusrow Music volume
+shot settings-sound
+tap SHIFT TAB
+wait 3
+expect app tab Player
+tap TAB
+wait 3
+
+# Music volume (shared): Left/Right a block at a time, saved at once.
+tap LEFT
+wait 3
+expect prefs music_volume 60
+expect file .config/ghost-arcade/prefs.ini music_volume=60\n
+expect app toast Saved
+tap RIGHT
+tap RIGHT
+wait 3
+expect prefs music_volume 80
+# A click on a block, then the wheel over the blocks.
+click 528 202
+wait 3
+expect prefs music_volume 50
+expect app look:Music volume hover
+shot settings-sound-hover
+wheel 2
+wait 3
+expect prefs music_volume 70
+# Dragging along the blocks.
+mouse 450 202
+mdown left
+wait 2
+expect prefs music_volume 0
+mouse 520 202
+wait 2
+mouse 590 202
+wait 2
+mup left
+wait 3
+expect prefs music_volume 90
+
+# Hall music, the launcher's own (launcher.ini): on unless switched off.
+tap DOWN
+wait 2
+expect app focusrow Hall music
+expect app hallmusic 1
+tap LEFT
+wait 3
+expect app hallmusic 0
+expect file .config/ghost-launcher/launcher.ini hall_music=off\n
+expect app toast Saved
+tap RIGHT
+wait 3
+expect app hallmusic 1
+expect file .config/ghost-launcher/launcher.ini hall_music=on\n
+
+# Hall sounds are the launcher's own: launcher.ini, never prefs.ini.
+tap DOWN
+wait 2
+expect app focusrow Hall sounds
+tap LEFT
+wait 3
+expect app hallsounds 9
+expect file .config/ghost-launcher/launcher.ini hall_sounds=9\n
+expect nofile .config/ghost-arcade/prefs.ini hall_sounds
+click 448 290
+wait 3
+expect app hallsounds 0
+expect file .config/ghost-launcher/launcher.ini hall_sounds=0\n
+shot settings-sound-muted
+tap DOWN
+wait 2
+expect app focusrow Hall sounds
+mouse 500 334
+wait 3
+expect app look:Play disabled
+expect app cursor default
+shot settings-sound-no-device
+
+# A game changes prefs.ini behind the launcher's back; the next save here
+# keeps the game's values and changes only the one it is asked to.
+write .config/ghost-arcade/prefs.ini # Ghost Arcade preferences, shared by every game\nmusic_volume=30\nscreen_shake=0\nreduced_flashing=1\nfullscreen=0\n
+tap TAB
+wait 3
+expect app tab Screen
+expect app focusrow Fullscreen
+tap RIGHT
+wait 3
+expect file .config/ghost-arcade/prefs.ini music_volume=30\nscreen_shake=0\nreduced_flashing=1\nfullscreen=1\n
+expect prefs fullscreen 1
+expect fullscreen 1
+expect app toast Saved
+shot settings-screen
+# F11 flips the same setting, and the switch follows.
+tap F11
+wait 3
+expect fullscreen 0
+expect prefs fullscreen 0
+expect file .config/ghost-arcade/prefs.ini fullscreen=0\n
+# A click on a half of a switch; Enter flips the focused one.
+click 476 246
+wait 3
+expect prefs reduced_flashing 0
+expect file .config/ghost-arcade/prefs.ini reduced_flashing=0\n
+tap DOWN
+wait 2
+expect app focusrow Screen shake
+tap ENTER
+wait 3
+expect prefs screen_shake 1
+expect file .config/ghost-arcade/prefs.ini music_volume=30\nscreen_shake=1\nreduced_flashing=0\nfullscreen=0\n
+mouse 548 290
+wait 3
+expect app look:Screen shake hover
+shot settings-screen-hover
+
+# Online: a click on a tab.
+click 535 128
+wait 3
+expect app tab Online
+expect app look:Sync scores now disabled
+mouse 480 600
+wait 3
+shot settings-online
+# Faint Sync says why under the pointer.
+mouse 246 378
+wait 3
+expect app cursor default
+shot settings-online-sync-reason
+# Check now asks GitHub once, and reads Checking... until it answers.
+click 246 290
+wait 3
+expect count 1 --check-update-now
+expect app checking 1
+expect app look:Checking... disabled
+shot settings-online-checking
+write .local/share/ghost-launcher/update.txt status=current\nbehind=0\ncurrent=0123456789abcdef0123456789abcdef01234567\nlatest=0123456789abcdef0123456789abcdef01234567\ntitle=Launcher: Settings\nchecked=4102444800\n
+wait 80
+expect app checking 0
+expect app look:Check now hover
+mouse 480 600
+wait 2
+expect app look:Check now normal
+shot settings-online-checked
+# Update details opens the Updates screen; Back comes back here.
+click 246 334
+wait 3
+expect ui UPDATE
+expect app under SETTINGS
+tap ESC
+wait 3
+expect ui SETTINGS
+expect app tab Online
+# Sharing on: saved, and a sync starts at once (one ran at start-up).
+click 548 202
+wait 3
+expect file .config/ghost-launcher/online.conf enabled=1\n
+expect file .config/ghost-launcher/online.conf check_updates=1\n
+expect app sharing 1
+expect count 2 sync scores
+expect app syncing 1
+expect app look:Syncing... disabled
+shot settings-online-syncing
+# ghost-sync writes the boards: the sync is over.
+write .local/share/ghost-launcher/scores/global/coilrush.txt classic|Ghost|99|2026-10-01\n
+wait 80
+expect app syncing 0
+expect app look:Sync scores now normal
+# Sync scores now again; nothing comes back within 30 s.
+click 246 378
+wait 3
+expect count 3 sync scores
+expect app syncing 1
+wait 1900
+expect app syncing 0
+expect app syncnoanswer 1
+shot settings-online-sync-noanswer
+# Update checks off: Check now goes faint.
+click 476 246
+wait 3
+expect file .config/ghost-launcher/online.conf check_updates=0\n
+expect file .config/ghost-launcher/online.conf enabled=1\n
+expect app checks 0
+expect app look:Check now disabled
+tap R
+wait 3
+expect count 1 --check-update-now
+
+# Controls: a reference card per screen, picked with the stepper.
+tap TAB
+wait 3
+expect app tab Controls
+expect app card The hall
+mouse 480 600
+wait 3
+shot settings-controls
+tap RIGHT
+wait 3
+expect app card Screens from the hall
+click 460 202
+wait 3
+expect app card The hall
+tap LEFT
+wait 3
+expect app card Daily challenge desk
+shot settings-controls-desk
+tap LEFT
+wait 3
+expect app card This game's page
+shot settings-controls-page
+tap LEFT
+wait 3
+expect app card Everywhere
+shot settings-controls-everywhere
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 3
+expect app card Settings
+shot settings-controls-settings
+
+# Tab from the last tab comes round to the first; Esc goes back.
+tap TAB
+wait 3
+expect app tab Machines
+tap TAB
+wait 3
+expect app tab Player
+tap ESC
+wait 3
+expect ui LIST
+expect app depth 1
+
+# From the Arcade menu: Settings is its third item (after the daily desk).
+tap ESC
+wait 3
+tap DOWN
+tap DOWN
+wait 2
+expect app focus Settings
+shot menu-settings
+tap ENTER
+wait 3
+expect ui SETTINGS
+expect app under MENU
+tap ESC
+wait 3
+expect ui MENU
+expect app focus Settings
+tap ESC
+wait 3
+expect ui LIST

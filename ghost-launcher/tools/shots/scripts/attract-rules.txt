@@ -1,0 +1,112 @@
+#! env SHOTS_ADMIN=0
+# Phase 6: attract mode's other rules. Pad A wakes it and plays nothing; an
+# F11 that wakes it does not switch fullscreen; with Reduced flashing the
+# prompt holds steady; it never starts while a game the launcher started is
+# running (the quiet hall wins) or under the Arcade menu; Settings > Screen
+# turns it off or makes it wait two minutes (launcher.ini attract_mode).
+wait 30
+pad on
+wait 3600
+expect app attract 1
+pad tap A
+wait 2
+expect app attract 0
+wait 80
+expect launches 0
+
+# F11 wakes it and does nothing else.
+wait 3600
+expect app attract 1
+tap F11
+wait 3
+expect app attract 0
+expect fullscreen 0
+expect prefs fullscreen 0
+
+# Reduced flashing: PRESS ANY BUTTON holds steady.
+write .config/ghost-arcade/prefs.ini music_volume=70\nscreen_shake=1\nreduced_flashing=1\nfullscreen=0\n
+focus off
+wait 2
+focus on
+wait 2
+expect prefs reduced_flashing 1
+wait 3600
+expect app attract 1
+wait 70
+log steady (a frame the blinking prompt would be off: it stays)
+shot attract-steady
+tap SPACE
+wait 3
+expect app attract 0
+wait 80
+expect launches 0
+
+# Never while a game the launcher started is running.
+tap ENTER
+wait 70
+expect launched launch Blockfall
+wait 3700
+expect app attract 0
+gameexit
+wait 3
+expect app attract 0
+
+# Never under the Arcade menu.
+tap ESC
+wait 3
+expect ui MENU
+wait 3700
+expect app attract 0
+tap ESC
+wait 3
+expect ui LIST
+
+# Settings > Screen > Attract mode: Off.
+tap TAB
+wait 3
+tap TAB
+wait 3
+tap TAB
+wait 3
+expect app tab Screen
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app focusrow Attract mode
+expect app look:1 min focused
+tap LEFT
+wait 3
+expect app attractsetting Off
+expect app toast Saved
+expect file .config/ghost-launcher/launcher.ini attract_mode=off\n
+mouse 940 620
+wait 3
+shot settings-screen-attract
+tap ESC
+wait 3
+expect ui LIST
+wait 3700
+expect app attract 0
+
+# ...and two minutes.
+tap TAB
+wait 3
+expect app tab Screen
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap RIGHT
+tap RIGHT
+wait 3
+expect app attractsetting 2 min
+expect file .config/ghost-launcher/launcher.ini attract_mode=2min\n
+tap ESC
+wait 3
+wait 3700
+expect app attract 0
+wait 3600
+expect app attract 1

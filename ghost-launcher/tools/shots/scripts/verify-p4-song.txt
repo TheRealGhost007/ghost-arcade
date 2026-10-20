@@ -1,0 +1,35 @@
+#! env SHOTS_ADMIN=0 SHOTS_HALL_SONG=1
+# Phase 4 verification: the hall's song file stops being a song (a bad
+# copy, a hand edit). music.c then plays the built-in theme, so Settings >
+# Sound and Chipforge's card say "Built-in theme", not the file's name.
+wait 30
+expect app hallsong Ghost Arcade (launcher)
+focus off
+write .local/share/ghost-arcade/music/ghost-arcade-launcher.gsong not a song\n
+wait 3
+focus on
+wait 3
+expect app hallsong Built-in theme
+tap TAB
+wait 3
+tap TAB
+wait 3
+expect app tab Sound
+mouse 480 620
+wait 3
+shot verify-p4-song-broken
+tap ESC
+wait 3
+tap LEFT
+wait 30
+expect app lit Chipforge
+expect app cardtool 1 3 Built-in theme
+# A good song again: picked up on the next return.
+focus off
+write .config/ghost-arcade/music.ini ghostarcade=lobby.gsong\n
+wait 3
+focus on
+wait 3
+expect app hallsong Lobby
+wait 200
+expect app cardtool 1 3 Lobby

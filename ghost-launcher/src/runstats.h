@@ -1,6 +1,8 @@
 #ifndef RUNSTATS_H
 #define RUNSTATS_H
 
+#include <stdbool.h>
+#include <stddef.h>
 #include <time.h>
 
 /* A summary of one game's runs.log (see ghost-common/runlog.h): how many runs,
@@ -17,6 +19,10 @@ typedef struct {
 
 /* Reads $XDG_DATA_HOME/<slug>/runs.log (or ~/.local/share). `now` is passed in so the tests can pin the date. */
 void RunStats_Load(const char *slug, time_t now, RunSummary *out);
+
+/* Where a game's runs.log is: $XDG_DATA_HOME/<slug>/runs.log (or under
+ * ~/.local/share). False for a slug that is no file name, or no home. */
+bool RunStats_LogPath(const char *slug, char *out, size_t size);
 
 /* Whole days between a YYYY-MM-DD string and `now`'s date, or -1 if it does not parse. */
 int RunStats_DaysAgo(const char *date, time_t now);

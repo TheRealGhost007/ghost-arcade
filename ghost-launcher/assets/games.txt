@@ -13,3 +13,4 @@ Crawlshot|~/.local/bin/crawlshot|~/.local/share/crawlshot/assets/icons/crawlshot
 Moondrop|~/.local/bin/moondrop|~/.local/share/moondrop/assets/icons/moondrop.png|Land it gently. Fuel is the only life you get.|~/Work/ghost-arcade/moondrop
 Gemdive|~/.local/bin/gemdive|~/.local/share/gemdive/assets/icons/gemdive.png|Dive deeper for gems. Mind the boulders.|~/Work/ghost-arcade/gemdive
 Girderclimb|~/.local/bin/girderclimb|~/.local/share/girderclimb/assets/icons/girderclimb.png|Swing. Reel. Let go. The fire is climbing.|~/Work/ghost-arcade/girderclimb
+Chipforge|~/.local/bin/chipforge|~/.local/share/chipforge/assets/icons/chipforge.png|Make the music your games play|~/Work/ghost-arcade/chipforge

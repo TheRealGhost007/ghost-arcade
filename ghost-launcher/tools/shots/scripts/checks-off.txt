@@ -1,0 +1,18 @@
+# check_updates=0 (the fixtures' default): Check now is faint and says why;
+# R and pad View ask nothing.
+wait 30
+tap V
+wait 3
+expect app look:Check now disabled
+tap R
+wait 3
+pad on
+wait 2
+pad tap VIEW
+wait 3
+pad off
+expect count 0 --check-update-now
+mouse 202 462
+wait 3
+expect app cursor default
+shot updates-checks-off

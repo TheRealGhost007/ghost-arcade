@@ -1,0 +1,179 @@
+#! env SHOTS_ADMIN=0
+# Phase 2 verifier: Settings' keys and focus after each action, the names
+# list end to end, a click into a long name, a shared setting that cannot
+# be saved, and the ways in and out (menu, U, O, Shift+U, Update details).
+wait 30
+
+# Clear: the keys stay on that game's row (they used to jump to the top).
+tap TAB
+wait 3
+expect app tab Player
+tap DOWN
+wait 2
+expect app focusrow Start on
+tap DOWN
+wait 2
+tap RIGHT
+wait 2
+expect app focus Clear
+expect app focusrow Blockfall
+tap ENTER
+wait 3
+expect app toast Saved
+expect app focusrow Blockfall
+expect app focus Set
+expect file .local/share/ghost-launcher/profiles.txt Blockfall|\n
+
+# Up from the first row reaches the tab bar; Left/Right there switch tabs
+# and keep the keys on the bar; Down goes into the tab's first row.
+tap UP
+wait 2
+tap UP
+wait 2
+tap UP
+wait 2
+expect app focus Tabs
+expect app focusrow
+tap RIGHT
+wait 2
+tap RIGHT
+wait 2
+expect app tab Screen
+expect app focus Tabs
+shot verify-settings-tabs-focus
+tap LEFT
+wait 2
+expect app tab Sound
+tap DOWN
+wait 2
+expect app focusrow Music volume
+tap UP
+wait 2
+expect app focus Tabs
+
+# The names list, end to end with the keys: it scrolls under the focus.
+tap U
+wait 3
+expect app tab Player
+expect app typing 0
+expect app focus Edit
+hold DOWN 140
+wait 2
+expect app focusrow Chipforge
+expect app namestop 6
+shot verify-settings-names-end
+hold UP 140
+wait 2
+expect app focus Tabs
+expect app namestop 0
+
+# Shift+U inside Settings: the selected machine's row (Skyraid).
+tap ESC
+wait 3
+expect ui LIST
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 20
+expect selected 3
+tap TAB
+wait 3
+tap SHIFT U
+wait 3
+expect app typing 0
+expect app focusrow Skyraid
+tap ENTER
+wait 3
+expect app typing 1
+text Sky
+tap ENTER
+wait 3
+expect app typing 0
+expect ui SETTINGS
+expect file .local/share/ghost-launcher/profiles.txt Skyraid|Sky\n
+
+# A click on a long name at rest puts the cursor on the letter clicked.
+tap ESC
+wait 3
+tap U
+wait 3
+hold BACKSPACE 60
+text Montgomery-Abernathy
+tap ENTER
+wait 10
+expect app name Montgomery-Abernathy
+tap TAB
+wait 3
+mouse 370 201
+wait 2
+click 370 201
+wait 3
+expect app typing 1
+expect app cursor_at 3
+shot verify-settings-click-long
+tap ESC
+wait 3
+expect app typing 0
+expect app name Montgomery-Abernathy
+
+# A shared setting that cannot be written: Couldn't save, and the switch
+# shows what prefs.ini still holds (what every game will use).
+mouse 399 128
+wait 1
+click 399 128
+wait 3
+expect app tab Screen
+chmod .config/ghost-arcade 555
+click 476 289
+wait 3
+expect app toast Couldn't save
+expect prefs screen_shake 1
+shot verify-settings-prefs-failed
+chmod .config/ghost-arcade 755
+click 476 289
+wait 3
+expect app toast Saved
+expect prefs screen_shake 0
+expect file .config/ghost-arcade/prefs.ini screen_shake=0
+
+# Update details, then V (or Esc) comes back to it.
+tap O
+wait 3
+expect app tab Online
+tap DOWN
+tap DOWN
+wait 2
+expect app focus Update details
+tap ENTER
+wait 3
+expect ui UPDATE
+expect app under SETTINGS
+tap V
+wait 3
+expect ui SETTINGS
+expect app focus Update details
+tap ESC
+wait 3
+expect ui LIST
+
+# From the Arcade menu: U types and comes back to the menu; Tab opens
+# Settings, and Esc returns to the menu.
+tap ESC
+wait 3
+expect ui MENU
+tap U
+wait 3
+expect ui SETTINGS
+expect app typing 1
+tap ESC
+wait 3
+expect ui MENU
+tap TAB
+wait 3
+expect ui SETTINGS
+tap ESC
+wait 3
+expect ui MENU
+tap ESC
+wait 3
+expect ui LIST

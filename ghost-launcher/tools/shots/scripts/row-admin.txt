@@ -1,0 +1,139 @@
+#! env SHOTS_ADMIN=1 SHOTS_ORDER=az SHOTS_FAVS=skyraid
+# Phase 4, the risk the plan names: a sorted row has two numberings, the
+# place in the row and the line in games.txt. In A-Z with a favourite,
+# admin's Edit, Remove and Add (and the dialog's question) all act on the
+# machine the hall shows lit, and the row is rebuilt after each.
+wait 30
+expect app order A-Z
+expect app row Skyraid,Blockfall,Brickburst,Chipforge,Coilrush,Crawlshot,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+expect app lit Skyraid
+expect selected 3
+
+# Edit on the second place opens Blockfall (catalog index 0).
+tap RIGHT
+wait 30
+expect app lit Blockfall
+tap E
+wait 5
+expect ui EDIT_GAME
+expect profile Blockfall
+tap ESC
+wait 3
+expect ui LIST
+expect app lit Blockfall
+
+# Remove asks about the machine lit (Chipforge, place 3) and keeps it on Keep.
+tap RIGHT
+tap RIGHT
+wait 30
+expect app lit Chipforge
+expect selected 11
+tap DELETE
+wait 5
+expect app dialogtitle Remove Chipforge?
+tap ESC
+wait 3
+expect app games 12
+
+# Remove Coilrush: place 4 in the row, catalog index 1 (the second line of games.txt).
+tap RIGHT
+wait 30
+expect app lit Coilrush
+expect selected 1
+tap DELETE
+wait 5
+expect app dialogtitle Remove Coilrush?
+tap RIGHT
+tap ENTER
+wait 5
+expect app dialog none
+expect app games 11
+expect nofile .config/ghost-launcher/games.txt Coilrush|
+expect file .config/ghost-launcher/games.txt Crawlshot|
+expect app row Skyraid,Blockfall,Brickburst,Chipforge,Crawlshot,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+expect app lit Crawlshot
+expect app place 4
+expect app settled 1
+shot row-admin-removed
+
+# Edit Crawlshot's name: the same line of games.txt, a new place in A-Z.
+tap E
+wait 5
+expect ui EDIT_GAME
+expect profile Crawlshot
+hold BACKSPACE 120
+text Arcwalk
+tap ENTER
+tap ENTER
+tap ENTER
+tap ENTER
+tap ENTER
+wait 3
+tap ENTER
+wait 5
+expect ui LIST
+expect file .config/ghost-launcher/games.txt Arcwalk|~/bin/crawlshot|
+expect app row Skyraid,Arcwalk,Blockfall,Brickburst,Chipforge,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+expect app lit Arcwalk
+expect app place 1
+# Its favourite and place stay with its program name, not its title.
+tap F
+wait 3
+expect file .config/ghost-launcher/launcher.ini fav.crawlshot=1\n
+expect app row Arcwalk,Skyraid,Blockfall,Brickburst,Chipforge,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+
+# Add: the new machine is lit, wherever A-Z puts it.
+tap A
+wait 5
+expect ui ADD_GAME
+text Bumper
+tap ENTER
+text ~/bin/bumper
+tap ENTER
+tap ENTER
+tap ENTER
+tap ENTER
+wait 3
+tap ENTER
+wait 5
+expect ui LIST
+expect app games 12
+expect app lit Bumper
+expect app row Arcwalk,Skyraid,Blockfall,Brickburst,Bumper,Chipforge,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+expect app place 4
+expect app note 
+expect app status Not installed, and no folder to install it from.
+wait 30
+shot row-admin-added
+
+# And Enter on a machine plays that machine.
+tap LEFT
+wait 30
+expect app lit Brickburst
+tap ENTER
+wait 70
+expect launched Brickburst
+gameexit
+wait 3
+
+# A program name that cannot be a key (capitals): no star, and F says why.
+tap A
+wait 5
+text Oddball
+tap ENTER
+text ~/bin/Odd
+tap ENTER
+tap ENTER
+tap ENTER
+tap ENTER
+wait 3
+tap ENTER
+wait 5
+expect ui LIST
+expect app lit Oddball
+expect app look:Favourite disabled
+tap F
+wait 3
+expect app note Its program name cannot be kept as a favourite.
+expect app fav:Oddball 0
+expect nofile .config/ghost-launcher/launcher.ini fav.odd

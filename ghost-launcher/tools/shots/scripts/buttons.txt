@@ -1,0 +1,123 @@
+#! env SHOTS_CHECKS=1
+# Today's screens as buttons: the X and [< Back] light under the pointer;
+# the online answers, the trophy arrows, Check now and Save are clickable;
+# saves say Saved, or Couldn't save.
+wait 30
+mouse 932 28
+wait 3
+expect app look:X hover
+expect app cursor hand
+shot hall-close-hover
+mouse 480 450
+wait 3
+expect app cursor default
+
+# Online sharing is in Settings > Online now: O opens it on Share my
+# scores; a click on a half of the switch saves it (on release), and
+# turning sharing on syncs straight away.
+tap O
+wait 5
+expect ui SETTINGS
+expect app tab Online
+expect app focusrow Share my scores
+expect app focus Share my scores
+shot online-focus-share
+mouse 548 202
+wait 3
+expect app look:Share my scores hover
+expect app cursor hand
+shot online-hover-on
+mdown left
+wait 2
+expect app look:Share my scores pressed
+expect nofile .config/ghost-launcher/online.conf enabled=1
+shot online-pressed-on
+mup left
+wait 3
+expect file .config/ghost-launcher/online.conf enabled=1\n
+expect app toast Saved
+expect app sharing 1
+# one sync at start-up, one for turning sharing on
+expect count 2 sync scores
+expect app syncing 1
+shot toast-saved
+wait 120
+expect app toast 
+mouse 52 28
+wait 3
+expect app look:Back hover
+shot online-back-hover
+click 52 28
+wait 3
+expect ui LIST
+expect file .config/ghost-launcher/online.conf enabled=1\n
+
+# Trophies: the arrows beside the game's name step it, round the ends.
+tap H
+wait 3
+expect trophy 0
+mouse 308 164
+wait 3
+expect app cursor hand
+shot trophies-arrow-hover
+click 308 164
+wait 3
+expect trophy 1
+click 84 164
+click 84 164
+wait 3
+expect trophy 11
+mouse 200 164
+wait 3
+expect app cursor default
+tap ESC
+wait 3
+
+# Updates: Check now (click, Enter, R or pad View) asks once and reads
+# Checking... until GitHub answers or 20 s pass.
+tap V
+wait 3
+expect app focus Check now
+shot updates-focus-check
+click 202 462
+wait 3
+expect count 1 --check-update-now
+expect app checking 1
+expect app look:Checking... disabled
+tap ENTER
+wait 3
+expect count 1 --check-update-now
+wait 1250
+expect app checking 0
+expect app noanswer 1
+expect app focus Check now
+shot updates-no-answer
+tap ENTER
+wait 3
+expect count 2 --check-update-now
+tap ESC
+wait 3
+
+# Your name: U types at once; Save is a button, and from U it comes back
+# to the hall as the old name screen did; a save that fails says so.
+tap U
+wait 3
+expect ui SETTINGS
+expect app typing 1
+text Z
+click 700 202
+wait 3
+expect ui LIST
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRGZ\n
+expect app toast Saved
+chmod .local/share/ghost-launcher 555
+tap U
+wait 3
+text Q
+tap ENTER
+wait 3
+expect ui LIST
+expect app toast Couldn't save
+shot toast-failed
+chmod .local/share/ghost-launcher 755
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRGZ\n

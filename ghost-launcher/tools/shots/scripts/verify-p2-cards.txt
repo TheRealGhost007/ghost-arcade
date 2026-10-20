@@ -1,0 +1,69 @@
+#! env SHOTS_ADMIN=1
+# Phase 2 verifier: every reference card on Settings > Controls, admin's
+# own card last; each fits its columns.
+wait 30
+tap TAB
+wait 3
+tap SHIFT TAB
+wait 3
+expect app tab Machines
+tap SHIFT TAB
+wait 3
+expect app tab Controls
+expect app card The hall
+shot verify-card-hall-admin
+tap RIGHT
+wait 2
+expect app card Screens from the hall
+shot verify-card-screens
+tap RIGHT
+wait 2
+expect app card Arcade menu
+shot verify-card-menu
+tap RIGHT
+wait 2
+expect app card Settings
+shot verify-card-settings
+tap RIGHT
+wait 2
+expect app card Typing a name
+shot verify-card-typing
+tap RIGHT
+wait 2
+expect app card Name board
+shot verify-card-board
+tap RIGHT
+wait 2
+expect app card Stats and trophies
+shot verify-card-stats
+tap RIGHT
+wait 2
+expect app card Updates
+shot verify-card-updates
+tap RIGHT
+wait 2
+expect app card Questions
+shot verify-card-questions
+tap RIGHT
+wait 2
+expect app card Share scores?
+shot verify-card-share
+tap RIGHT
+wait 2
+expect app card Everywhere
+shot verify-card-everywhere
+tap RIGHT
+wait 2
+expect app card This game's page
+shot verify-card-page
+tap RIGHT
+wait 2
+expect app card Daily challenge desk
+shot verify-card-desk
+tap RIGHT
+wait 2
+expect app card Adding a machine
+shot verify-card-admin
+tap RIGHT
+wait 2
+expect app card The hall

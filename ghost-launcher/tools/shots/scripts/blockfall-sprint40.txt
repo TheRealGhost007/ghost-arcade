@@ -1,0 +1,30 @@
+#! env SHOTS_ADMIN=0 SHOTS_SPRINT_TIMES=1
+# Blockfall 2.1 ranks Sprint by time on its own Sprint 40 boards (a row
+# stores 10000000 minus the time in hundredths). Its page names them Sprint 40
+# and Sprint (old), shows times (1:12.40, not 9992760), and the page's Best
+# stays the points best rather than a time's big number.
+wait 30
+expect ui LIST
+expect app lit Blockfall
+tap I
+wait 10
+expect ui GAME
+expect app pagefor Blockfall
+expect app strip:0 12840
+tap RIGHT
+wait 3
+expect app pagetab Scores
+expect app pageboard Classic
+tap X
+wait 3
+expect app pageboard Marathon
+tap X
+wait 3
+expect app pageboard Sprint (old)
+tap X
+wait 3
+expect app pageboard Sprint 40
+expect app pagerows 1/2
+mouse 900 620
+wait 3
+shot page-blockfall-sprint40

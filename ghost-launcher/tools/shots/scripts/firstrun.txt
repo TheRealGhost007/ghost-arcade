@@ -1,0 +1,26 @@
+#! env SHOTS_FIRSTRUN=1
+# First run: the share-scores question comes first and must be answered.
+# Esc there means "No, keep it local" and is saved; the other lines of
+# online.conf stay; afterwards the hall is up, and O opens Settings > Online,
+# where Enter on Share my scores turns it on.
+wait 30
+expect ui ONLINE
+shot online-firstrun
+tap ESC
+wait 3
+expect ui LIST
+expect file .config/ghost-launcher/online.conf enabled=0\n
+expect file .config/ghost-launcher/online.conf check_updates=0\n
+expect file .config/ghost-launcher/online.conf # no enabled= line yet
+tap O
+wait 3
+expect ui SETTINGS
+expect app tab Online
+expect app focusrow Share my scores
+tap ENTER
+wait 3
+expect file .config/ghost-launcher/online.conf enabled=1\n
+expect app toast Saved
+tap ESC
+wait 3
+expect ui LIST

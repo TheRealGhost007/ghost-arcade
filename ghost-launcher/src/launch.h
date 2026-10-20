@@ -2,6 +2,7 @@
 #define LAUNCH_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include "stats.h"
 
 /* Forks, detaches (setsid), and execs the given executable path with no
@@ -28,6 +29,10 @@ bool Launch_ReapFinished(double now, PlayStats *stats);
  * running independently). */
 void Launch_CreditStillRunning(double now, PlayStats *stats);
 
+/* Games the launcher started that are still running (leaving asks first
+ * while there are any). */
+int Launch_RunningCount(void);
+
 typedef enum {
     INSTALL_IDLE,
     INSTALL_RUNNING,
@@ -42,6 +47,10 @@ typedef enum {
  * Launch_ReapFinished(); poll it with Launch_InstallStatus(). */
 bool Launch_InstallGame(const char *sourceDir, const char *gameName,
                         char *outError, int outErrorSize);
+
+/* Where an install writes its output: $XDG_DATA_HOME/ghost-launcher/install.log,
+ * or under ~/.local/share without it; "" with neither. */
+void Launch_InstallLogPath(char *out, size_t size);
 
 /* Current install state; *gameNameOut (may be NULL) receives the name it
  * belongs to. DONE/FAILED stick until Launch_InstallAcknowledge(). */

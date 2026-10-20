@@ -2,6 +2,7 @@
 #define STATS_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include "manifest.h"
 
 typedef struct {
@@ -25,5 +26,12 @@ void Stats_AddGameTime(PlayStats *s, const char *gameName, double seconds);
 void Stats_AddLauncherTime(PlayStats *s, double seconds);
 
 double Stats_GetGameTime(const PlayStats *s, const char *gameName);
+
+/* "1h 4m", "38m": how the launcher writes a time played. */
+void Stats_FormatTime(double seconds, char *out, size_t size);
+
+/* Moves the time kept under `from` (a name a game used to have) onto `into`
+ * and drops `from`. False when there was nothing under `from`. */
+bool Stats_Fold(PlayStats *s, const char *from, const char *into);
 
 #endif

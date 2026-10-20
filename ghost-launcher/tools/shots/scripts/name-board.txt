@@ -1,0 +1,115 @@
+#! env SHOTS_ADMIN=0
+# Phase 3: the pad's name board. The pad reaches Settings > Player through
+# the Arcade menu; A on Edit brings an arcade high-score letter grid up
+# under the name. The d-pad moves round it, A types, X deletes, Y types a
+# space, Menu saves, B puts the old name back. The mouse clicks its keys;
+# the keyboard still types into the name.
+wait 30
+pad on
+pad tap MENU
+wait 5
+expect ui MENU
+pad tap DOWN
+pad tap DOWN
+wait 2
+pad tap A
+wait 5
+expect ui SETTINGS
+expect app tab Player
+expect app focus Edit
+pad tap A
+wait 5
+expect app typing 1
+expect app board 1
+expect app boardcell A
+expect profile TRG
+shot name-board
+
+pad tap A
+wait 2
+expect profile TRGA
+pad tap LEFT
+wait 2
+expect app boardcell M
+pad tap A
+wait 2
+expect profile TRGAM
+pad tap X
+wait 2
+expect profile TRGA
+pad tap Y
+pad tap DOWN
+pad tap DOWN
+pad tap A
+wait 2
+expect app boardcell _
+expect profile TRGA _
+pad tap DOWN
+wait 2
+expect app boardcell Done
+pad tap LEFT
+pad tap A
+wait 2
+expect app boardcell Del
+expect app cursor_at 5
+pad tap UP
+wait 2
+expect app boardcell 5
+shot name-board-typing
+
+# The keyboard still types into the name, and the mouse clicks keys.
+text k
+wait 2
+expect profile TRGA k
+mouse 752 294
+wait 3
+expect app look:Z hover
+shot name-board-mouse
+click 752 294
+wait 3
+expect profile TRGA kZ
+expect app boardcell Z
+
+# Menu saves; the name is kept for every game.
+pad tap MENU
+wait 5
+expect app typing 0
+expect app board 0
+expect app toast Saved
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRGA kZ\n
+
+# B puts the old name back.
+pad tap A
+wait 5
+expect app board 1
+pad tap A
+pad tap A
+wait 2
+expect profile TRGA kZAA
+pad tap B
+wait 5
+expect app typing 0
+expect app name TRGA kZ
+
+# A name low in the list: the board opens over it, not off the screen
+# (past Start on, then down the names until the list scrolls).
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+wait 3
+expect app focusrow Lanehop
+expect app namestop 1
+pad tap A
+wait 5
+expect app board 1
+expect app cursor_at 0
+shot name-board-low
+pad tap A
+pad tap MENU
+wait 5
+expect app name:Lanehop A

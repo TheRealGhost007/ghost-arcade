@@ -3,6 +3,7 @@
 #include "syncdata.h"
 #include "online_config.h"
 #include "updatecheck.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,46 +94,86 @@ void SyncConfig_Load(SyncConfig *cfg) {
     while (len > 0 && cfg->url[len - 1] == '/') cfg->url[--len] = '\0';
 }
 
-bool SyncConfig_SaveEnabled(bool enabled) {
+/* online.conf is a few short lines; anything bigger is not ours to rewrite. */
+#define ONLINE_CONF_MAX 65536
+
+/* The whole file, so nothing is written until it has all been read: a read
+ * that fails half way must never become a half-copied online.conf. A missing
+ * file is an empty one. */
+static bool ReadConfText(const char *path, char **text, size_t *len) {
+    *text = NULL;
+    *len = 0;
+    FILE *f = fopen(path, "rb");
+    if (!f) return errno == ENOENT;
+    char *buf = malloc(ONLINE_CONF_MAX + 1);
+    if (!buf) { fclose(f); return false; }
+    size_t n = fread(buf, 1, ONLINE_CONF_MAX + 1, f);
+    bool ok = !ferror(f) && n <= ONLINE_CONF_MAX;
+    fclose(f);
+    if (!ok) { free(buf); return false; }
+    *text = buf;
+    *len = n;
+    return true;
+}
+
+/* "  key = ..." for exactly this key; comments never match. */
+static bool ConfLineIs(const char *line, size_t n, const char *key) {
+    size_t i = 0, k = strlen(key);
+    while (i < n && (line[i] == ' ' || line[i] == '\t')) i++;
+    if (n - i < k || memcmp(line + i, key, k) != 0) return false;
+    i += k;
+    while (i < n && (line[i] == ' ' || line[i] == '\t')) i++;
+    return i < n && line[i] == '=';
+}
+
+static void WriteConfWithValue(FILE *out, const char *text, size_t len, const char *key, const char *value) {
+    bool written = false;
+    const char *p = text, *end = text + len;
+    while (p < end) {
+        const char *nl = memchr(p, '\n', (size_t)(end - p));
+        size_t n = (size_t)((nl ? nl : end) - p);
+        if (!ConfLineIs(p, n, key)) {
+            fwrite(p, 1, n, out);
+            fputc('\n', out);
+        } else if (!written) {
+            fprintf(out, "%s=%s\n", key, value); /* where the old line stood */
+            written = true;
+        }
+        p = nl ? nl + 1 : end;
+    }
+    if (!written) fprintf(out, "%s=%s\n", key, value);
+}
+
+static bool ConfKeyOk(const char *key) {
+    if (!key || !key[0]) return false;
+    for (const char *p = key; *p; p++) if (!((*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') || *p == '_')) return false;
+    return true;
+}
+
+static bool ConfValueOk(const char *value) {
+    if (!value) return false;
+    for (const char *p = value; *p; p++) if ((unsigned char)*p < 32 || *p == 127) return false;
+    return true;
+}
+
+bool SyncConfig_SetValue(const char *key, const char *value) {
+    if (!ConfKeyOk(key) || !ConfValueOk(value)) return false;
     char dir[512], path[600];
     if (!XdgDir("XDG_CONFIG_HOME", ".config", dir, sizeof(dir))) return false;
     snprintf(path, sizeof(path), "%s/online.conf", dir);
 
-    /* Rewrite the file with a single enabled= line first and every other
-     * line copied through unchanged. The old fixed buffer kept at most
-     * eight lines, so a hand-edited file with a few comments silently
-     * lost whatever came after them, typically url= and key=. Copying
-     * straight from the original into the temp file has no such cap. */
-    char parent[512];
-    snprintf(parent, sizeof(parent), "%s", dir);
-    char *slash = strrchr(parent, '/');
-    if (slash) { *slash = '\0'; mkdir(parent, 0755); }
-    mkdir(dir, 0755);
-
-    FILE *in = fopen(path, "r");
+    char *old;
+    size_t oldLen;
+    if (!ReadConfText(path, &old, &oldLen)) return false;
+    MkdirParents(dir);
     FILE *out = SafeFile_Open(path); /* writes path.tmp; the original stays readable */
-    if (!out) {
-        if (in) fclose(in);
-        return false;
-    }
-    fprintf(out, "enabled=%d\n", enabled ? 1 : 0);
-    if (in) {
-        char line[600];
-        while (fgets(line, sizeof(line), in)) {
-            char copy[600];
-            snprintf(copy, sizeof(copy), "%s", line);
-            char *t = TrimInPlace(copy);
-            char *eq = strchr(t, '=');
-            if (eq && t[0] != '#') {
-                *eq = '\0';
-                if (strcmp(TrimInPlace(t), "enabled") == 0) continue;
-            }
-            fputs(line, out);
-        }
-        fclose(in);
-    }
+    if (!out) { free(old); return false; }
+    WriteConfWithValue(out, old ? old : "", oldLen, key, value);
+    free(old);
     return SafeFile_Close(out);
 }
+
+bool SyncConfig_SaveEnabled(bool enabled) { return SyncConfig_SetValue("enabled", enabled ? "1" : "0"); }
 
 static bool LooksLikeUuid(const char *s) {
     if (strlen(s) != 36) return false;
@@ -389,6 +430,68 @@ int Sync_ParseBoardCsv(const char *csv, SyncRow *rows, int maxRows) {
         snprintf(r->date, sizeof(r->date), "%.*s", (int)sizeof(r->date) - 1, fields[4]);
     }
     return count;
+}
+
+void Sync_DailyCutoff(time_t now, char *out, size_t size) {
+    time_t then = now - (time_t)SYNC_DAILY_KEEP_DAYS * 86400;
+    struct tm t;
+    if (!localtime_r(&then, &t)) {
+        snprintf(out, size, "daily-00000000"); /* keeps every daily rather than none */
+        return;
+    }
+    snprintf(out, size, "daily-%04d%02d%02d", t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
+}
+
+/* The games' own test (ghostlink.c): "daily-" and eight digits. */
+static bool IsDailyMode(const char *mode) { return strncmp(mode, "daily-", 6) == 0 && strlen(mode) == 14; }
+
+bool Sync_KeepBoard(const char *mode, const char *cutoff) {
+    if (!mode) return false;
+    return !IsDailyMode(mode) || strcmp(mode, cutoff) >= 0; /* YYYYMMDD sorts as it counts */
+}
+
+size_t Sync_BoardQuery(time_t now, char *out, size_t outSize) {
+    char cutoff[24];
+    Sync_DailyCutoff(now, cutoff, sizeof(cutoff));
+    int used = snprintf(out, outSize, "/rest/v1/leaderboard?select=game,mode,username,score,played_on&game=in.(");
+    for (int i = 0; i < Sync_KnownGameCount() && used > 0 && (size_t)used < outSize; i++)
+        used += snprintf(out + used, outSize - (size_t)used, "%s%s", i ? "," : "", Sync_KnownGame(i));
+    if (used < 0 || (size_t)used >= outSize) return 0;
+    /* PostgREST: '*' is like's wildcard in a URL. */
+    int tail = snprintf(out + used, outSize - (size_t)used, ")&or=(mode.not.like.daily-*,mode.gte.%s)&order=rank.asc,game.asc,mode.asc&limit=%d",
+                        cutoff, SYNC_BOARD_ROWS);
+    if (tail < 0 || (size_t)tail >= outSize - (size_t)used) return 0;
+    return (size_t)(used + tail);
+}
+
+int Sync_DropOldDailies(SyncRow *rows, int count, const char *cutoff) {
+    int kept = 0;
+    for (int i = 0; i < count; i++)
+        if (Sync_KeepBoard(rows[i].mode, cutoff)) rows[kept++] = rows[i];
+    return kept;
+}
+
+static int BoardCmp(const SyncRow *a, const SyncRow *b) {
+    int c = strcmp(a->game, b->game);
+    return c ? c : strcmp(a->mode, b->mode);
+}
+
+/* A merge sort: stable, so each board keeps the rank order it came in. */
+void Sync_GroupBoards(SyncRow *rows, int count) {
+    if (count < 2) return;
+    SyncRow *tmp = malloc((size_t)count * sizeof(*tmp));
+    if (!tmp) return;
+    for (int width = 1; width < count; width *= 2) {
+        for (int lo = 0; lo < count; lo += 2 * width) {
+            int mid = lo + width < count ? lo + width : count, hi = lo + 2 * width < count ? lo + 2 * width : count;
+            int a = lo, b = mid, k = lo;
+            while (a < mid && b < hi) tmp[k++] = BoardCmp(&rows[b], &rows[a]) < 0 ? rows[b++] : rows[a++];
+            while (a < mid) tmp[k++] = rows[a++];
+            while (b < hi) tmp[k++] = rows[b++];
+        }
+        memcpy(rows, tmp, (size_t)count * sizeof(*tmp));
+    }
+    free(tmp);
 }
 
 int Sync_WriteGlobalCache(const SyncRow *rows, int count) {

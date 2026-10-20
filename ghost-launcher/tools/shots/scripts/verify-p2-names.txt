@@ -1,0 +1,38 @@
+#! env SHOTS_ADMIN=0 SHOTS_NAME=Bartholomew-Montgomery-Abernathy-Smithson
+# Phase 2 verifier: a name already longer than new names may be (41 of 32)
+# is kept whole when typing begins; nothing more goes in; it can be cut.
+wait 30
+shot verify-longname-hall
+tap TAB
+wait 3
+expect app focus Edit
+shot verify-longname-settings
+tap ENTER
+wait 3
+expect app typing 1
+expect profile Bartholomew-Montgomery-Abernathy-Smithson
+text xyz
+clip more
+tap CTRL V
+wait 2
+expect profile Bartholomew-Montgomery-Abernathy-Smithson
+shot verify-longname-typing
+tap ESC
+wait 3
+expect app typing 0
+expect app name Bartholomew-Montgomery-Abernathy-Smithson
+tap ENTER
+wait 3
+tap BACKSPACE
+wait 2
+expect profile Bartholomew-Montgomery-Abernathy-Smithso
+tap ENTER
+wait 3
+expect app toast Saved
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|Bartholomew-Montgomery-Abernathy-Smithso\n
+# Enter on it unchanged keeps it whole too.
+tap ENTER
+wait 3
+tap ENTER
+wait 3
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|Bartholomew-Montgomery-Abernathy-Smithso\n

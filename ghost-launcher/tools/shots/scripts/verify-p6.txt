@@ -1,0 +1,134 @@
+#! env SHOTS_ADMIN=0 SHOTS_DAILIES=1
+# Phase 6 verification: what the extras' first build got wrong.
+# - A wheel flick is one gesture: its first notch wakes attract mode, and
+#   the notches right behind it must not move the row off your machine
+#   (they moved it two machines on). A notch after the settle moves it.
+# - Shift alone is a key: it wakes attract mode (and does nothing else).
+# - A double-click on a page's Daily challenge: the first click opens the
+#   desk, the second landed on a desk row and played that machine's daily
+#   (Moondrop's, on Skyraid's page). The desk now ignores the left button
+#   for a moment after a click opened it, as the page does.
+# - Shift+D on a page opens the desk, as on the hall (it did nothing, and
+#   before the desk it was the page's Daily).
+# - Settings > Screen > Attract mode: each choice's note stays in its row.
+wait 30
+tap RIGHT
+wait 3
+tap RIGHT
+wait 30
+expect app lit Brickburst
+
+# The wheel flick.
+wait 3700
+expect app attract 1
+expect app shown Brickburst
+wheel -1
+wait 4
+wheel -1
+wait 4
+wheel -1
+wait 60
+expect app attract 0
+expect app lit Brickburst
+expect app shown Brickburst
+wheel -1
+wait 30
+expect app lit Skyraid
+tap LEFT
+wait 30
+expect app lit Brickburst
+
+# Shift alone wakes it; a Shift held down is someone there.
+wait 3700
+expect app attract 1
+tap SHIFT
+wait 3
+expect app attract 0
+expect app lit Brickburst
+expect ui LIST
+down SHIFT
+wait 3700
+expect app attract 0
+up SHIFT
+wait 3
+expect launches 0
+
+# The double-click on a page's Daily challenge.
+tap RIGHT
+wait 30
+expect app lit Skyraid
+tap I
+wait 10
+expect ui GAME
+expect app pagefor Skyraid
+click 200 448
+wait 8
+expect ui DAILY
+expect app deskfocus Skyraid
+click 200 448
+wait 10
+expect ui DAILY
+wait 80
+expect launches 0
+shot verify-p6-desk-double-click
+# ...a click after the moment is a real one.
+click 400 284
+wait 5
+expect ui LIST
+expect app lit Skyraid
+wait 80
+expect launched launch Skyraid --daily
+expect launches 1
+gameexit
+wait 10
+
+# Shift+D on a page: the desk; Esc back to the page.
+tap I
+wait 10
+expect ui GAME
+tap SHIFT D
+wait 5
+expect ui DAILY
+expect app under GAME
+tap ESCAPE
+wait 3
+expect ui GAME
+tap PAGE_DOWN
+wait 10
+expect app pagefor Ghostmaze
+tap D
+wait 5
+expect ui GAME
+tap SHIFT D
+wait 5
+expect ui DAILY
+tap SHIFT D
+wait 3
+expect ui GAME
+tap ESCAPE
+wait 3
+expect ui LIST
+
+# The attract notes.
+tap TAB
+wait 3
+tap TAB
+wait 3
+tap TAB
+wait 3
+expect app tab Screen
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app focusrow Attract mode
+expect app look:1 min focused
+mouse 940 620
+wait 3
+shot verify-p6-attract-1min
+tap RIGHT
+wait 3
+expect app attractsetting 2 min
+shot verify-p6-attract-2min
+expect launches 1

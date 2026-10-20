@@ -1,0 +1,100 @@
+#! env SHOTS_ADMIN=0
+# Phase 3: the hall on the Xbox pad, the owner's map: A play, Y daily,
+# X this game (its page), View stats, Menu or B
+# the Arcade menu, LB/RB five machines along, the d-pad (or stick) one along
+# with repeat. The strip then names the pad's buttons, drawn in the house
+# colours.
+wait 30
+pad on
+pad tap RIGHT
+wait 30
+expect selected 1
+expect app hint 1
+expect app chip:Play A normal
+expect app chip:Daily Y disabled
+expect app chip:This_game X normal
+expect app chip:Stats View normal
+expect app chip:Menu Menu normal
+expect app status Press A to play
+wait 10
+shot hall-strip-pad
+
+# LB/RB: five along, stopping at the ends, then round.
+pad tap RB
+wait 3
+expect selected 6
+pad tap RB
+wait 3
+expect selected 11
+pad tap RB
+wait 3
+expect selected 0
+pad tap LB
+wait 3
+expect selected 11
+pad tap LB
+wait 3
+expect selected 6
+# The d-pad held keeps moving.
+pad hold LEFT 40
+wait 3
+expect selected 2
+
+# X: this machine's page. View: Stats. Menu and B: the Arcade menu.
+pad tap X
+wait 5
+expect ui GAME
+expect app pagefor Brickburst
+pad tap B
+wait 3
+expect ui LIST
+pad tap VIEW
+wait 5
+expect ui STATS
+pad tap VIEW
+wait 3
+expect ui LIST
+pad tap MENU
+wait 5
+expect ui MENU
+pad tap MENU
+wait 3
+expect ui LIST
+pad tap B
+wait 5
+expect ui MENU
+pad tap B
+wait 3
+expect ui LIST
+
+# Y: the daily, on Brickburst (it has one).
+expect selected 2
+pad tap Y
+wait 70
+expect launched Brickburst --daily
+gameexit
+wait 5
+# Y on Coilrush, which has none: the card says so.
+pad tap LEFT
+wait 30
+pad tap Y
+wait 3
+expect app note Coilrush has no daily challenge.
+expect launches 1
+# A plays exactly once.
+pad tap A
+wait 70
+expect launched Coilrush
+expect launches 2
+gameexit
+wait 5
+
+# A nudge of the mouse keeps the pad's buttons on the strip; a key turns
+# them back to keys.
+mouse 480 450
+wait 3
+expect app chip:Play A normal
+tap RIGHT
+wait 3
+expect app chip:Play Enter normal
+expect app chip:Daily D normal

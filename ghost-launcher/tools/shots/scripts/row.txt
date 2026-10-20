@@ -1,0 +1,195 @@
+#! env SHOTS_ADMIN=0
+# Phase 4, your row: F and the card's Favourite put a gold star on a machine
+# and bring it first; T steps the row order (your order, recently played,
+# most played, A-Z); each order is a view only, kept in launcher.ini, and
+# Enter, an install and Shift+U still act on the machine the hall shows lit.
+# A wrap jumps instead of sliding past the row. Chipforge is a tool.
+wait 30
+expect app order Your order
+expect app row Blockfall,Coilrush,Brickburst,Skyraid,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app lit Blockfall
+expect file .config/ghost-launcher/launcher.ini migrated.gemdelve=1\n
+expect nofile .local/share/ghost-launcher/playtime.txt Gemdelve
+
+# F on Brickburst: a favourite, first on the row, still lit.
+tap RIGHT
+tap RIGHT
+wait 30
+expect app lit Brickburst
+tap F
+wait 3
+expect app fav:Brickburst 1
+expect app toast Saved
+expect file .config/ghost-launcher/launcher.ini fav.brickburst=1\n
+expect app row Brickburst,Blockfall,Coilrush,Skyraid,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app lit Brickburst
+expect app place 0
+expect app settled 1
+expect app status Brickburst is a favourite now: favourites come first.
+expect nofile .config/ghost-launcher/games.txt fav
+shot hall-favourite
+
+# The card's Favourite, with the mouse, on Skyraid.
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect app lit Skyraid
+mouse 536 492
+wait 3
+expect app look:Favourite hover
+expect app cursor hand
+shot hall-favourite-hover
+click 536 492
+wait 3
+expect app fav:Skyraid 1
+expect app row Brickburst,Skyraid,Blockfall,Coilrush,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app lit Skyraid
+expect app place 1
+mouse 480 300
+wait 40
+shot hall-favourite-star
+
+# F again takes the star off; it goes back among the rest.
+tap F
+wait 3
+expect app fav:Skyraid 0
+expect nofile .config/ghost-launcher/launcher.ini fav.skyraid
+expect app row Brickburst,Blockfall,Coilrush,Skyraid,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app lit Skyraid
+expect app status Skyraid is no longer a favourite.
+tap F
+wait 3
+expect app fav:Skyraid 1
+
+# T: Recently played. Nothing started yet, so your order (favourites first).
+tap T
+wait 3
+expect app order Recently played
+expect file .config/ghost-launcher/launcher.ini row_order=recent\n
+expect app status Row order: Recently played
+expect app row Brickburst,Skyraid,Blockfall,Coilrush,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app lit Skyraid
+wait 30
+shot row-recent
+
+# Playing Skyraid is remembered, but the row does not shuffle under you.
+tap ENTER
+wait 70
+expect launched Skyraid
+expect file .config/ghost-launcher/launcher.ini last_played=skyraid\n
+expect file .config/ghost-launcher/launcher.ini played.skyraid=
+gameexit
+wait 5
+expect app row Brickburst,Skyraid,Blockfall,Coilrush,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+
+# Most played (playtime.txt): favourites first, then the most time.
+tap T
+wait 3
+expect app order Most played
+expect file .config/ghost-launcher/launcher.ini row_order=most\n
+expect app row Brickburst,Skyraid,Blockfall,Chipforge,Coilrush,Lanehop,Girderclimb,Ghostmaze,Rockdrift,Crawlshot,Moondrop,Gemdive
+expect app lit Skyraid
+wait 30
+shot row-most
+
+# A-Z.
+tap T
+wait 3
+expect app order A-Z
+expect file .config/ghost-launcher/launcher.ini row_order=az\n
+expect app row Brickburst,Skyraid,Blockfall,Chipforge,Coilrush,Crawlshot,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+expect app lit Skyraid
+wait 30
+shot row-az
+
+# In A-Z the hall still acts on the machine it shows: Enter starts the one
+# lit, Enter installs the uninstalled one, Shift+U names the one lit.
+tap RIGHT
+wait 30
+expect app lit Blockfall
+expect app place 2
+tap ENTER
+wait 70
+expect launched Blockfall
+expect launches 2
+gameexit
+wait 5
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect app lit Gemdive
+expect app place 6
+tap ENTER
+wait 3
+expect count 1 install Gemdive
+install ok
+wait 5
+tap SHIFT U
+wait 3
+expect app typing 1
+expect app focusrow Gemdive
+tap ESC
+wait 3
+expect ui LIST
+expect app lit Gemdive
+
+# A click on a side machine brings that machine (by its place) to the middle.
+click 680 300
+wait 30
+expect app lit Ghostmaze
+expect app place 7
+
+# Back to your order: the lit machine stays lit at its own place.
+tap T
+wait 3
+expect app order Your order
+expect app row Brickburst,Skyraid,Blockfall,Coilrush,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app lit Ghostmaze
+expect app place 4
+expect app settled 1
+
+# A wrap jumps: Chipforge (last) to Brickburst (first) is there at once.
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+wait 30
+expect app lit Chipforge
+tap RIGHT
+wait 2
+expect app lit Brickburst
+expect app settled 1
+
+# Chipforge is a tool: Open Chipforge, its songs and the hall's song on its
+# card, no daily, no trophies.
+tap LEFT
+wait 30
+expect app lit Chipforge
+expect app playlabel Open Chipforge
+expect app chip:Daily absent
+expect app status Press Enter to open Chipforge
+expect app cardtool 1 0 Built-in theme
+shot chipforge-card
+# No Daily chip, but D (or pad Y) there still says why nothing starts.
+tap D
+wait 3
+expect app status Chipforge has no daily challenge.
+expect launches 2
+tap L
+wait 3
+expect ui STATS
+shot stats-tool
+tap ESC
+wait 3
+tap H
+wait 3
+expect ui TROPHIES
+expect trophy 11
+shot trophies-tool
+tap ESC
+wait 3
+expect ui LIST

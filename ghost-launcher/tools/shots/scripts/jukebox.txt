@@ -1,0 +1,101 @@
+#! env SHOTS_ADMIN=0 SHOTS_HALL_SONG=1
+# Phase 6: Chipforge as a jukebox. In the hall it is drawn as one (arched
+# top, glowing tubes, a screen scrolling the notes of the song the hall
+# plays; with hall music off, the song's title card). Its page's Songs tab
+# picks the hall's song from the Chipforge library (music.ini's ghostarcade
+# line, as Chipforge's own assign screen writes it), or shows who plays
+# what.
+wait 30
+tap LEFT
+wait 40
+expect app lit Chipforge
+expect app juke notes
+expect app tune Ghost Arcade (launcher) 96
+mouse 940 600
+wait 3
+shot jukebox-music-on
+
+# Hall music off: the jukebox shows the song's title card.
+tap TAB
+wait 3
+tap TAB
+wait 3
+expect app tab Sound
+click 476 246
+wait 3
+expect app hallmusic 0
+tap ESCAPE
+wait 30
+expect ui LIST
+expect app juke title
+mouse 940 600
+wait 3
+shot jukebox-music-off
+
+# Its page, Songs: the hall's song is marked; the keys go down the buttons
+# and into the songs; a press gives the hall another.
+tap I
+wait 8
+expect ui GAME
+expect app pagefor Chipforge
+tap RIGHT
+wait 3
+expect app pagetab Songs
+expect app songsview hall
+expect app hallentry 1
+mouse 940 600
+wait 3
+shot songs-tab
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app focus Lobby
+tap ENTER
+wait 5
+expect app hallfile lobby.gsong
+expect app hallsong Lobby
+expect app hallentry 2
+expect app tune Lobby 96
+expect app toast Saved
+expect app pagestatus The hall's song is Lobby. Hall music is off.
+expect file .config/ghost-arcade/music.ini ghostarcade=lobby.gsong
+shot songs-picked
+
+# A click on the built-in theme gives the hall its own tune back.
+mouse 600 286
+wait 3
+expect app look:Built-in theme hover
+click 600 286
+wait 5
+expect app hallentry 0
+expect app hallsong Built-in theme
+expect app tune ghostarcade 96
+expect nofile .config/ghost-arcade/music.ini ghostarcade=
+
+# X turns to who plays what, and back.
+tap X
+wait 3
+expect app songsview who
+mouse 940 600
+wait 3
+shot songs-who
+tap X
+wait 3
+expect app songsview hall
+
+# Hall music on again: the jukebox's notes are back, the theme's now.
+tap ESCAPE
+wait 3
+tap TAB
+wait 3
+expect app tab Sound
+click 548 246
+wait 3
+expect app hallmusic 1
+tap ESCAPE
+wait 30
+expect app juke notes
+expect app lit Chipforge
+shot jukebox-theme

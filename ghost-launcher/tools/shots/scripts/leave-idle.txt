@@ -1,0 +1,9 @@
+# Nothing running: Leave the arcade quits at once, with no question.
+quits
+wait 30
+tap ESC
+wait 3
+tap UP
+wait 2
+tap ENTER
+wait 5

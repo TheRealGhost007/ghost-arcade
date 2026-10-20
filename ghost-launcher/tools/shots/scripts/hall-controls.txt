@@ -1,0 +1,199 @@
+#! env SHOTS_ADMIN=0 SHOTS_UNINSTALLED=gemdive,skyraid
+# Phase 3: the hall by mouse. Pointing at a side machine gives it a soft
+# glow and the hand; a click brings it to the middle; a click on the lit one
+# drops the coin and plays it; clicks and the wheel wait while the coin
+# drops; the wheel moves one machine per notch. The header's chips and
+# every button of the control strip are buttons, and the strip names the
+# keys or the pad's buttons, whichever was used last.
+wait 30
+expect selected 0
+expect app chip:Play Enter normal
+expect app chip:Daily D disabled
+shot hall-strip-keys
+
+# A side machine: the glow and the hand. The lit one: the hand, its coin
+# slots waiting. The carpet is nothing.
+mouse 680 300
+wait 3
+expect app look:Coilrush hover
+expect app cursor hand
+shot hall-hover-glow
+mouse 480 300
+wait 3
+expect app look:Blockfall hover
+expect app cursor hand
+shot hall-hover-lit
+mouse 480 450
+wait 3
+expect app cursor default
+
+# A click on the side machine brings it to the middle, when let go.
+mouse 680 300
+mdown left
+wait 2
+expect selected 0
+expect app look:Coilrush pressed
+mup left
+wait 2
+expect selected 1
+wait 30
+expect app settled 1
+expect app look:Brickburst hover
+# Dragged off before letting go: nothing.
+mdown left
+mouse 480 450
+mup left
+wait 3
+expect selected 1
+
+# The lit machine: the coin drops. Until the game is up, clicks and the
+# wheel do nothing; the X would still work.
+click 480 300
+wait 4
+expect launches 0
+click 680 300
+wheel -1
+wait 3
+expect selected 1
+expect app look:Brickburst absent
+wait 60
+expect launched Coilrush
+expect launches 1
+gameexit
+wait 5
+
+# The wheel: toward you is the next machine, one per notch; it stops at
+# the ends; half notches add up.
+mouse 480 450
+wheel -1
+wait 3
+expect selected 2
+wheel 3
+wait 3
+expect selected 0
+wheel 1
+wait 3
+expect selected 0
+wheel -0.5
+wait 2
+expect selected 0
+wheel -0.5
+wait 2
+expect selected 1
+
+# The strip, clicked. The arrows step one and wrap round.
+click 924 616
+wait 3
+expect selected 2
+click 822 616
+click 822 616
+click 822 616
+wait 3
+expect selected 11
+click 924 616
+wait 3
+expect selected 0
+
+# Daily is faint on Blockfall, which has none: pointing at it says why on
+# the card, and so does D (which used to do nothing at all).
+mouse 174 616
+wait 3
+expect app look:Daily disabled
+expect app cursor default
+expect app status Blockfall has no daily challenge.
+shot hall-daily-reason
+mouse 480 450
+wait 2
+tap D
+wait 3
+expect app note Blockfall has no daily challenge.
+expect launches 1
+shot hall-daily-note
+# Moving on takes the note with it.
+tap RIGHT
+wait 3
+expect app note
+expect app status Press Enter to play
+# On Brickburst it works: a click drops the daily coin.
+tap RIGHT
+wait 30
+expect app chip:Daily D normal
+click 174 616
+wait 70
+expect launched Brickburst --daily
+gameexit
+wait 5
+
+# Skyraid is not installed: Play says Install, Daily says to install first.
+tap RIGHT
+wait 30
+expect selected 3
+expect app chip:Install Enter normal
+expect app chip:Daily D disabled
+mouse 180 616
+wait 3
+expect app status Install it first to play its daily challenge.
+mouse 480 450
+wait 2
+expect app status Press Enter to install
+# The install: Installing (faint) on the strip, then a failure that names
+# the real log and fits its column.
+click 76 616
+wait 3
+expect app chip:Installing Enter disabled
+expect app status Installing
+install fail
+wait 10
+expect app status Install failed: ~/.local/share/ghost-launcher/install.log
+shot hall-install-failed
+
+# This game (the machine's page), Stats and the strip's Menu.
+click 270 616
+wait 5
+expect ui GAME
+expect app pagefor Skyraid
+tap ESC
+wait 3
+click 368 616
+wait 5
+expect ui STATS
+tap ESC
+wait 3
+click 457 616
+wait 5
+expect ui MENU
+tap ESC
+wait 3
+expect ui LIST
+
+# The header: Playing as, NEW VERSION and Menu are chips.
+mouse 620 28
+wait 3
+expect app look:TRG hover
+expect app cursor hand
+mouse 765 28
+wait 3
+expect app look:NEW VERSION hover
+expect app cursor hand
+shot hall-header-hover
+click 765 28
+wait 5
+expect ui UPDATE
+tap ESC
+wait 3
+click 620 28
+wait 5
+expect ui SETTINGS
+expect app tab Player
+tap ESC
+wait 3
+expect ui LIST
+
+# Keys hide the pointer; the mouse brings it back.
+tap LEFT
+wait 3
+expect app pointer hidden
+mouse 470 450
+wait 3
+expect app pointer shown
+log end of hall controls

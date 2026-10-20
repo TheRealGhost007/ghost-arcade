@@ -1,0 +1,38 @@
+#! env SHOTS_ADMIN=1 SHOTS_DAILIES=1
+# Phase 6 verification: a daily machine the admin gave a long name. Its
+# desk row and the strip's Featured today (when it is the featured one)
+# are cut to their columns; they ran into Today and over the fourteen days.
+wait 30
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect app lit Crawlshot
+tap E
+wait 5
+expect ui EDIT_GAME
+tap END
+text  Championship Edition
+wait 2
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+tap LEFT
+wait 2
+expect app focus Save
+tap ENTER
+wait 10
+expect ui LIST
+tap SHIFT D
+wait 10
+expect ui DAILY
+mouse 940 600
+wait 3
+shot verify-p6-desk-long-name

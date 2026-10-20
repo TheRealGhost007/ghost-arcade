@@ -242,12 +242,9 @@ static bool UploadAll(const SyncConfig *cfg) {
 }
 
 static bool DownloadBoards(const SyncConfig *cfg) {
-    /* Ask only for the games we know: game=in.(a,b,c). */
     char query[1024];
-    int used = snprintf(query, sizeof(query), "/rest/v1/leaderboard?select=game,mode,username,score,played_on&game=in.(");
-    for (int i = 0; i < Sync_KnownGameCount() && used > 0 && (size_t)used < sizeof(query) - 80; i++)
-        used += snprintf(query + used, sizeof(query) - (size_t)used, "%s%s", i ? "," : "", Sync_KnownGame(i));
-    snprintf(query + used, sizeof(query) - (size_t)used, ")&order=game.asc,mode.asc,rank.asc&limit=%d", SYNC_MAX_ROWS);
+    time_t now = time(NULL);
+    if (Sync_BoardQuery(now, query, sizeof(query)) == 0) return false;
 
     Response resp;
     long status = Request(cfg, query, NULL, "Accept: text/csv", NULL, &resp);
@@ -263,9 +260,13 @@ static bool DownloadBoards(const SyncConfig *cfg) {
         return false;
     }
 
-    static SyncRow rows[SYNC_MAX_ROWS];
-    int count = Sync_ParseBoardCsv(resp.data ? resp.data : "", rows, SYNC_MAX_ROWS);
+    static SyncRow rows[SYNC_BOARD_ROWS];
+    int count = Sync_ParseBoardCsv(resp.data ? resp.data : "", rows, SYNC_BOARD_ROWS);
     free(resp.data);
+    char cutoff[24];
+    Sync_DailyCutoff(now, cutoff, sizeof(cutoff));
+    count = Sync_DropOldDailies(rows, count, cutoff);
+    Sync_GroupBoards(rows, count); /* they came #1s first */
 
     int files = Sync_WriteGlobalCache(rows, count);
     Say("download: %d row(s) across %d game board(s)\n", count, files);

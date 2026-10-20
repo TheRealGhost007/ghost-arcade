@@ -1,0 +1,44 @@
+#! env SHOTS_ADMIN=0 SHOTS_HIDDEN=lanehop
+# Phase 5: Settings > Machines for a player: the status of every machine
+# (hidden ones too), the row's own buttons, and no Add, Edit or Remove. An
+# install from a machine's page shows as Installing.
+wait 30
+tap TAB
+wait 3
+tap SHIFT TAB
+wait 5
+expect app tab Machines
+expect app look:Add a machine absent
+expect app look:Edit absent
+expect app look:Remove absent
+expect app status:Lanehop Installed, hidden
+mouse 900 600
+wait 3
+shot machines-player
+tap ESCAPE
+wait 5
+# Gemdive's page: Install.
+tap PAGE_DOWN
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect app lit Gemdive
+tap I
+wait 8
+tap ENTER
+wait 5
+expect count 1 install Gemdive
+tap ESCAPE
+wait 5
+tap TAB
+wait 5
+expect app tab Machines
+mouse 480 400
+wheel -5
+wait 3
+expect app status:Gemdive Installing
+shot machines-installing
+install fail
+wait 200
+expect app status:Gemdive Not installed

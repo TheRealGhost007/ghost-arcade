@@ -1,0 +1,27 @@
+#! env SHOTS_ADMIN=1
+# Phase 1 verifier: with admin's hint and the Menu chip in the header, a
+# long name (or the empty-name prompt) must fit between them, never over.
+wait 30
+tap U
+wait 3
+hold BACKSPACE 60
+text Kimberly
+tap ENTER
+wait 100
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|Kimberly\n
+shot verify-header-admin-mid
+tap U
+wait 3
+text Montgomery-Abernathy-Smith
+tap ENTER
+wait 100
+# New names stop at 32 characters (what the online boards keep).
+expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|KimberlyMontgomery-Abernathy-Smi\n
+shot verify-header-admin-long
+tap U
+wait 3
+hold BACKSPACE 500
+tap ENTER
+wait 100
+expect nofile .local/share/ghost-launcher/profiles.txt __DEFAULT__|K
+shot verify-header-admin-empty

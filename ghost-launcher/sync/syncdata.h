@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <time.h>
 
 /* Everything ghost-sync does that isn't a network call: config, the install
  * id, reading local score files, building upload bodies, parsing the
@@ -18,6 +19,12 @@
 #define SYNC_UUID_LEN 37
 #define SYNC_MAX_SCORE 100000000L
 #define SYNC_MAX_ROWS 512
+/* One download of the world boards. The server answers at most 1000 rows
+ * (Supabase's default cap), so asking for more would be cut there anyway. */
+#define SYNC_BOARD_ROWS 1000
+/* Daily boards older than this are not asked for, as the games drop them
+ * from their own files (GHOSTLINK_DAILY_KEEP_DAYS). */
+#define SYNC_DAILY_KEEP_DAYS 14
 
 typedef struct {
     bool enabled;   /* online sharing is OPT-IN: off until the player says yes */
@@ -40,8 +47,14 @@ typedef struct {
  * $XDG_CONFIG_HOME/ghost-launcher/online.conf (enabled= / url= / key=). */
 void SyncConfig_Load(SyncConfig *cfg);
 
-/* Records the player's choice: writes (or replaces) the enabled= line in
- * online.conf, keeping every other line. Returns false if it could not write. */
+/* Writes one key=value line of online.conf, keeping every other line as it
+ * was: the key's line is replaced where it stands (any other copies of it
+ * are dropped), or added at the end. Keys are lowercase letters, digits and
+ * '_'; the value must be one line. Nothing is written unless the whole old
+ * file could be read. Returns false if it could not write. */
+bool SyncConfig_SetValue(const char *key, const char *value);
+
+/* Records the player's choice: SyncConfig_SetValue("enabled", "0" or "1"). */
 bool SyncConfig_SaveEnabled(bool enabled);
 
 /* $XDG_DATA_HOME/ghost-launcher (not created). False if no HOME at all. */
@@ -87,6 +100,27 @@ void Sync_MakePrintable(char *s);
  * username, score, played_on -- in that order, header row first). Rows that
  * fail validation are dropped: the server is not trusted with file names. */
 int Sync_ParseBoardCsv(const char *csv, SyncRow *rows, int maxRows);
+
+/* "daily-YYYYMMDD" for the oldest daily board worth keeping: the local
+ * date SYNC_DAILY_KEEP_DAYS before now, the same cut the games make. */
+void Sync_DailyCutoff(time_t now, char *out, size_t size);
+/* A regular board, or a daily one no older than the cutoff. */
+bool Sync_KeepBoard(const char *mode, const char *cutoff);
+
+/* The path and query of the one board download: our games only, every
+ * regular board but only the dailies Sync_KeepBoard keeps (the server keeps
+ * every daily forever, and they would crowd the later games out of the
+ * answer), each board's #1s first, then the #2s, and so on, so a cut answer
+ * loses the bottom of every board rather than whole games. 0 if it did not
+ * fit. */
+size_t Sync_BoardQuery(time_t now, char *out, size_t outSize);
+/* Drops daily boards older than the cutoff (a server that ignored the
+ * filter); returns the rows left, in order. */
+int Sync_DropOldDailies(SyncRow *rows, int count, const char *cutoff);
+/* Puts rows that came #1s first back into one run per game, each game's
+ * boards together by mode, each board in the order it came (its ranks).
+ * Sync_WriteGlobalCache needs them grouped. */
+void Sync_GroupBoards(SyncRow *rows, int count);
 
 /* Writes scores/global/<game>.txt for every game present in rows (which
  * must be grouped by game, as the server returns them), atomically. Returns

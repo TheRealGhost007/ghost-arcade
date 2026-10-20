@@ -1,0 +1,243 @@
+#! env SHOTS_ADMIN=0
+# Phase 5: a machine's page. It opens with I, pad X, the strip's This game or
+# a click on the card (Enter on the row still plays at once); every tab;
+# boards by X; the arrows to the next machine; Play, Daily, Favourite and the
+# name from the page; Chipforge's page; a machine that is not installed.
+wait 30
+expect ui LIST
+expect app chip:This_game I normal
+expect app lit Blockfall
+
+# I opens Blockfall's page, About first, Play with the keys.
+tap I
+wait 10
+expect ui GAME
+expect app pagefor Blockfall
+expect app pagetab About
+expect app focus Play
+expect app look:Play focused
+expect app runs 9
+mouse 900 620
+wait 3
+shot page-about
+tap ESCAPE
+wait 5
+expect ui LIST
+expect app lit Blockfall
+
+# A click on the card opens it too; its Favourite on the card does not.
+mouse 200 560
+wait 3
+expect app cursor hand
+click 200 560
+wait 8
+expect ui GAME
+expect app pagefor Blockfall
+# Scores: the board of its best score, this computer's ten beside the world's.
+tap RIGHT
+wait 3
+expect app pagetab Scores
+expect app pageboard Classic
+expect app pagerows 4/8
+expect app worldrank 3
+mouse 900 620
+wait 3
+shot page-scores
+tap X
+wait 3
+expect app pageboard Marathon
+expect app worldrank 2
+tap X
+wait 3
+expect app pageboard Classic
+tap RIGHT
+wait 3
+expect app pagetab Trophies
+mouse 900 620
+wait 3
+shot page-trophies
+tap RIGHT
+wait 3
+expect app pagetab About
+tap I
+wait 5
+expect ui LIST
+
+# The pad: X opens it, the d-pad chooses, LB/RB the tabs, B goes back.
+pad on
+pad tap X
+wait 8
+expect ui GAME
+expect app focus Play
+pad tap DOWN
+wait 2
+expect app focus Name for this game
+expect app pagehelp Plays as Arcade here. Only this game uses that name.
+pad tap RB
+wait 2
+expect app pagetab Scores
+pad tap X
+wait 2
+expect app pageboard Marathon
+pad tap LB
+wait 2
+expect app pagetab About
+shot page-pad
+pad tap B
+wait 5
+expect ui LIST
+pad off
+tap RIGHT
+wait 2
+
+# The arrows (and PgUp/PgDn): the machine after it, and the hall follows.
+tap I
+wait 8
+expect app pagefor Coilrush
+tap PAGE_DOWN
+wait 5
+expect app pagefor Brickburst
+expect app lit Brickburst
+expect app place 2
+tap RIGHT
+wait 3
+expect app pagetab Scores
+expect app pageboard Normal
+expect app worldrank 1
+mouse 900 620
+wait 3
+shot page-scores-world-first
+tap X
+wait 3
+expect app pageboard Today's daily
+expect app worldrank 2
+shot page-scores-daily
+tap X
+wait 3
+tap X
+wait 3
+expect app pageboard Normal
+click 794 28
+wait 5
+expect app pagefor Coilrush
+click 896 28
+wait 5
+expect app pagefor Brickburst
+
+# F stars it from the page; the note says so under the buttons.
+tap F
+wait 3
+expect app fav:Brickburst 1
+expect app toast Saved
+expect app pagestatus Brickburst is a favourite now: favourites come first.
+expect app pagefor Brickburst
+shot page-favourite
+tap F
+wait 3
+expect app fav:Brickburst 0
+
+# Name for this game: typing in Settings, and Esc comes straight back.
+tap SHIFT U
+wait 5
+expect ui SETTINGS
+expect app typing 1
+tap ESCAPE
+wait 5
+expect ui GAME
+expect app pagefor Brickburst
+
+# The daily from the page: the daily desk, on this machine (Phase 6); Enter
+# there goes back to the hall, where the coin drops, --daily.
+tap D
+wait 5
+expect ui DAILY
+expect app under GAME
+expect app deskfocus Brickburst
+tap ENTER
+wait 3
+expect ui LIST
+wait 70
+expect launched launch Brickburst --daily
+gameexit
+wait 10
+
+# Play from the page: the coin drops on the row.
+tap I
+wait 8
+expect ui GAME
+expect app focus Play
+tap ENTER
+wait 3
+expect ui LIST
+wait 70
+expect launches 2
+expect launched launch Brickburst
+gameexit
+wait 10
+
+# Blockfall has no daily: faint, and pointing at it says why.
+tap PAGE_UP
+wait 30
+expect app lit Blockfall
+tap I
+wait 8
+mouse 200 448
+wait 3
+expect app look:Daily challenge disabled
+expect app pagehelp Blockfall has no daily challenge.
+tap D
+wait 3
+expect ui GAME
+expect app pagestatus Blockfall has no daily challenge.
+shot page-daily-reason
+
+# Chipforge: Open Chipforge and Favourite; About and Songs.
+tap PAGE_UP
+wait 8
+expect app pagefor Chipforge
+expect app pagetab About
+expect app look:Open Chipforge focused
+mouse 900 620
+wait 3
+expect app look:Open Chipforge normal
+expect app look:Daily challenge absent
+expect app look:Name for this game absent
+shot page-chipforge
+tap RIGHT
+wait 3
+expect app pagetab Songs
+shot page-chipforge-songs
+tap RIGHT
+wait 3
+
+# Gemdive is not installed: Install, and the paper sign.
+tap PAGE_UP
+wait 8
+expect app pagefor Girderclimb
+tap PAGE_UP
+wait 8
+expect app pagefor Gemdive
+expect app look:Install focused
+mouse 900 620
+wait 3
+shot page-not-installed
+mouse 200 408
+wait 2
+click 200 408
+wait 5
+expect ui GAME
+expect count 1 install Gemdive
+expect app look:Installing... disabled
+expect app pagestatus Installing
+shot page-installing
+write bin/gemdive #!/bin/sh\nexit 0\n
+chmod bin/gemdive 755
+install ok
+# The fake install ends between frames; the card (and the page) reads the
+# machines again within three seconds.
+wait 200
+expect app look:Play hover
+tap ESCAPE
+wait 5
+expect ui LIST
+expect app lit Gemdive
