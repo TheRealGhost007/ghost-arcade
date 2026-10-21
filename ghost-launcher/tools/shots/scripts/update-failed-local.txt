@@ -1,0 +1,26 @@
+# Update now from the pad (X), on a copy of the code with changes of its
+# own: git cannot fast-forward, so it says so in plain words, shows the
+# log's last lines, the log's path and the terminal command; Try again and
+# Back are buttons, and Back is clicked.
+wait 30
+tap V
+wait 3
+pad on
+wait 2
+pad tap X
+wait 3
+expect app updview running
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\nerror: Your local changes to the following files would be overwritten by merge:\n\tghost-launcher/src/main.c\nPlease commit your changes or stash them before you merge.\nAborting\nxx  Your copy has changes of its own (local edits or commits), so it was not updated.\n
+update 1
+wait 30
+expect app updview failed
+expect app updfail Your copy of the code has changes of its own, so it was not updated.
+expect app focus Try again
+expect app look:Try again focused
+shot update-failed-local
+pad off
+wait 2
+click 400 462
+wait 3
+expect ui LIST
+expect launches 0

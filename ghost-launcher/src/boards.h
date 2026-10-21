@@ -64,7 +64,9 @@ bool Boards_IsDaily(const char *mode);
 void Boards_ModeWords(const char *mode, const char *today, char *out, size_t size);
 /* The same for one game's boards, with the names a game gives its own:
  * Blockfall's "sprint40" is "Sprint 40" (ranked by time) and its old
- * points-ranked "sprint" board "Sprint (old)". */
+ * points-ranked "sprint" board "Sprint (old)"; its "marathon-10x20" is
+ * "Marathon" (the classic board under 3.2.0's modern rules) and the bare
+ * "marathon" "Classic (old rules)". */
 void Boards_ModeWordsFor(const char *slug, const char *mode, const char *today, char *out, size_t size);
 
 #endif

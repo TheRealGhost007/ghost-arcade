@@ -93,6 +93,12 @@ enum {
     WID_ONLINE_YES,
     WID_TROPHY_GAME = 50,
     WID_CHECK_NOW = 60,
+    WID_UPDATE_NOW,     /* Updates: install.sh --update, in the background */
+    WID_UPDATE_CANCEL,  /* ...stopped before Installing */
+    WID_UPDATE_RESTART, /* ...done: the new launcher */
+    WID_UPDATE_LATER,
+    WID_UPDATE_RETRY,   /* ...failed */
+    WID_UPDATE_BACK,
     WID_PLAYING_AS = 70,
     /* the hall's control strip */
     WID_STRIP_PLAY = 80,
@@ -197,7 +203,10 @@ void Screens_PlayingAs(PlayingAs *p, const char *arcadeName, bool admin, bool up
 int Screens_HeaderLeft(bool admin);
 
 /* What the Play chip does on the selected machine. */
-typedef enum { HP_NONE, HP_PLAY, HP_INSTALL, HP_INSTALLING, HP_CANNOT } HallPlay;
+typedef enum { HP_NONE, HP_PLAY, HP_INSTALL, HP_INSTALLING, HP_CANNOT, HP_UPDATING } HallPlay;
+
+/* Why nothing can be played while Ghost Arcade updates itself. */
+#define UPDATING_WHY "Ghost Arcade is updating. Games wait until it is done."
 
 typedef struct {
     bool coinInFlight; /* only the X works while a coin drops */
@@ -232,8 +241,25 @@ void Screens_Menu(KitList *l, bool updateBehind, InputDevice device);
 void Screens_Online(KitList *l);
 /* count = machines in the catalog; none means no stepper. */
 void Screens_Trophies(KitList *l, const char *gameName, int game, int count);
-/* checksOff: check_updates=0, so Check now cannot do anything. */
-void Screens_Updates(KitList *l, bool checking, bool checksOff);
+/* The Updates screen: what it is showing. */
+typedef enum { UPV_IDLE, UPV_RUNNING, UPV_DONE, UPV_FAILED } UpdatesMode;
+typedef struct {
+    UpdatesMode mode;
+    bool checking;     /* Check now is waiting for GitHub */
+    bool checksOff;    /* check_updates=0, so Check now cannot do anything */
+    bool offerUpdate;  /* an update is waiting: Update now shows */
+    const char *whyNot; /* why Update now (or Try again) cannot run, "" when it can */
+    bool canCancel;    /* running, and not Installing yet */
+    bool cancelling;   /* asked to stop, not ended yet */
+    bool elsewhere;    /* running, but started by a launcher before this one: no Stop here */
+    const char *restartWhy; /* done: why Restart must wait (games still open), "" when it need not */
+} UpdatesLayout;
+/* Idle: Update now (when an update waits) above Check now. Running: Stop.
+ * Done: Restart the launcher, Later. Failed: Try again, Back. */
+void Screens_Updates(KitList *l, const UpdatesLayout *v);
+#define UPDATES_BTN_Y 440   /* the row Check now, Stop, Restart and Try again share */
+#define UPDATES_NOW_Y 344   /* Update now, above Check now */
+#define UPDATES_BTN_H 44
 /* Back and the X only: Stats and the admin game form. */
 void Screens_Plain(KitList *l);
 /* The pieces every screen but the hall has. Back is mouse-only (keys and the

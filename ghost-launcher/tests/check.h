@@ -27,5 +27,7 @@ void test_row_all(void);
 void test_page_all(void);
 /* tests/test_extras.c: the daily desk, attract mode, Chipforge as a jukebox. */
 void test_extras_all(void);
+/* tests/test_update.c: Update now: the log, the steps, why it failed or cannot start, update.txt for this build, the background run. */
+void test_update_all(void);
 
 #endif

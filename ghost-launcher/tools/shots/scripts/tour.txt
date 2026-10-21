@@ -106,7 +106,8 @@ install ok
 wait 10
 expect launches 0
 
-# D: nothing on Blockfall (no daily), a coin and the daily on Brickburst.
+# D: a coin and the daily on Blockfall (it has one since 3.6.0) and on
+# Brickburst.
 tap RIGHT
 tap RIGHT
 tap RIGHT
@@ -114,7 +115,10 @@ wait 30
 expect selected 0
 tap D
 wait 80
-expect launches 0
+expect launched launch Blockfall --daily
+expect launches 1
+gameexit
+wait 5
 tap RIGHT
 tap RIGHT
 wait 30
@@ -124,7 +128,7 @@ wait 20
 shot hall-daily-coin
 wait 60
 expect launched launch Brickburst --daily
-expect launches 1
+expect launches 2
 gameexit
 wait 5
 
@@ -142,7 +146,7 @@ tap R
 wait 3
 expect count 1 --check-update-now
 # ghost-sync writes its answer: Checking... ends.
-write .local/share/ghost-launcher/update.txt status=current\nbehind=0\ncurrent=0123456789abcdef0123456789abcdef01234567\nlatest=0123456789abcdef0123456789abcdef01234567\nchecked=1700000000\n
+write .local/share/ghost-launcher/update.txt status=current\nbehind=0\ncurrent=@BUILD@\nlatest=@BUILD@\nchecked=1700000000\n
 wait 70
 expect app checking 0
 tap V
@@ -257,6 +261,6 @@ expect ui LIST
 expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRGZ\n
 pad hold A 30
 wait 80
-expect count 1 launch Blockfall
-expect launches 2
+expect count 2 launch Blockfall
+expect launches 3
 pad off

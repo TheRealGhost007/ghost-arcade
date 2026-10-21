@@ -1,0 +1,20 @@
+# Update now with the mouse, on a computer missing packages: install.sh
+# names them on its "Missing:" line and stops instead of asking (no
+# terminal), and the screen names them too.
+wait 30
+tap V
+wait 3
+mouse 202 366
+wait 3
+expect app cursor hand
+click 202 366
+wait 3
+expect app updview running
+write .local/share/ghost-launcher/update.log !!  Missing: raylib libcurl\n    On Arch / Omarchy / Manjaro / EndeavourOS this installs them:\n        sudo pacman -S --needed base-devel raylib curl git\nxx  Install those packages, then run ./install.sh again.\n
+update 1
+wait 30
+expect app updview failed
+expect app updfail Some packages it needs are missing: raylib libcurl.
+mouse 600 600
+wait 3
+shot update-failed-packages

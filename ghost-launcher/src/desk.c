@@ -75,7 +75,7 @@ void Desk_DateWords(int dayNumber, char *out, size_t size) {
 
 /* ---------------------------------------------------------------- games */
 
-static const char *const kDailyGames[] = {"brickburst", "skyraid", "rockdrift", "lanehop", "crawlshot", "moondrop", "girderclimb"};
+static const char *const kDailyGames[] = {"brickburst", "skyraid", "rockdrift", "lanehop", "crawlshot", "moondrop", "girderclimb", "blockfall"};
 #define DAILY_GAMES ((int)(sizeof(kDailyGames) / sizeof(kDailyGames[0])))
 
 int Desk_GameCount(void) { return DAILY_GAMES; }
@@ -89,11 +89,12 @@ bool Desk_IsDaily(const char *slug) {
 
 static int FloorDiv(int a, int b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
 
-/* A week's running order: the daily games shuffled with the games' own
- * daily seed for the week's first day. */
-static void WeekOrder(int week, int order[DAILY_GAMES]) {
+/* A round's running order: the daily games shuffled with the games' own
+ * daily seed for the round's first day. A round is DESK_ROUND days, one a
+ * game (it was a week while there were seven). */
+static void RoundOrder(int round, int order[DAILY_GAMES]) {
     int y, m, d;
-    Desk_Civil(week * 7, &y, &m, &d);
+    Desk_Civil(round * DESK_ROUND, &y, &m, &d);
     uint64_t seed = Daily_SeedForDate(y, m, d);
     for (int i = 0; i < DAILY_GAMES; i++) order[i] = i;
     for (int i = DAILY_GAMES - 1; i > 0; i--) {
@@ -105,19 +106,21 @@ static void WeekOrder(int week, int order[DAILY_GAMES]) {
     }
 }
 
-/* Every game once a week, in an order the date alone decides; a week never
- * opens with the game the last one ended on, so no game is featured two
- * days running. */
+/* Every game once a round, in an order the date alone decides; a round
+ * never opens with the game the last one ended on, so no game is featured
+ * two days running. */
 int Desk_Featured(int dayNumber) {
-    int week = FloorDiv(dayNumber, 7), order[DAILY_GAMES], before[DAILY_GAMES];
-    WeekOrder(week, order);
-    WeekOrder(week - 1, before); /* its last game never moves: only the first two ever swap */
+    int round = FloorDiv(dayNumber, DESK_ROUND), order[DAILY_GAMES], before[DAILY_GAMES];
+    RoundOrder(round, order);
+    RoundOrder(round - 1, before); /* its last game never moves: only the first two ever swap */
     if (order[0] == before[DAILY_GAMES - 1]) {
         order[0] = order[1];
         order[1] = before[DAILY_GAMES - 1];
     }
-    return order[dayNumber - week * 7];
+    return order[dayNumber - round * DESK_ROUND];
 }
+
+_Static_assert(DAILY_GAMES == DESK_ROUND, "a featured round is one day per daily game");
 
 /* ------------------------------------------------------------- calendar */
 

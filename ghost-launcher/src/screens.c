@@ -177,6 +177,7 @@ static const char *PlayLabel(const HallView *v, bool roomy) {
     switch (v->play) {
         case HP_INSTALL: return "Install";
         case HP_INSTALLING: return roomy ? "Installing" : "Install";
+        case HP_UPDATING: return roomy ? "Updating..." : "Play";
         case HP_PLAY: return v->tool ? (roomy ? "Open Chipforge" : "Open") : "Play";
         default: return "Play";
     }
@@ -193,6 +194,7 @@ static void ChipState(KitItem *it, const HallView *v) {
         case WID_STRIP_PLAY:
             if (n == 0) Kit_Disable(it, EmptyRow(v));
             else if (v->play == HP_INSTALLING) Kit_Disable(it, "Installing now. It lights up when it is done.");
+            else if (v->play == HP_UPDATING) Kit_Disable(it, UPDATING_WHY);
             else if (v->play == HP_CANNOT) Kit_Disable(it, "Not installed, and no folder to install it from.");
             break;
         case WID_STRIP_DAILY:
@@ -388,12 +390,44 @@ void Screens_Trophies(KitList *l, const char *gameName, int game, int count) {
     Screens_AddClose(l);
 }
 
-void Screens_Updates(KitList *l, bool checking, bool checksOff) {
-    Kit_Clear(l, 0);
+static KitItem *UpdatesButton(KitList *l, int id, float x, float y, const char *label) {
+    float w = (float)Kit_TextWidth(label, 16) + 40.0f;
+    if (w < 244.0f && x == 80.0f) w = 244.0f; /* the first of a row as wide as Check now always was */
+    return Kit_Add(l, id, KIT_BUTTON, (KitRect){x, y, w, UPDATES_BTN_H}, label);
+}
+
+void Screens_Updates(KitList *l, const UpdatesLayout *v) {
+    Kit_Clear(l, KIT_NAV_X | KIT_NAV_Y);
     Screens_AddBack(l);
-    KitItem *it = Kit_Add(l, WID_CHECK_NOW, KIT_BUTTON, (KitRect){80, 440, 244, 44}, checking ? "Checking..." : "Check now");
-    if (it && checksOff) Kit_Disable(it, "Update checks are off in Settings");
-    else if (it && checking) Kit_Disable(it, "Asking GitHub now");
+    const char *why = v->whyNot ? v->whyNot : "";
+    KitItem *it;
+    switch (v->mode) {
+        case UPV_RUNNING:
+            it = UpdatesButton(l, WID_UPDATE_CANCEL, 80, UPDATES_BTN_Y, v->cancelling ? "Stopping..." : "Stop");
+            if (it && v->elsewhere) Kit_Disable(it, "It was started earlier, so it cannot be stopped here.");
+            else if (it && v->cancelling) Kit_Disable(it, "Stopping it now.");
+            else if (it && !v->canCancel) Kit_Disable(it, "Installing now: it cannot be stopped part way.");
+            break;
+        case UPV_DONE:
+            it = UpdatesButton(l, WID_UPDATE_RESTART, 80, UPDATES_BTN_Y, "Restart the launcher");
+            if (it && v->restartWhy && v->restartWhy[0]) Kit_Disable(it, v->restartWhy);
+            if (it) UpdatesButton(l, WID_UPDATE_LATER, it->r.x + it->r.w + 24, UPDATES_BTN_Y, "Later");
+            break;
+        case UPV_FAILED:
+            it = UpdatesButton(l, WID_UPDATE_RETRY, 80, UPDATES_BTN_Y, "Try again");
+            if (it && why[0]) Kit_Disable(it, why);
+            if (it) UpdatesButton(l, WID_UPDATE_BACK, it->r.x + it->r.w + 24, UPDATES_BTN_Y, "Back");
+            break;
+        default:
+            if (v->offerUpdate) {
+                it = UpdatesButton(l, WID_UPDATE_NOW, 80, UPDATES_NOW_Y, "Update now");
+                if (it && why[0]) Kit_Disable(it, why);
+            }
+            it = UpdatesButton(l, WID_CHECK_NOW, 80, UPDATES_BTN_Y, v->checking ? "Checking..." : "Check now");
+            if (it && v->checksOff) Kit_Disable(it, "Update checks are off in Settings");
+            else if (it && v->checking) Kit_Disable(it, "Asking GitHub now");
+            break;
+    }
     Screens_AddClose(l);
 }
 

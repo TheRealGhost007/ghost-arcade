@@ -67,6 +67,7 @@ typedef enum {
 
     KA_MENU_CLOSE,
     KA_CHECK_NOW,
+    KA_UPDATE_NOW, /* the Updates screen: Update now, or Try again */
 
     /* the first-run "Share scores online?" question */
     KA_ONLINE_FLIP,

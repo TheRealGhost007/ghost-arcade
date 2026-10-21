@@ -258,7 +258,9 @@ static void PlayButton(KitList *l, const GamePageView *v) {
     const char *label = v->tool ? "Open Chipforge" : "Play";
     if (v->play == HP_INSTALL) label = "Install";
     if (v->play == HP_INSTALLING) label = "Installing...";
+    if (v->play == HP_UPDATING) label = "Updating...";
     KitItem *it = Button(l, WID_PAGE_PLAY, 0, label);
+    if (v->play == HP_UPDATING) Kit_Disable(it, UPDATING_WHY);
     if (v->play == HP_INSTALLING) Kit_Disable(it, "Installing now. It can be played once it is done.");
     if (v->play == HP_CANNOT) Kit_Disable(it, "Not installed, and no folder to install it from.");
 }

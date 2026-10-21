@@ -38,6 +38,7 @@
 #include "desk.h"
 #include "attract.h"
 #include "jukebox.h"
+#include "selfupdate.h"
 #include <sys/stat.h>
 
 /* Games whose seed changes what you play, so a shared daily seed means
@@ -91,6 +92,20 @@ typedef struct {
     UpdateState updateState;
     float updateReloadTimer;
     char sourceDir[300]; /* this build's checkout, with the home folder as ~ */
+    bool staleKicked;    /* update.txt was about another build: GitHub asked again once */
+
+    /* Update now (install.sh --update in the background, launch.c runs it). */
+    UpdatesMode updView;
+    SelfUpdateLog updLog;
+    SelfUpdateFail updFail;
+    double updStarted, updStepAt, updCancelAt; /* updCancelAt < 0: not asked to stop */
+    bool updHardSent;
+    float updPoll, updElsewherePoll;
+    bool updElsewhere;    /* an update that is not ours is running (update.lock is held) */
+    bool updFollow;       /* ...and it is a launcher's: update.log is its output, followed here */
+    bool updSeen;         /* how it ended (done or failed) has been on the Updates screen */
+    char updWhy[96];      /* why Update now cannot run, "" when it can */
+    bool restart;         /* leave, then start the installed launcher */
     SyncConfig syncCfg;
     bool onlineChoice, onlineFirstTime;
     RunSummary runSums[MANIFEST_MAX_GAMES];
@@ -360,6 +375,20 @@ static void LoadSounds(App *a, const char *assetsDir) {
     SetHallSounds(a, a->hallSounds);
 }
 
+/* update.txt, believed only when it is about this build (an older
+ * launcher wrote it, and the code has been updated since): otherwise
+ * unknown, and GitHub is asked again once. */
+static void StartCheck(App *a, double now);
+static void LoadUpdate(App *a) {
+    Update_Load(&a->updateState);
+    if (SelfUpdate_Believe(&a->updateState, BUILD_COMMIT) && !a->staleKicked && a->syncCfg.checkUpdates) {
+        a->staleKicked = true;
+        StartCheck(a, GetTime()); /* as Check now: Updates says it is asking, and does not ask twice */
+    }
+}
+
+static void PollElsewhere(App *a, double now);
+
 static void App_Start(App *a) {
     for (int i = 0; i < UI_COUNT; i++) Kit_Init(&a->kit[i]);
     Kit_Init(&a->dialogKit);
@@ -373,9 +402,11 @@ static void App_Start(App *a) {
     int start = Lineup_Start(&a->lineup, &a->rowPrefs); /* where you left off, unless Start on says the first */
     a->selected = start >= 0 ? start : 0;
     Hall_RowSnap(&a->row, Place(a));
-    Update_Load(&a->updateState);
+    SyncConfig_Load(&a->syncCfg); /* before update.txt: a stale one asks again only with checks on */
+    LoadUpdate(a);
     SourceDirForDisplay(a->sourceDir, sizeof(a->sourceDir));
-    SyncConfig_Load(&a->syncCfg);
+    a->updCancelAt = -1.0;
+    PollElsewhere(a, GetTime()); /* one a launcher before this one left running is followed */
     a->onlineChoice = a->syncCfg.enabled;
     a->onlineFirstTime = !a->syncCfg.decided;
     a->form.editing = -1;
@@ -425,6 +456,124 @@ static void TickSync(App *a, float dt, double now) {
     }
 }
 
+static bool Updating(const App *a) { return a->updView == UPV_RUNNING || a->updElsewhere; }
+
+/* Why Update now cannot start now, into updWhy. */
+static void UpdateWhyNot(App *a) {
+    SelfUpdateWhy w = {
+        .gamesRunning = Launch_RunningCount(),
+        .installRunning = Launch_InstallStatus(NULL) == INSTALL_RUNNING,
+        .updateRunning = a->updView == UPV_RUNNING && !a->updFollow,
+        .updateElsewhere = a->updElsewhere,
+        .sourceDir = BUILD_SOURCE_DIR,
+    };
+    SelfUpdate_WhyNot(&w, a->updWhy, sizeof(a->updWhy));
+}
+
+/* The log since the last look; the step it is on starts its clock. */
+static void ReadUpdateLog(App *a, double now) {
+    char log[700];
+    Launch_UpdateLogPath(log, sizeof(log));
+    SelfUpdateStep before = a->updLog.step;
+    SelfUpdate_LogPoll(&a->updLog, log);
+    if (a->updLog.step != before) a->updStepAt = now;
+}
+
+/* It worked: update.txt says so for the new build (or is cleared for it),
+ * so the notice goes, and GitHub is asked when the new build is not known
+ * to be its newest. */
+static void UpdateFileAfterSuccess(App *a) {
+    UpdateState u;
+    Update_Load(&u);
+    bool ask = SelfUpdate_AfterSuccess(&u, a->updLog.version);
+    Update_Save(&u);
+    a->staleKicked = true; /* asked here, if at all */
+    if (ask && a->syncCfg.checkUpdates) Launch_CheckUpdateNow();
+    LoadUpdate(a);
+}
+
+/* How an update ended, ours or one followed from update.log. Seen at once
+ * when Updates is up; else the hall says so until Updates is opened. */
+static void FinishUpdate(App *a, SelfUpdateFail fail) {
+    a->updFail = fail;
+    a->updView = fail == SU_FAIL_NONE ? UPV_DONE : UPV_FAILED;
+    a->updCancelAt = -1.0;
+    a->updFollow = false;
+    a->updSeen = a->ui == UI_UPDATE;
+    a->cardFor = -1;     /* the games may be new */
+    a->deskStale = true;
+    Render_ForgetMissingIcons();
+    if (a->updView == UPV_DONE) UpdateFileAfterSuccess(a);
+    UpdateWhyNot(a);
+    if (a->ui == UI_UPDATE) Kit_Enter(&a->kit[UI_UPDATE], a->updView == UPV_DONE ? WID_UPDATE_RESTART : WID_UPDATE_RETRY);
+}
+
+/* An update that is not ours: noticed (a launcher's is followed through
+ * update.log from where it is), and ended (a followed one is judged from
+ * its log; after a terminal's, GitHub is asked about the build now there). */
+static void PollElsewhere(App *a, double now) {
+    UpdateElsewhere e;
+    bool running = Launch_UpdateElsewhere(&e);
+    if (running && !a->updElsewhere) {
+        a->updFollow = e.launcherLog && a->updView != UPV_RUNNING;
+        if (a->updFollow) {
+            SelfUpdate_LogReset(&a->updLog);
+            a->updView = UPV_RUNNING;
+            long long ago = e.startedAt > 0 ? (long long)time(NULL) - e.startedAt : 0;
+            a->updStarted = now - (double)(ago > 0 ? ago : 0);
+            a->updCancelAt = -1.0;
+            a->updPoll = 0.0f;
+            ReadUpdateLog(a, now);
+        }
+    } else if (!running && a->updElsewhere) {
+        if (a->updFollow) {
+            ReadUpdateLog(a, now);
+            FinishUpdate(a, SelfUpdate_ClassifyLog(&a->updLog));
+        } else if (a->syncCfg.checkUpdates) {
+            Launch_CheckUpdateNow();
+        }
+        a->updFollow = false;
+    }
+    a->updElsewhere = running;
+}
+
+/* Update now, every frame: the log while it runs, how it ended once it has. */
+static void TickSelfUpdate(App *a, float dt, double now) {
+    a->updElsewherePoll += dt;
+    if (a->updElsewherePoll >= (a->updElsewhere ? 1.0f : 5.0f)) {
+        a->updElsewherePoll = 0.0f;
+        PollElsewhere(a, now);
+    }
+    if (a->ui == UI_UPDATE) UpdateWhyNot(a);
+    if (a->updView != UPV_RUNNING) return;
+    a->updPoll += dt;
+    if (a->updFollow) { /* another launcher's: its log is all there is */
+        if (a->updPoll >= 0.25f) {
+            a->updPoll = 0.0f;
+            ReadUpdateLog(a, now);
+        }
+        return;
+    }
+    int code = 0;
+    bool cancelled = false;
+    SelfUpdateRun run = Launch_UpdateStatus(&code, &cancelled);
+    if (a->updPoll >= 0.25f || run != SU_RUN_RUNNING) {
+        a->updPoll = 0.0f;
+        ReadUpdateLog(a, now);
+    }
+    if (run == SU_RUN_RUNNING) {
+        /* Asked to stop and still going after a while: no more asking. */
+        if (a->updCancelAt >= 0.0 && !a->updHardSent && now - a->updCancelAt > 5.0) {
+            Launch_UpdateCancel(true);
+            a->updHardSent = true;
+        }
+        return;
+    }
+    SelfUpdateFail fail = SelfUpdate_Classify(&a->updLog, code, cancelled);
+    Launch_UpdateAcknowledge();
+    FinishUpdate(a, fail);
+}
+
 /* Games and installs finishing, the error and toast timers, update.txt.
  * Returns true if a game the launcher started has exited. */
 static bool TickBackground(App *a, float dt, double now) {
@@ -456,8 +605,9 @@ static bool TickBackground(App *a, float dt, double now) {
     a->updateReloadTimer += dt;
     if (a->updateReloadTimer > (a->checking ? 1.0f : 5.0f)) {
         a->updateReloadTimer = 0.0f;
-        Update_Load(&a->updateState);
+        LoadUpdate(a);
     }
+    TickSelfUpdate(a, dt, now);
     TickCheck(a, now);
     TickSync(a, dt, now);
     return gameExited;
@@ -483,6 +633,10 @@ static void TickCoin(App *a, float dt, double now) {
     }
     if (a->coinTimer < COIN_ANIM_SECONDS) return;
     a->coinTimer = -1.0f;
+    if (Updating(a)) { /* an update began elsewhere while it dropped */
+        ShowError(a, UPDATING_WHY);
+        return;
+    }
     const GameEntry *e = &a->manifest.games[a->selected];
     char expanded[512], launchErr[96] = "";
     Manifest_ExpandPath(e->exec, expanded, sizeof(expanded));
@@ -499,9 +653,22 @@ static void TickCoin(App *a, float dt, double now) {
         LauncherIni_Load(&a->ini);
 }
 
+static void ShowNote(App *a, const char *text);
+
+/* Why Daily cannot start on this machine ("" when it can): the machine's
+ * own reason first, then an update under way. */
+static void DailyWhy(const App *a, const GameEntry *e, bool installed, bool hasDaily, char *out, size_t size) {
+    Hall_DailyReason(e->name, installed, hasDaily, out, size);
+    if (!out[0] && Updating(a)) snprintf(out, size, "%s", UPDATING_WHY);
+}
+
 /* Enter on the row: play, install, or say why neither can happen. */
 static void PressPlay(App *a, double now) {
     a->coinDaily = false;
+    if (Updating(a)) {
+        ShowNote(a, UPDATING_WHY);
+        return;
+    }
     const GameEntry *e = &a->manifest.games[a->selected];
     char expanded[512];
     char launchErr[96] = "";
@@ -561,12 +728,19 @@ static void Leave(App *a) {
     int games = Launch_RunningCount();
     const char *installing = "";
     bool install = Launch_InstallStatus(&installing) == INSTALL_RUNNING;
-    if (games == 0 && !install) {
+    bool updating = a->updView == UPV_RUNNING && !a->updFollow; /* ours, not one followed */
+    if (games == 0 && !install && !updating) {
         a->quit = true;
         return;
     }
     char l0[80], l1[80];
-    if (games > 0 && install) {
+    if (updating && games > 0) {
+        snprintf(l0, sizeof(l0), "A game is still running, and Ghost Arcade is updating.");
+        snprintf(l1, sizeof(l1), "The update keeps going in the background.");
+    } else if (updating) {
+        snprintf(l0, sizeof(l0), "Ghost Arcade is updating. It keeps going if you leave;");
+        snprintf(l1, sizeof(l1), "open the launcher again to see how it went.");
+    } else if (games > 0 && install) {
         snprintf(l0, sizeof(l0), "A game is still running, and %.20s is installing.", installing);
         snprintf(l1, sizeof(l1), "Time played from now on is not counted.");
     } else if (games > 0) {
@@ -699,10 +873,27 @@ static void OpenTrophies(App *a) {
 }
 
 /* online.conf may have been edited by hand since: Check now follows it. */
+static bool UpdateBehind(const App *a);
+
+/* The keys start on what can be done: Update now when an update waits and
+ * can run, Restart once one is done, else Check now. A failure is shown
+ * once on this screen (even when it ended while the player was elsewhere);
+ * a visit after that starts afresh. */
 static void OpenUpdates(App *a) {
     SyncConfig_Load(&a->syncCfg);
     a->checkNoAnswer = false;
+    PollElsewhere(a, GetTime());
+    bool fresh = a->ui != UI_UPDATE;
+    if (fresh && a->updView == UPV_FAILED && a->updSeen) a->updView = UPV_IDLE;
+    if (a->updView == UPV_FAILED || a->updView == UPV_DONE) a->updSeen = true;
+    UpdateWhyNot(a);
     Go(a, UI_UPDATE);
+    if (!fresh) return;
+    int focus = WID_CHECK_NOW;
+    if (a->updView == UPV_RUNNING) focus = WID_UPDATE_CANCEL;
+    else if (a->updView == UPV_DONE) focus = WID_UPDATE_RESTART;
+    else if (UpdateBehind(a) && !a->updWhy[0]) focus = WID_UPDATE_NOW;
+    Kit_Enter(&a->kit[UI_UPDATE], focus);
 }
 
 /* The desk and the chalkboard read the files again only when something may
@@ -846,7 +1037,7 @@ static void NextOrder(App *a) {
 static void PressDaily(App *a) {
     const GameEntry *e = &a->manifest.games[a->selected];
     char why[96];
-    Hall_DailyReason(e->name, IsInstalled(e), DailySupported(e), why, sizeof(why));
+    DailyWhy(a, e, IsInstalled(e), DailySupported(e), why, sizeof(why));
     if (why[0]) ShowNote(a, why);
     else StartCoin(a, true);
 }
@@ -934,7 +1125,7 @@ typedef struct {
 static void ViewPage(const App *a, PageViewNow *b) {
     const GameEntry *e = &a->manifest.games[a->selected];
     const RowMachine *m = a->selected < a->rowPrefs.count ? &a->rowPrefs.m[a->selected] : NULL;
-    Hall_DailyReason(e->name, a->card.installed, a->card.dailyGame, b->daily, sizeof(b->daily));
+    DailyWhy(a, e, a->card.installed, a->card.dailyGame, b->daily, sizeof(b->daily));
     GamePage_Today(time(NULL), b->today, sizeof(b->today));
     b->v = (GamePageView){
         .name = e->name,
@@ -971,7 +1162,7 @@ static void PagePlay(App *a, double now) {
 static void PageDaily(App *a) {
     const GameEntry *e = &a->manifest.games[a->selected];
     char why[96];
-    Hall_DailyReason(e->name, IsInstalled(e), DailySupported(e), why, sizeof(why));
+    DailyWhy(a, e, IsInstalled(e), DailySupported(e), why, sizeof(why));
     if (why[0]) ShowNote(a, why);
     else OpenDesk(a, a->selected);
 }
@@ -1123,6 +1314,13 @@ static void StartSync(App *a, double now) {
     a->syncPoll = 0.0f;
 }
 
+/* Why Restart the launcher must wait, "" when it need not. */
+static const char *RestartWhy(void) {
+    if (Launch_RunningCount() > 0) return "Close your games first.";
+    if (Launch_InstallStatus(NULL) == INSTALL_RUNNING) return "Wait for the install to finish first.";
+    return "";
+}
+
 static void StartCheck(App *a, double now) {
     if (a->checking || !a->syncCfg.checkUpdates) return;
     Launch_CheckUpdateNow();
@@ -1134,12 +1332,68 @@ static void StartCheck(App *a, double now) {
 }
 
 /* V closes it again. The pad's View button is the old Back/Select, which read as R. */
+/* Update now (and Try again): install.sh --update in the background, if
+ * nothing stands in the way; the screen shows its steps from here on. */
+static void StartSelfUpdate(App *a, double now) {
+    PollElsewhere(a, now); /* not only the last 5 s poll: one may have just begun */
+    UpdateWhyNot(a);
+    if (a->updWhy[0]) return; /* the button is faint and says why */
+    Launch_UpdateAcknowledge();
+    SelfUpdate_LogReset(&a->updLog);
+    char err[160] = "";
+    if (!Launch_UpdateStart(BUILD_SOURCE_DIR, err, sizeof(err))) {
+        a->updView = UPV_FAILED;
+        a->updFail = SU_FAIL_START;
+        a->updSeen = true; /* on screen now */
+        SelfUpdate_LogFeed(&a->updLog, err, strlen(err));
+        SelfUpdate_LogFeed(&a->updLog, "\n", 1);
+        Kit_Enter(&a->kit[UI_UPDATE], WID_UPDATE_BACK);
+        return;
+    }
+    a->updView = UPV_RUNNING;
+    a->updStarted = a->updStepAt = now;
+    a->updCancelAt = -1.0;
+    a->updHardSent = false;
+    a->updPoll = 0.0f;
+    UpdateWhyNot(a);
+    Kit_Enter(&a->kit[UI_UPDATE], WID_UPDATE_CANCEL);
+}
+
+/* Stop: only before Installing begins (the log is read once more first). */
+static void CancelSelfUpdate(App *a, double now) {
+    if (a->updView != UPV_RUNNING || a->updFollow || a->updCancelAt >= 0.0) return;
+    ReadUpdateLog(a, now);
+    if (!SelfUpdate_CanCancel(a->updLog.step)) return;
+    if (Launch_UpdateCancel(false)) a->updCancelAt = now;
+}
+
+/* V closes it again. The pad's View button is the old Back/Select, which read as R. */
 static void UpdateUpdates(App *a, const Input *in, const KitEvent *ev, double now) {
     if (BackPressed(in, ev) || Keymap_Pressed(KA_OPEN_UPDATES, in)) {
         GoBack(a);
         return;
     }
-    if (Keymap_Pressed(KA_CHECK_NOW, in) || (ev->type == KIT_EV_PRESS && ev->id == WID_CHECK_NOW)) StartCheck(a, now);
+    int pressed = ev->type == KIT_EV_PRESS ? ev->id : KIT_NONE;
+    switch (a->updView) {
+        case UPV_RUNNING:
+            if (pressed == WID_UPDATE_CANCEL) CancelSelfUpdate(a, now);
+            break;
+        case UPV_DONE:
+            /* main() saves, then starts the new one; not while a game or an
+             * install the launcher started still runs (the new one would
+             * not know them). */
+            if (pressed == WID_UPDATE_RESTART && !RestartWhy()[0]) a->restart = a->quit = true;
+            else if (pressed == WID_UPDATE_LATER) GoBack(a);
+            break;
+        case UPV_FAILED:
+            if (pressed == WID_UPDATE_RETRY || Keymap_Pressed(KA_UPDATE_NOW, in)) StartSelfUpdate(a, now);
+            else if (pressed == WID_UPDATE_BACK) GoBack(a);
+            break;
+        default:
+            if (Keymap_Pressed(KA_CHECK_NOW, in) || pressed == WID_CHECK_NOW) StartCheck(a, now);
+            if (UpdateBehind(a) && (Keymap_Pressed(KA_UPDATE_NOW, in) || pressed == WID_UPDATE_NOW)) StartSelfUpdate(a, now);
+            break;
+    }
 }
 
 static void SaveOnline(App *a, bool share) {
@@ -1457,6 +1711,7 @@ static InputDevice HintDevice(const App *a) { return Settings_HintDevice(a->butt
 static HallPlay PlayState(const App *a) {
     if (!RowShown(a)) return HP_NONE;
     if (a->card.install == INSTALL_RUNNING) return HP_INSTALLING;
+    if (Updating(a)) return HP_UPDATING;
     if (a->card.installed) return HP_PLAY;
     return a->card.canInstall ? HP_INSTALL : HP_CANNOT;
 }
@@ -1478,7 +1733,7 @@ static void HallLayout(const App *a, KitList *l, bool forDrawing) {
     char daily[96] = "", chalk[48];
     Desk_BoardLine(&a->desk, chalk, sizeof(chalk));
     const RowMachine *lit = RowShown(a) && a->selected < a->rowPrefs.count ? &a->rowPrefs.m[a->selected] : NULL;
-    if (lit) Hall_DailyReason(a->manifest.games[a->selected].name, a->card.installed, a->card.dailyGame, daily, sizeof(daily));
+    if (lit) DailyWhy(a, &a->manifest.games[a->selected], a->card.installed, a->card.dailyGame, daily, sizeof(daily));
     HallView v = {
         .coinInFlight = a->coinTimer >= 0.0f && !forDrawing,
         .updateBehind = UpdateBehind(a),
@@ -1511,7 +1766,21 @@ static void Layout(const App *a, UIState ui, KitList *l, bool forDrawing) {
             Screens_Trophies(l, (g >= 0 && g < n) ? a->manifest.games[g].name : "", g, n);
             break;
         }
-        case UI_UPDATE: Screens_Updates(l, a->checking, !a->syncCfg.checkUpdates); break;
+        case UI_UPDATE: {
+            UpdatesLayout v = {
+                .mode = a->updView,
+                .checking = a->checking,
+                .checksOff = !a->syncCfg.checkUpdates,
+                .offerUpdate = UpdateBehind(a),
+                .whyNot = a->updWhy,
+                .canCancel = SelfUpdate_CanCancel(a->updLog.step),
+                .elsewhere = a->updFollow,
+                .restartWhy = RestartWhy(),
+                .cancelling = a->updCancelAt >= 0.0,
+            };
+            Screens_Updates(l, &v);
+            break;
+        }
         case UI_SETTINGS: *l = SettingsPageNow(a)->list; break;
         case UI_GAME: {
             PageViewNow b;
@@ -1519,7 +1788,12 @@ static void Layout(const App *a, UIState ui, KitList *l, bool forDrawing) {
             GamePage_Layout(&a->page, &b.v, l);
             break;
         }
-        case UI_DAILY: Desk_Layout(&a->desk, &a->deskScroll, l); break;
+        case UI_DAILY:
+            Desk_Layout(&a->desk, &a->deskScroll, l);
+            if (Updating(a))
+                for (int i = 0; i < l->count; i++)
+                    if (Desk_RowOf(l->items[i].id) >= 0) Kit_Disable(&l->items[i], UPDATING_WHY);
+            break;
         case UI_ADD_GAME:
         case UI_EDIT_GAME: {
             CarryOver c;
@@ -1616,6 +1890,14 @@ static void Update(App *a, const Input *in, float dt, double now) {
 
 /* The card's one line. A faint button under the pointer says why it is
  * faint there, as the Settings help line does. */
+/* An update that ended while Updates was not up, until Updates shows it. */
+static HallUpdateNews UpdateNews(const App *a) {
+    if (a->updSeen) return HUN_NONE;
+    if (a->updView == UPV_FAILED) return HUN_FAILED;
+    if (a->updView == UPV_DONE) return HUN_DONE;
+    return HUN_NONE;
+}
+
 static void HallStatusNow(const App *a, const KitView *kv, HallStatus *out) {
     const char *why = kv->state ? Kit_Reason(kv->state, kv->list, kv->device) : "";
     char log[600], shown[600];
@@ -1624,6 +1906,8 @@ static void HallStatusNow(const App *a, const KitView *kv, HallStatus *out) {
     HallStatusIn in = {
         .installing = a->card.install == INSTALL_RUNNING,
         .installFailed = a->card.install == INSTALL_FAILED,
+        .updating = Updating(a) && a->card.installed,
+        .updateNews = UpdateNews(a),
         .error = a->errorMsg,
         .note = why[0] ? why : a->note,
         .installed = a->card.installed,
@@ -1680,11 +1964,12 @@ static void DrawHallScreen(App *a, float dt, const KitView *kv) {
 static void PageStatus(const App *a, HallStatus *out) {
     memset(out, 0, sizeof(*out));
     bool installing = a->card.install == INSTALL_RUNNING, failed = a->card.install == INSTALL_FAILED;
-    if (!installing && !failed && !a->errorMsg[0] && !a->note[0]) return;
+    HallUpdateNews news = UpdateNews(a);
+    if (!installing && !failed && !a->errorMsg[0] && !a->note[0] && news == HUN_NONE) return;
     char log[600], shown[600];
     Launch_InstallLogPath(log, sizeof(log));
     Hall_Tilde(log, getenv("HOME"), shown, sizeof(shown));
-    HallStatusIn in = {.installing = installing, .installFailed = failed, .error = a->errorMsg, .note = a->note,
+    HallStatusIn in = {.installing = installing, .installFailed = failed, .updateNews = news, .error = a->errorMsg, .note = a->note,
                        .installed = true, .device = HintDevice(a), .installLog = shown};
     Hall_Status(&in, out);
 }
@@ -1739,6 +2024,7 @@ static void DrawDesk(const App *a, const KitView *kv) {
         const char *why = kv->device == DEV_MOUSE ? Kit_Reason(kv->state, kv->list, kv->device) : "";
         int row = Desk_RowOf(kv->device == DEV_MOUSE ? kv->state->hover : kv->state->focus);
         if (why[0]) snprintf(help, sizeof(help), "%s", why);
+        else if (row >= 0 && Updating(a)) snprintf(help, sizeof(help), "%s", UPDATING_WHY);
         else Desk_Help(&a->desk, row, help, sizeof(help));
     }
     Desk_Hint(kv->hints, hint, sizeof(hint));
@@ -1756,6 +2042,34 @@ static void DrawForm(const App *a, const KitView *kv) {
     Render_GameForm(&fs, kv);
 }
 
+static void DrawUpdates(const App *a, const KitView *kv) {
+    char words[2][128], log[600], shown[600], command[400];
+    SelfUpdate_FailWords(a->updFail, &a->updLog, words[0], words[1], sizeof(words[0]));
+    Launch_UpdateLogPath(log, sizeof(log));
+    Hall_Tilde(log, getenv("HOME"), shown, sizeof(shown));
+    snprintf(command, sizeof(command), "cd %.300s && ./install.sh --update", a->sourceDir);
+    double now = GetTime();
+    UpdateView v = {
+        .checking = a->checking,
+        .noAnswer = a->checkNoAnswer,
+        .checksOff = !a->syncCfg.checkUpdates,
+        .mode = a->updView,
+        .whyNot = a->updWhy,
+        .step = a->updLog.step,
+        .elapsed = now - a->updStarted,
+        .stepElapsed = now - a->updStepAt,
+        .cancelling = a->updCancelAt >= 0.0,
+        .version = a->updLog.version,
+        .words = {words[0], words[1]},
+        .cancelled = a->updFail == SU_FAIL_CANCELLED,
+        .terminalHelps = SelfUpdate_TerminalHelps(a->updFail),
+        .log = &a->updLog,
+        .logPath = shown,
+        .command = command,
+    };
+    Render_Update(&a->updateState, &v, kv);
+}
+
 static void DrawScreen(App *a, float dt, const KitView *kv) {
     const Manifest *m = &a->manifest;
     switch (a->ui) {
@@ -1769,11 +2083,7 @@ static void DrawScreen(App *a, float dt, const KitView *kv) {
             break;
         }
         case UI_TROPHIES: Render_Achievements(m, a->trophyGame, a->trophyScroll.top, kv); break;
-        case UI_UPDATE: {
-            UpdateView v = {a->checking, a->checkNoAnswer, !a->syncCfg.checkUpdates};
-            Render_Update(&a->updateState, a->sourceDir, &v, kv);
-            break;
-        }
+        case UI_UPDATE: DrawUpdates(a, kv); break;
         case UI_ONLINE: Render_OnlineAsk(a->onlineFirstTime, a->syncCfg.enabled, kv); break;
         case UI_STATS: Render_Stats(&a->stats, m, a->runSums, a->statsScroll.top, kv); break;
         case UI_SETTINGS: Render_Settings(&sPage, &a->settings, kv); break;
@@ -2009,5 +2319,11 @@ int main(void) {
     Render_Shutdown();
     Win_Shutdown();
     CloseWindow();
+    /* Restart the launcher (Update now, done): everything the quit path
+     * saves is saved; now the newly installed launcher takes this process. */
+    if (a->restart && !Launch_RestartLauncher(BUILD_BIN_DIR "/ghost-launcher")) {
+        fprintf(stderr, "ghost-launcher: could not start the new launcher; start it again yourself.\n");
+        return 1;
+    }
     return 0;
 }

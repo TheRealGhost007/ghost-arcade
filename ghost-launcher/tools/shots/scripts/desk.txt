@@ -9,10 +9,10 @@
 # so this script never names it.)
 wait 30
 expect ui LIST
-expect app chalk 2 of 7 today
-expect app desk 2/7
+expect app chalk 2 of 8 today
+expect app desk 2/8
 expect app streak 3/6
-expect app deskrows Brickburst*,Skyraid*,Rockdrift,Lanehop,Crawlshot,Moondrop,Girderclimb
+expect app deskrows Blockfall,Brickburst*,Skyraid*,Rockdrift,Lanehop,Crawlshot,Moondrop,Girderclimb
 shot hall-chalkboard
 
 # The chalkboard is a button on the wall.
@@ -58,7 +58,7 @@ wait 2
 expect app deskfocus Girderclimb
 tap DOWN
 wait 2
-expect app deskfocus Brickburst
+expect app deskfocus Blockfall
 tap UP
 wait 2
 expect app deskfocus Girderclimb
@@ -89,12 +89,12 @@ wait 5
 expect ui DAILY
 expect app under MENU
 expect app deskfocus Brickburst
-mouse 400 284
+mouse 400 314
 wait 3
 expect app look:Skyraid hover
 expect app cursor hand
 shot desk-hover
-click 400 284
+click 400 314
 wait 3
 expect ui LIST
 expect app depth 1

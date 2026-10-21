@@ -68,6 +68,8 @@ static const KeyBind kBinds[] = {
     M(KA_MENU_CLOSE, MB_BACK),
     /* View is the old Back/Select button, which the shared pad code read as R. */
     K(KA_CHECK_NOW, IK_R, 0, false), P(KA_CHECK_NOW, PB_VIEW, false),
+    /* U updates (Updates has no name to type); pad X, as Y and View are taken nearby. */
+    K(KA_UPDATE_NOW, IK_U, KM_NO_SHIFT, false), P(KA_UPDATE_NOW, PB_X, false),
 
     K(KA_ONLINE_FLIP, IK_A, 0, false), K(KA_ONLINE_FLIP, IK_D, 0, false),
     K(KA_ONLINE_YES, IK_Y, 0, false),
@@ -329,7 +331,8 @@ static const Card kCards[] = {
         {"Back", KA_BACK, KA_NONE, false},
         END,
     }},
-    {"Updates", "", {
+    {"Updates", "Update now runs install.sh --update for you.", {
+        {"Update now, or retry", KA_UPDATE_NOW, KA_NONE, false},
         {"Check now", KA_CHECK_NOW, KA_NONE, false},
         {"Close Updates", KA_OPEN_UPDATES, KA_NONE, false},
         {"Back", KA_BACK, KA_NONE, false},

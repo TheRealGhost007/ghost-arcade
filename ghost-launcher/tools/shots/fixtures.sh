@@ -10,7 +10,8 @@
 #     runs.log for Stats, and update.txt.
 # SHOTS_UNINSTALLED="gemdive ..." leaves those machines uninstalled (default
 # gemdive; use commas inside a script's '#! env' line); SHOTS_UPDATE=
-# behind|current|unknown picks update.txt (default behind); SHOTS_FIRSTRUN=1
+# behind|current|unknown|stale picks update.txt (default behind; stale = one
+# an older build wrote, which the launcher must not believe); SHOTS_FIRSTRUN=1
 # leaves the share-scores question unanswered, so the launcher opens on it;
 # SHOTS_CHECKS=1 turns update checks on (check_updates=1); SHOTS_EXTRA_GAMES=N
 # adds N more machines ("Extra 1".., installed), for screens that scroll;
@@ -151,11 +152,16 @@ if [ "${SHOTS_HALL_SONG-0}" = 1 ]; then
     printf '# Which Chipforge song each Ghost Arcade game plays: slug=file.gsong\nghostarcade=ghost-arcade-launcher.gsong\n' > "$CONF/ghost-arcade/music.ini"
 fi
 
-current=0123456789abcdef0123456789abcdef01234567
+# update.txt is believed only for the build that reads it (main.c's
+# LoadUpdate): current= is this checkout's commit, as the Makefile bakes it
+# into the shots binary; SHOTS_UPDATE=stale writes one from an older build.
+current=$(git -C "$LAUNCHER" rev-parse HEAD 2>/dev/null || echo 0123456789abcdef0123456789abcdef01234567)
+old=0123456789abcdef0123456789abcdef01234567
 latest=89abcdef0123456789abcdef0123456789abcdef
 checked=$(( $(date +%s) - 7200 ))
 case "${SHOTS_UPDATE-behind}" in
     behind) printf 'status=behind\nbehind=1\ncurrent=%s\nlatest=%s\ntitle=Launcher: one input reader and a safer main loop\nchecked=%s\n' "$current" "$latest" "$checked" ;;
+    stale) printf 'status=behind\nbehind=5\ncurrent=%s\nlatest=%s\ntitle=Launcher: one input reader and a safer main loop\nchecked=%s\n' "$old" "$latest" "$checked" ;;
     current) printf 'status=current\nbehind=0\ncurrent=%s\nlatest=%s\ntitle=Launcher: one input reader and a safer main loop\nchecked=%s\n' "$current" "$current" "$checked" ;;
     *) printf 'status=unknown\nbehind=0\ncurrent=\nlatest=\ntitle=\nchecked=0\n' ;;
 esac > "$GL/update.txt"

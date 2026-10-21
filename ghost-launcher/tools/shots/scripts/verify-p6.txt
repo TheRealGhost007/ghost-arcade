@@ -71,8 +71,8 @@ expect ui DAILY
 wait 80
 expect launches 0
 shot verify-p6-desk-double-click
-# ...a click after the moment is a real one.
-click 400 284
+# ...a click after the moment is a real one (Skyraid's row, the third since Blockfall joined the desk).
+click 400 314
 wait 5
 expect ui LIST
 expect app lit Skyraid

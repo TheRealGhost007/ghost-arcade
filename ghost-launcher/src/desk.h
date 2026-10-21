@@ -25,7 +25,8 @@
 #define DESK_DOTS 14          /* the last fourteen days, today last */
 #define DESK_MAX_DAYS 4096    /* days with a daily played: about eleven years */
 #define DESK_MAX_ROWS 16
-#define DESK_VISIBLE 7
+#define DESK_VISIBLE 8        /* the eight daily games at once (Blockfall joined in its 3.6.0); more would scroll */
+#define DESK_ROUND 8          /* days in a featured round: every daily game once */
 
 /* --- days ---
  * A day is a whole number of days since 1970-01-01 in the calendar, so
@@ -50,7 +51,8 @@ const char *Desk_GameSlug(int i);
 bool Desk_IsDaily(const char *slug);
 /* The game featured on a day (a Desk_GameSlug index): from the date alone,
  * so everyone sees the same one whatever their row holds. Each game has a
- * day a week, and none two days running. */
+ * day in every round of DESK_ROUND days (rounds begin on day 0; eight
+ * games, so a week was one game short), and none two days running. */
 int Desk_Featured(int dayNumber);
 
 /* --- the days you played a daily --- */
@@ -135,8 +137,8 @@ int Desk_StartRow(const Desk *d, int catalogIndex);
 #define DESK_DOT_SIZE 13
 #define DESK_HEAD_Y 204       /* the table's column names */
 #define DESK_ROW_Y 220
-#define DESK_ROW_PITCH 44
-#define DESK_ROW_H 40
+#define DESK_ROW_PITCH 38     /* 44 and 40 until eight games had to fit above the note (rows end at 524) */
+#define DESK_ROW_H 36
 #define DESK_NOTE_Y 536
 #define DESK_HELP_Y 560
 #define DESK_COL_TODAY 360

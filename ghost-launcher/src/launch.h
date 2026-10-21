@@ -65,4 +65,48 @@ void Launch_SyncDetached(void);
 /* Asks GitHub right now whether a newer version exists (same detached helper). */
 void Launch_CheckUpdateNow(void);
 
+/* --- Update now: the arcade's own install.sh --update, in the background --- */
+typedef enum {
+    SU_RUN_IDLE,
+    SU_RUN_RUNNING,
+    SU_RUN_ENDED, /* exited (or killed): Launch_UpdateStatus gives how */
+} SelfUpdateRun;
+
+/* Runs <sourceDir>/install.sh --update with no shell and no terminal: its
+ * own session, stdin /dev/null, stdout and stderr to update.log (opened
+ * here first: one that cannot be written is the reason it did not start),
+ * git never asking for a password. It takes update.lock (flock) and the
+ * updater keeps holding it, so only one update runs at a time, from any
+ * launcher or terminal. GHOST_LAUNCHER_UPDATER, when set, names the script
+ * to run instead (tests and tools/fake-update.sh), still in sourceDir.
+ * False with a reason if it could not start. */
+bool Launch_UpdateStart(const char *sourceDir, char *outError, int outErrorSize);
+/* RUNNING until Launch_ReapFinished sees it end; then ENDED with the exit
+ * status in *exitCode (-1 when a signal ended it) and *cancelled set when
+ * Launch_UpdateCancel stopped it. ENDED sticks until acknowledged. */
+SelfUpdateRun Launch_UpdateStatus(int *exitCode, bool *cancelled);
+void Launch_UpdateAcknowledge(void);
+/* Stops it: the whole process group (make, git, the tests) gets SIGTERM, or
+ * SIGKILL when hard. False when nothing is running. */
+bool Launch_UpdateCancel(bool hard);
+/* $XDG_DATA_HOME/ghost-launcher/update.log (~/.local/share without it). */
+void Launch_UpdateLogPath(char *out, size_t size);
+/* An update that is not this launcher's own, still running: something
+ * holds update.lock (another launcher's updater, or install.sh --update in
+ * a terminal). launcherLog: update.pid names a live launcher-started
+ * updater, so update.log is its output and can be followed; startedAt is
+ * when it began (unix seconds, 0 unknown). out may be NULL. A stale
+ * update.pid (nothing holds the lock) is removed. */
+typedef struct {
+    bool running;
+    bool launcherLog;
+    long long startedAt;
+} UpdateElsewhere;
+bool Launch_UpdateElsewhere(UpdateElsewhere *out);
+
+/* Replaces this process with the launcher at installedPath (falling back
+ * to "ghost-launcher" on PATH). Only returns when both fail. Never
+ * /proc/self/exe: after an update that is the deleted old file. */
+bool Launch_RestartLauncher(const char *installedPath);
+
 #endif

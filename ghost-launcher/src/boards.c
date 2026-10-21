@@ -158,6 +158,11 @@ void Boards_ModeWordsFor(const char *slug, const char *mode, const char *today, 
         const char *name = NULL, *rest = NULL;
         if (strncmp(mode, "sprint40", 8) == 0 && (mode[8] == '\0' || mode[8] == '-')) { name = "Sprint 40"; rest = mode + 8; }
         else if (strncmp(mode, "sprint", 6) == 0 && (mode[6] == '\0' || mode[6] == '-')) { name = "Sprint (old)"; rest = mode + 6; }
+        /* Blockfall 3.2.0: the classic 10x20 Marathon plays modern rules on
+         * a fresh board, "marathon-10x20"; the bare "marathon" is that board
+         * under the old rules, kept and never added to. */
+        else if (strcmp(mode, "marathon-10x20") == 0) { name = "Marathon"; rest = mode + 14; }
+        else if (strcmp(mode, "marathon") == 0) { name = "Classic (old rules)"; rest = mode + 8; }
         if (name) {
             snprintf(out, size, "%s%s%s", name, rest[0] ? " " : "", rest[0] ? rest + 1 : "");
             return;

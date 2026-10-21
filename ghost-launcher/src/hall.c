@@ -217,6 +217,11 @@ void Hall_Status(const HallStatusIn *in, HallStatus *out) {
         out->dots = true;
         return; /* "Installing..." fits at 16 px */
     }
+    if (in->updating && !(in->error && in->error[0]) && !(in->note && in->note[0])) {
+        Line(out, "Updating Ghost Arcade", 16, HT_BUSY);
+        out->dots = true;
+        return;
+    }
     /* Fitted while whole: a long path or error is cut once, in the right place. */
     char text[HALL_STATUS_LEN * 4] = "";
     int size = 8;
@@ -234,6 +239,18 @@ void Hall_Status(const HallStatusIn *in, HallStatus *out) {
         snprintf(text, sizeof(text), "%.300s", in->note);
         Hall_Fit(text, sizeof(text), HALL_STATUS_W, size, false);
         Line(out, text, size, HT_NOTE);
+    } else if (in->updateNews != HUN_NONE) {
+        /* V on the keyboard; the pad has no button for Updates, only the menu. */
+        char key[24];
+        Keymap_Hint(KA_OPEN_UPDATES, DEV_KEYBOARD, key, sizeof(key));
+        bool pad = in->device == DEV_PAD;
+        bool failed = in->updateNews == HUN_FAILED;
+        if (pad) snprintf(text, sizeof(text), "%s", failed ? "The update did not finish. Updates says why."
+                                                          : "Ghost Arcade updated. Restart it from Updates.");
+        else if (failed) snprintf(text, sizeof(text), "The update did not finish. Press %s to see why.", key);
+        else snprintf(text, sizeof(text), "Ghost Arcade updated. Press %s to restart.", key);
+        Hall_Fit(text, sizeof(text), HALL_STATUS_W, size, false);
+        Line(out, text, size, in->updateNews == HUN_FAILED ? HT_BAD : HT_NOTE);
     } else if (in->installed) {
         Prompt(out, in->device, in->tool ? "open Chipforge" : "play", HT_PLAY);
     } else if (in->canInstall) {

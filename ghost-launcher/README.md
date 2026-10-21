@@ -62,10 +62,11 @@ the games it launches, so it stays small and fast.
   dots, and a row for each daily game on your row -- played today, your best
   today, the world's best today and your place on that board. One game is
   starred "Featured today", picked from the date alone so everyone sees the
-  same one (each daily game has a day a week, never two in a row). Enter, A
+  same one (each daily game has a day in every round of eight, never two
+  in a row). Enter, A
   or a click on a row goes back to the hall and drops that machine's daily
   coin; a machine that is not installed is faint, with the reason. The
-  chalkboard reads, for example, "DAILY 2 of 7 today", with a chalk box per
+  chalkboard reads, for example, "DAILY 2 of 8 today", with a chalk box per
   game, filled once played. `D` on the hall still starts the lit machine's
   daily at once. It all comes from each game's `runs.log` and the daily
   score boards; nothing new is stored
@@ -192,6 +193,7 @@ the games it launches, so it stays small and fast.
 | Type your name (every game) / a name for just this game | U / Shift+U (Enter saves and comes back, Esc puts it back) | Settings > Player, A on Edit: the name board | click the name |
 | While typing a name | Left/Right/Home/End, Backspace/Delete, Ctrl+V | name board: d-pad, A types, X deletes, Y space, Menu saves, B puts it back | the board's letters, Save, Cancel, or click away to keep it |
 | Check for updates now (Updates screen) | R | View | Check now |
+| Update now, or try again (Updates screen) | U | X | Update now / Try again |
 | Change game (Trophies) | Left/Right (Enter steps on) | d-pad (A steps on) | the arrows beside the name, or the wheel over them |
 | Scroll Stats or Trophies | Up/Down, PgUp/PgDn, Home/End | d-pad, LB/RB | the wheel |
 | Fullscreen | F11 or Alt+Enter | | |
@@ -279,7 +281,7 @@ scores, or the online leaderboard (see `online/SECURITY.md` for that).
 
 ```sh
 make          # builds build/ghost-launcher and build/ghost-sync (needs libcurl)
-make test     # headless tests: score reader, profiles, sync data layer (the board download's 14-day daily filter), input, the key table, the text field, Settings, the button kit, the hall (hit testing, pad map, strip), the name board, your row (every order, favourites, hiding, place vs catalog line), the Gemdelve fold, the hall music rules, a machine's page (boards per mode, tabs, keys), the admin form (every field at once, validation) and the rename carry-over, the daily desk (streaks across month and year ends, the featured pick, its rows and keys), attract mode (the idle timer, the tour, the wake rules) and the jukebox's note window
+make test     # headless tests: score reader, profiles, sync data layer (the board download's 14-day daily filter), input, the key table, the text field, Settings, the button kit, the hall (hit testing, pad map, strip), the name board, your row (every order, favourites, hiding, place vs catalog line), the Gemdelve fold, the hall music rules, a machine's page (boards per mode, tabs, keys), the admin form (every field at once, validation) and the rename carry-over, the daily desk (streaks across month and year ends, the featured pick, its rows and keys), attract mode (the idle timer, the tour, the wake rules), the jukebox's note window and Update now (log steps, failure words, update.txt for this build, a real background run of tools/fake-update.sh)
 make shots    # screenshots of every screen from a hidden window (tools/shots), into build/shots/png
 make shots-asan  # the same scripts under ASan/UBSan
 make monkey   # random keys, pad and mouse at the ASan build (MONKEY_RUNS, MONKEY_FRAMES, MONKEY_SEED)
@@ -312,11 +314,12 @@ hand-edit your catalog file directly — the launcher re-reads it on startup.
 
 ## Daily challenge
 
-Press **D** on Brickburst, Skyraid, Rockdrift, Lanehop, Crawlshot, Moondrop or Girderclimb to launch it with `--daily`.
-Everyone gets the same seed for the local date, the version label shows `DAILY`, and scores go to a separate
+Press **D** on Brickburst, Skyraid, Rockdrift, Lanehop, Crawlshot, Moondrop, Girderclimb or Blockfall to launch it with
+`--daily`. Everyone gets the same seed for the local date, the version label shows `DAILY` (Blockfall opens on its Daily
+challenge screen instead: a two-minute score attack whose twist changes with the date), and scores go to a separate
 `daily-YYYYMMDD` table so they never mix with normal runs. Code: `ghost-common/daily.c`. The daily desk (**Shift+D**,
-the chalkboard, the Arcade menu) lists all of them with today's scores, the streak and the featured game
-(`src/desk.c`).
+the chalkboard, the Arcade menu) lists all eight with today's scores, the streak and the featured game (`src/desk.c`;
+each game is featured once in every round of eight days, never two days running).
 
 ## Fullscreen and the F2 tuning panel
 
@@ -352,22 +355,75 @@ per-install ID.
 ## Update notices
 
 The launcher tells you when a newer Ghost Arcade has been pushed to GitHub: a teal
-**NEW VERSION** pill appears on the game list, and **V** opens the details (your
-build, the newest commit and its title, when it last checked, and the two commands
-that update you). **R** on that screen checks again immediately, as does Check now in
-Settings > Online, where Check for updates also turns the checks off.
+**NEW VERSION** pill appears on the game list, and **V** (or the pill) opens the
+Updates screen: your build, the newest commit and its title, and when it last checked.
+**R** on that screen checks again immediately, as does Check now in Settings > Online,
+where Check for updates also turns the checks off.
 
-How it works: the build remembers which git commit it was made from. At start-up the
+### Update now
+
+When an update is waiting, the Updates screen has an **Update now** button (U, pad X,
+or a click). It runs the arcade's own `./install.sh --update` from the folder this
+build was made from, in the background: no terminal, no sudo, the test suites always
+on (a build that fails them is never installed). While it runs the screen shows the
+steps (Getting the newest version, Building, Testing, Installing), the one under way
+lit, with how long it has taken; you can leave the screen and it keeps going, but no
+game can be started until it is done (Play says "Updating..." and the dailies are
+faint until it is done). Stop works until Installing begins; after that it finishes.
+If it ends while you are elsewhere, the hall says so in place of "Press Enter to play"
+("The update did not finish. Press V to see why." or "Ghost Arcade updated. Press V
+to restart.") until you open Updates, which shows how it went.
+
+- **Done:** "Ghost Arcade is up to date" with the new version, and **Restart the
+  launcher** (or Later). Restarting saves what quitting saves, then starts the newly
+  installed launcher; it waits (faint, "Close your games first.") while a game or an
+  install the launcher started is still running. The notice goes at once: update.txt
+  is rewritten for the new build.
+- **Failed:** it says why in plain words (your copy of the code has changes of its own,
+  GitHub could not be reached, this copy cannot sign in to GitHub (an ssh clone),
+  packages are missing and which (git included), the build or the tests failed,
+  installing failed), the last lines of the log (git's own `error:` lines kept), and
+  where the whole log is: `~/.local/share/ghost-launcher/update.log`. Try again or
+  Back. The terminal command is offered only where a terminal could do better (not for
+  changes of its own). Nothing is ever reported as installed unless install.sh said so
+  and exited cleanly. If update.log cannot be written, it does not start, and says so.
+- **One at a time:** the launcher's updater and `./install.sh --update` in a terminal
+  both hold `~/.local/share/ghost-launcher/update.lock` (flock) while they run, so a
+  second one (another launcher, another terminal) is refused rather than racing on the
+  same checkout. An update a launcher before this one left running (you left the
+  arcade mid-update) is followed: this launcher reads its update.log for the steps and,
+  when it ends, says how it went and offers Restart. One running in a terminal just
+  makes games wait; GitHub is asked about the new build when it ends.
+- It will not start while games you started from the launcher are open ("Close your
+  games first"), while a machine is installing, while another update runs, or when this
+  build does not know its git checkout. The button is faint and says why; the old
+  terminal command is shown under it then, as a fallback.
+- `install.sh` prints plain text (no colours) when its output is not a terminal, never
+  asks a question without one (missing packages end it with their names instead), and
+  splits `git pull --ff-only` into a fetch and a fast-forward so each failure says which.
+- For testing, `GHOST_LAUNCHER_UPDATER=/path/to/script` runs that instead of
+  install.sh (a relative path is taken from where the launcher was started); `tools/fake-update.sh` prints the same steps and can fail at any one
+  (`FAKE_UPDATE_FAIL=packages|local|network|build|test|install`) or go slowly
+  (`FAKE_UPDATE_SLEEP=5`). `make test` uses it, so the tests never run git.
+
+### How the notice works
+
+The build remembers which git commit it was made from. At start-up the
 launcher runs `ghost-sync --check-update` in the background, which asks GitHub's public
-API for the recent commits on `main` (one anonymous request, at most every six hours)
-and writes the answer to `~/.local/share/ghost-launcher/update.txt`. The launcher only
-reads that file; it never touches the network itself.
+API for the recent commits on `main` (one anonymous request, at most every six hours,
+or straight away when the build has changed) and writes the answer to
+`~/.local/share/ghost-launcher/update.txt`. The launcher only reads that file; it never
+touches the network itself.
 
-- It **never downloads or installs anything**. Updating is always you running
-  `./install.sh --update` (which is `git pull` followed by a build and install).
+- The file is believed only when its `current=` line is this build's commit. One that
+  an older build wrote (you updated since) shows no NEW VERSION, no "1 new" and no
+  "N changes newer"; the launcher asks GitHub again instead (unless checks are off).
+- Nothing is downloaded or installed until you press Update now (or run
+  `./install.sh --update` yourself).
 - Nothing about you is sent, and it works whether or not you share scores online.
 - If your build was made from commits that are not on GitHub (your own work in
   progress), it says so rather than nagging you to update.
-- `check_updates=0` in `~/.config/ghost-launcher/online.conf` turns it off;
+- `check_updates=0` in `~/.config/ghost-launcher/online.conf` turns the checks off
+  (Update now still works when an update is already known);
   `update_repo=owner/name` points it at a fork.
 - `ghost-sync --check-update-now` does the same from a terminal.

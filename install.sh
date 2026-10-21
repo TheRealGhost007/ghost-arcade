@@ -26,9 +26,17 @@ for arg in "$@"; do
     esac
 done
 
-say()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
-warn() { printf '\033[1;33m!!\033[0m  %s\n' "$*" >&2; }
-die()  { printf '\033[1;31mxx\033[0m  %s\n' "$*" >&2; exit 1; }
+# Colours only on a terminal: Ghost Launcher's Update now reads these lines
+# from a log file, so off a terminal they are plain "==>", "!!" and "xx".
+if [ -t 1 ]; then
+    say()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
+    warn() { printf '\033[1;33m!!\033[0m  %s\n' "$*" >&2; }
+    die()  { printf '\033[1;31mxx\033[0m  %s\n' "$*" >&2; exit 1; }
+else
+    say()  { printf '==> %s\n' "$*"; }
+    warn() { printf '!!  %s\n' "$*" >&2; }
+    die()  { printf 'xx  %s\n' "$*" >&2; exit 1; }
+fi
 
 [ "$(id -u)" -ne 0 ] || die "Run this as your normal user, not root: it installs into your own ~/.local."
 [ -f ghost-launcher/Makefile ] && [ -d ghost-common ] || die "Run this from inside the ghost-arcade folder."
@@ -40,9 +48,20 @@ if [ "$MODE" = uninstall ]; then
     exit 0
 fi
 
+# One update at a time, from Ghost Launcher's Update now or a terminal: both
+# hold update.lock while they run. The launcher takes it before starting
+# this script and says so with GHOST_UPDATE_LOCKED.
+if [ "$MODE" = update ] && [ -z "${GHOST_UPDATE_LOCKED-}" ] && command -v flock >/dev/null 2>&1; then
+    lockdir="${XDG_DATA_HOME:-$HOME/.local/share}/ghost-launcher"
+    { mkdir -p "$lockdir" && exec 9>"$lockdir/update.lock" && flock -n 9; } \
+        || die "Another update is already running (from Ghost Launcher or another terminal)."
+fi
+
 # ---------------------------------------------------------------- dependencies
 missing=()
-for tool in gcc make pkg-config; do command -v "$tool" >/dev/null 2>&1 || missing+=("$tool"); done
+tools=(gcc make pkg-config)
+[ "$MODE" = update ] && tools+=(git)
+for tool in "${tools[@]}"; do command -v "$tool" >/dev/null 2>&1 || missing+=("$tool"); done
 if command -v pkg-config >/dev/null 2>&1; then
     pkg-config --exists raylib  || missing+=("raylib")
     pkg-config --exists libcurl || missing+=("libcurl")
@@ -86,7 +105,14 @@ if [ "$MODE" = update ]; then
     command -v git >/dev/null 2>&1 || die "--update needs git."
     [ -d .git ] || die "--update needs a git checkout (git clone, not a downloaded zip)."
     say "Fetching the newest version"
-    git pull --ff-only
+    git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1 \
+        || die "This copy does not follow a branch on GitHub, so it cannot update itself."
+    # Fetch and fast-forward separately (what git pull --ff-only does), so a
+    # failure says which: no network, or a copy with changes of its own.
+    git fetch --quiet \
+        || die "Could not download the newest version (no network, or GitHub did not answer)."
+    git merge --ff-only --quiet '@{u}' \
+        || die "Your copy has changes of its own (local edits or commits), so it was not updated."
 fi
 
 jobs=$(nproc 2>/dev/null || echo 2)
@@ -109,5 +135,6 @@ case ":$PATH:" in
 esac
 [ -d .git ] || warn "This is not a git checkout, so the launcher cannot tell you about updates. 'git clone' gives you that."
 
+[ -d .git ] && say "Version: $(git rev-parse HEAD)"
 say "Installed. Start the arcade with:  ghost-launcher   (or find Ghost Launcher in your app menu)"
 echo "    Update later with:  ./install.sh --update      Remove with:  ./install.sh --uninstall"

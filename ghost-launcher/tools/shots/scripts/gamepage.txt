@@ -34,6 +34,7 @@ wait 8
 expect ui GAME
 expect app pagefor Blockfall
 # Scores: the board of its best score, this computer's ten beside the world's.
+# Blockfall's bare marathon board is "Classic (old rules)" since 3.2.0.
 tap RIGHT
 wait 3
 expect app pagetab Scores
@@ -45,7 +46,7 @@ wait 3
 shot page-scores
 tap X
 wait 3
-expect app pageboard Marathon
+expect app pageboard Classic (old rules)
 expect app worldrank 2
 tap X
 wait 3
@@ -71,6 +72,10 @@ expect ui GAME
 expect app focus Play
 pad tap DOWN
 wait 2
+expect app focus Daily challenge
+expect app pagehelp The daily challenge desk: today's dailies, your streak and the world's best.
+pad tap DOWN
+wait 2
 expect app focus Name for this game
 expect app pagehelp Plays as Arcade here. Only this game uses that name.
 pad tap RB
@@ -78,7 +83,7 @@ wait 2
 expect app pagetab Scores
 pad tap X
 wait 2
-expect app pageboard Marathon
+expect app pageboard Classic (old rules)
 pad tap LB
 wait 2
 expect app pagetab About
@@ -175,7 +180,8 @@ expect launched launch Brickburst
 gameexit
 wait 10
 
-# Blockfall has no daily: faint, and pointing at it says why.
+# Blockfall has a daily since 3.6.0: the button is live, and D opens the
+# desk on it, Esc coming back to the page.
 tap PAGE_UP
 wait 30
 expect app lit Blockfall
@@ -183,15 +189,39 @@ tap I
 wait 8
 mouse 200 448
 wait 3
+expect app look:Daily challenge hover
+expect app pagehelp The daily challenge desk: today's dailies, your streak and the world's best.
+tap D
+wait 5
+expect ui DAILY
+expect app under GAME
+expect app deskfocus Blockfall
+shot page-daily-blockfall
+tap ESCAPE
+wait 5
+expect ui GAME
+expect app pagefor Blockfall
+
+# Coilrush has no daily: faint, and pointing at it says why.
+tap PAGE_DOWN
+wait 5
+expect app pagefor Coilrush
+mouse 900 620
+wait 2
+mouse 200 448
+wait 3
 expect app look:Daily challenge disabled
-expect app pagehelp Blockfall has no daily challenge.
+expect app pagehelp Coilrush has no daily challenge.
 tap D
 wait 3
 expect ui GAME
-expect app pagestatus Blockfall has no daily challenge.
+expect app pagestatus Coilrush has no daily challenge.
 shot page-daily-reason
 
 # Chipforge: Open Chipforge and Favourite; About and Songs.
+tap PAGE_UP
+wait 5
+expect app pagefor Blockfall
 tap PAGE_UP
 wait 8
 expect app pagefor Chipforge

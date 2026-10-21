@@ -1,0 +1,60 @@
+#! env SHOTS_ADMIN=0
+# Update now (the owner's "find a better way to update"): with an update
+# waiting, the Updates screen offers Update now, which runs install.sh
+# --update in the background (fake_launch.c: nothing runs; this script
+# writes update.log and ends it). The steps show as the log names them,
+# the hall cannot play meanwhile, Stop goes faint once Installing begins,
+# and a finished update offers Restart the launcher.
+wait 30
+expect app look:NEW VERSION normal
+tap V
+wait 3
+expect ui UPDATE
+expect app focus Update now
+expect app updwhy 
+expect app look:Update now focused
+expect app look:Check now disabled
+shot update-behind
+tap U
+wait 2
+expect app updview running
+expect count 1 --update
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n
+wait 200
+expect app updstep Building
+expect app focus Stop
+expect app look:Stop focused
+expect app look:Check now absent
+shot update-running
+# Back on the hall, nothing can be played: Play says Updating..., faint,
+# and Enter says why.
+tap ESC
+wait 3
+expect ui LIST
+expect app playlabel Updating...
+expect app look:Updating... disabled
+tap ENTER
+wait 3
+expect launches 0
+expect app note Ghost Arcade is updating. Games wait until it is done.
+shot update-hall-blocked
+tap V
+wait 3
+expect app updview running
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n==> Running the test suites\n1469 checks, 0 failures\n==> Installing into ~/.local\n
+wait 30
+expect app updstep Installing
+expect app look:Stop disabled
+shot update-installing
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n==> Running the test suites\n1469 checks, 0 failures\n==> Installing into ~/.local\n==> Version: 89abcdef0123456789abcdef0123456789abcdef\n==> Installed. Start the arcade with:  ghost-launcher\n
+update 0
+wait 20
+expect app updview done
+expect app updversion 89abcde
+expect app focus Restart the launcher
+expect app behind 0
+expect file .local/share/ghost-launcher/update.txt status=current
+shot update-done
+# Restart: the quit path saves, then the new launcher would take over.
+tap ENTER
+quits

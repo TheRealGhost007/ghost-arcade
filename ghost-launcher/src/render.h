@@ -6,6 +6,7 @@
 #include "stats.h"
 #include "runstats.h"
 #include "../sync/updatecheck.h"
+#include "selfupdate.h"
 #include "profile.h"
 #include "scores.h"
 #include "launch.h"
@@ -162,14 +163,26 @@ void Render_Achievements(const Manifest *m, int selected, int top, const KitView
  * is the saved answer, said under the buttons on later visits. */
 void Render_OnlineAsk(bool firstTime, bool sharingNow, const KitView *kv);
 
-/* The details screen: this build, the newest on GitHub, how to update, and
- * Check now. */
+/* The details screen: this build, the newest on GitHub, Update now and
+ * Check now; while Update now runs, its steps; then how it ended. */
 typedef struct {
     bool checking;   /* a check is under way: the button says Checking... */
     bool noAnswer;   /* the last Check now got no answer in time */
     bool checksOff;  /* check_updates=0 */
+    UpdatesMode mode;
+    const char *whyNot;        /* why Update now / Try again cannot run, "" when it can */
+    SelfUpdateStep step;       /* running: the step it is on */
+    double elapsed, stepElapsed; /* running: seconds since it began, and since this step did */
+    bool cancelling;
+    const char *version;       /* done: the short commit now installed ("" unknown) */
+    const char *words[2];      /* failed: why, in two short lines */
+    bool cancelled;            /* failed: the player stopped it */
+    bool terminalHelps;        /* failed: the terminal line is worth showing (not for changes of its own) */
+    const SelfUpdateLog *log;  /* its last lines */
+    const char *logPath;       /* update.log, ~ for home */
+    const char *command;       /* the terminal fallback: "cd DIR && ./install.sh --update" */
 } UpdateView;
-void Render_Update(const UpdateState *u, const char *sourceDir, const UpdateView *v, const KitView *kv);
+void Render_Update(const UpdateState *u, const UpdateView *v, const KitView *kv);
 
 /* The Arcade menu, over the hall that was just drawn: the hall dims and the
  * panel covers its left wall. */

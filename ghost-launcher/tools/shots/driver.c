@@ -38,10 +38,15 @@
  *   wheel N                N notches, positive = away from you
  *   focus on|off           the window gains or loses focus
  *   clip TEXT              what the clipboard holds
- *   write PATH TEXT        write a file under the temp HOME ("\n" = newline),
+ *   write PATH TEXT        write a file under the temp HOME ("\n" = newline;
+ *                          @BUILD@ = this build's commit, for update.txt),
  *                          e.g. a game changing prefs.ini behind the launcher
  *   gameexit               the pretend game the launcher started exits
  *   install ok|fail        the pretend install finishes
+ *   update CODE            the pretend Update now ends with exit status CODE
+ *                          (its update.log is the script's to `write`)
+ *   elsewhere launcher|terminal|none  an update not the launcher's own runs
+ *                          (another launcher's writes update.log) or ends
  *   shot NAME              save this frame as NAME.png
  *   expect ui NAME | expect selected N | expect fullscreen 0|1
  *   expect trophy N        the game the Trophies screen shows
@@ -77,6 +82,7 @@
 #include "rlgl.h"
 #include "fake_launch.h"
 #include "prefs.h"
+#include "build_commit.h" /* BUILD_COMMIT, for @BUILD@ in `write` */
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -219,7 +225,7 @@ static bool sVerbose = false;
 /* -------------------------------------------------------------- events */
 typedef enum {
     EV_KEYDOWN, EV_KEYUP, EV_CHAR, EV_PADON, EV_PADOFF, EV_PADDOWN, EV_PADUP, EV_STICK, EV_MOVE, EV_MDOWN, EV_MUP,
-    EV_WHEEL, EV_FOCUS, EV_CLIP, EV_WRITE, EV_CHMOD, EV_GAMEEXIT, EV_INSTALL, EV_SHOT, EV_EXPECT, EV_LOG, EV_CLOSE,
+    EV_WHEEL, EV_FOCUS, EV_CLIP, EV_WRITE, EV_CHMOD, EV_GAMEEXIT, EV_INSTALL, EV_UPDATE, EV_ELSEWHERE, EV_SHOT, EV_EXPECT, EV_LOG, EV_CLOSE,
 } EvType;
 typedef struct { long tick; int order; EvType type; int arg; float x, y; char text[512]; } Event;
 static Event *sEv = NULL;
@@ -375,6 +381,9 @@ static void ParseLine(char *p, int line) {
     else if (strcmp(cmd, "quits") == 0) sMustQuit = true;
     else if (strcmp(cmd, "gameexit") == 0) AddEv(sT++, EV_GAMEEXIT, 0, NULL);
     else if (strcmp(cmd, "install") == 0) AddEv(sT++, EV_INSTALL, strcmp(rest, "ok") == 0, NULL);
+    else if (strcmp(cmd, "update") == 0) AddEv(sT++, EV_UPDATE, atoi(rest), NULL);
+    else if (strcmp(cmd, "elsewhere") == 0)
+        AddEv(sT++, EV_ELSEWHERE, strcmp(rest, "launcher") == 0 ? 1 : strcmp(rest, "terminal") == 0 ? 2 : 0, NULL);
     else if (strcmp(cmd, "shot") == 0) { AddEv(sT, EV_SHOT, line, rest); sShotsAsked++; sT++; }
     else if (strcmp(cmd, "expect") == 0) { AddEv(sT, EV_EXPECT, line, rest); sExpectsAsked++; }
     else if (strcmp(cmd, "log") == 0) AddEv(sT, EV_LOG, line, rest);
@@ -435,7 +444,19 @@ static void DoWrite(const Event *e) {
     const char *rest;
     SplitFirst(e->text, rel, sizeof(rel), &rest);
     if (!HomePath(rel, path, sizeof(path))) { Log("WRITE REFUSED (line %d): %s", e->arg, rel); sExpectFails++; return; }
-    Unescape(rest, body, sizeof(body));
+    char raw[1024];
+    size_t o = 0;
+    for (const char *p = rest; *p && o + 1 < sizeof(raw); p++) { /* @BUILD@: this build's commit */
+        if (strncmp(p, "@BUILD@", 7) == 0) {
+            o += (size_t)snprintf(raw + o, sizeof(raw) - o, "%s", BUILD_COMMIT);
+            if (o >= sizeof(raw)) o = sizeof(raw) - 1;
+            p += 6;
+        } else {
+            raw[o++] = *p;
+        }
+    }
+    raw[o] = '\0';
+    Unescape(raw, body, sizeof(body));
     MakeParents(path);
     FILE *f = fopen(path, "w");
     if (!f) { Log("WRITE FAILED (line %d): %s: %s", e->arg, path, strerror(errno)); sExpectFails++; return; }
@@ -566,6 +587,8 @@ static void ApplyEvent(const Event *e) {
         case EV_CHMOD: DoChmod(e); break;
         case EV_GAMEEXIT: FakeLaunch_ExitGame(); break;
         case EV_INSTALL: FakeLaunch_FinishInstall(e->arg != 0); break;
+        case EV_UPDATE: FakeLaunch_FinishUpdate(e->arg); break;
+        case EV_ELSEWHERE: FakeLaunch_SetElsewhere(e->arg); break;
         case EV_SHOT: snprintf(sShotName, sizeof(sShotName), "%s", e->text); break;
         case EV_EXPECT: DoExpect(e); break;
         case EV_LOG: { char why[600]; snprintf(why, sizeof(why), "log (line %d) %s", e->arg, e->text); Where(why); break; }

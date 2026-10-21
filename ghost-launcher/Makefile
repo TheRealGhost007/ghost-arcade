@@ -104,7 +104,7 @@ $(TARGET): $(OBJECTS)
 BUILD_COMMIT := $(shell git -C $(CURDIR) rev-parse HEAD 2>/dev/null)
 BUILD_SOURCE_DIR := $(shell git -C $(CURDIR) rev-parse --show-toplevel 2>/dev/null)
 $(BUILD_DIR)/build_commit.h: FORCE | $(BUILD_DIR)
-	@printf '#define BUILD_COMMIT "%s"\n#define BUILD_SOURCE_DIR "%s"\n' "$(BUILD_COMMIT)" "$(BUILD_SOURCE_DIR)" > $@.new
+	@printf '#define BUILD_COMMIT "%s"\n#define BUILD_SOURCE_DIR "%s"\n#define BUILD_BIN_DIR "%s"\n' "$(BUILD_COMMIT)" "$(BUILD_SOURCE_DIR)" "$(BIN_DIR)" > $@.new
 	@if cmp -s $@.new $@; then rm -f $@.new; else mv $@.new $@; fi
 FORCE:
 
@@ -116,9 +116,10 @@ $(SYNC_TARGET): $(SYNC_SOURCES) sync/syncdata.h sync/updatecheck.h sync/online_c
 
 -include $(DEPS)
 
-# Headless tests: no raylib, no libcurl, no network.
+# Headless tests: no raylib, no libcurl, no network. Update now runs
+# tools/fake-update.sh (GHOST_LAUNCHER_UPDATER), never git or install.sh.
 test: | $(BUILD_DIR)
-	$(CC) -std=c17 -O0 -g $(WARN_FLAGS) -I$(COMMON_DIR) -Isync tests/test_main.c tests/test_kit.c tests/test_settings.c tests/test_hall.c tests/test_row.c tests/test_page.c tests/test_extras.c $(COMMON_DIR)/achievements.c $(COMMON_DIR)/daily.c $(COMMON_DIR)/tuning.c $(COMMON_DIR)/safefile.c $(COMMON_DIR)/howto.c $(COMMON_DIR)/prefs.c $(COMMON_DIR)/song.c $(COMMON_DIR)/musicsynth.c sync/syncdata.c sync/updatecheck.c src/scores.c src/profile.c src/manifest.c src/launch.c src/stats.c src/runstats.c src/adminlock.c src/sha256.c src/input.c src/launcherini.c src/prefswatch.c src/kit.c src/nav.c src/screens.c src/keymap.c src/textfield.c src/settings.c src/hall.c src/nameboard.c src/lineup.c src/hallmusic.c src/migrate.c src/boards.c src/machines.c src/gameform.c src/gamepage.c src/desk.c src/attract.c src/jukebox.c -o $(TEST_TARGET) -lm
+	$(CC) -std=c17 -O0 -g $(WARN_FLAGS) -I$(COMMON_DIR) -Isync tests/test_main.c tests/test_kit.c tests/test_settings.c tests/test_hall.c tests/test_row.c tests/test_page.c tests/test_extras.c tests/test_update.c $(COMMON_DIR)/achievements.c $(COMMON_DIR)/daily.c $(COMMON_DIR)/tuning.c $(COMMON_DIR)/safefile.c $(COMMON_DIR)/howto.c $(COMMON_DIR)/prefs.c $(COMMON_DIR)/song.c $(COMMON_DIR)/musicsynth.c sync/syncdata.c sync/updatecheck.c src/scores.c src/profile.c src/manifest.c src/launch.c src/stats.c src/runstats.c src/adminlock.c src/sha256.c src/input.c src/launcherini.c src/prefswatch.c src/kit.c src/nav.c src/screens.c src/keymap.c src/textfield.c src/settings.c src/hall.c src/nameboard.c src/lineup.c src/hallmusic.c src/migrate.c src/boards.c src/machines.c src/gameform.c src/gamepage.c src/desk.c src/attract.c src/jukebox.c src/selfupdate.c -o $(TEST_TARGET) -lm
 	./$(TEST_TARGET)
 
 # Screenshots without a visible window (tools/shots/driver.c): the real

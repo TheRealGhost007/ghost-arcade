@@ -1,0 +1,25 @@
+#! env SHOTS_ADMIN=0
+# An update that finishes while the player is on the hall: the NEW
+# VERSION pill goes, and the hall says to restart until Updates is opened.
+wait 30
+tap V
+wait 3
+tap U
+wait 3
+tap ESC
+wait 3
+expect ui LIST
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\n==> Running the test suites\n==> Installing into ~/.local\n==> Version: 89abcdef0123456789abcdef0123456789abcdef\n==> Installed. Start the arcade with:  ghost-launcher\n
+update 0
+wait 20
+expect app updview done
+expect app look:NEW VERSION absent
+expect app status Ghost Arcade updated. Press V to restart.
+shot update-away-hall-done
+tap V
+wait 3
+expect app focus Restart the launcher
+expect app updseen 1
+tap ESC
+wait 3
+expect app status Press Enter to play

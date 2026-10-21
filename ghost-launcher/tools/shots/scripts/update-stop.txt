@@ -1,0 +1,34 @@
+# Stop before Installing: the whole update is stopped and it says nothing
+# was installed. Leaving while one runs says it keeps going.
+wait 30
+tap V
+wait 3
+tap U
+wait 3
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\n
+wait 30
+# Leave from the menu: the box says the update carries on.
+tap ESC
+wait 3
+tap ESC
+wait 3
+expect ui MENU
+tap UP
+wait 2
+tap ENTER
+wait 3
+expect app dialog leave
+shot update-leave
+tap ESC
+wait 3
+expect app dialog none
+tap V
+wait 3
+expect app focus Stop
+tap ENTER
+wait 10
+expect count 1 cancel
+expect app updview failed
+expect app updfail Nothing was installed.
+expect app focus Try again
+shot update-stopped

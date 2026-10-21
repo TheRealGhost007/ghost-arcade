@@ -159,7 +159,7 @@ wait 3
 expect app hint 0
 expect app hints 1
 expect app chip:Play A normal
-expect app chip:Daily Y disabled
+expect app chip:Daily Y normal
 shot verify-p3-hints-pad-forced
 tap TAB
 wait 3

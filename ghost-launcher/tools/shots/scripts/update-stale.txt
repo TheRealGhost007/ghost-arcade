@@ -1,0 +1,24 @@
+#! env SHOTS_UPDATE=stale SHOTS_CHECKS=1
+# update.txt from an older build (status=behind, but current= is not this
+# build's commit): the launcher must not believe it, so no NEW VERSION pill,
+# no "1 new" badge, no Update now; it asks GitHub again, once.
+wait 30
+expect app behind 0
+expect app look:NEW VERSION absent
+expect count 1 --check-update-now
+shot update-stale-hall
+tap ESC
+wait 3
+expect ui MENU
+shot update-stale-menu
+tap V
+wait 3
+expect ui UPDATE
+expect app look:Update now absent
+# It is asking already: Check now says so (faint), and is not sent twice.
+expect app checking 1
+expect app look:Checking... disabled
+tap R
+wait 3
+expect count 1 --check-update-now
+shot update-stale-updates

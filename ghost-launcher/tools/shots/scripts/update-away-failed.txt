@@ -1,0 +1,37 @@
+#! env SHOTS_ADMIN=0
+# An update that fails while the player is on the hall: the hall says so
+# (in place of the prompt), and opening Updates shows why, once. The
+# visit after that starts afresh with Update now.
+wait 30
+tap V
+wait 3
+tap U
+wait 3
+expect app updview running
+tap ESC
+wait 3
+expect ui LIST
+write .local/share/ghost-launcher/update.log !!  Missing: raylib libcurl\nxx  Install those packages, then run ./install.sh again.\n
+update 1
+wait 20
+expect app updview failed
+expect app updseen 0
+expect app status The update did not finish. Press V to see why.
+expect app playlabel Play
+shot update-away-hall-failed
+tap V
+wait 3
+expect ui UPDATE
+expect app updview failed
+expect app updseen 1
+expect app updfail Some packages it needs are missing: raylib libcurl.
+expect app focus Try again
+shot update-away-failed-shown
+tap ESC
+wait 3
+expect ui LIST
+expect app status Press Enter to play
+tap V
+wait 3
+expect app updview idle
+expect app focus Update now

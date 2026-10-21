@@ -99,8 +99,13 @@ HallIntent Hall_Read(HallInput *st, const Input *in, const KitEvent *ev, int sel
 /* --- the card's status line --- */
 typedef enum { HT_PLAY, HT_INSTALL, HT_BUSY, HT_BAD, HT_DIM, HT_NOTE } HallTone;
 
+/* An update that ended while the Updates screen was not up, until it is. */
+typedef enum { HUN_NONE, HUN_DONE, HUN_FAILED } HallUpdateNews;
+
 typedef struct {
     bool installing, installFailed; /* an install of this machine */
+    bool updating;                  /* Ghost Arcade is updating itself: nothing plays */
+    HallUpdateNews updateNews;      /* "...Press V to see why", in place of the prompt */
     const char *error;              /* a launch that failed, or "" */
     const char *note;               /* why the last press did nothing (Daily), or "" */
     bool installed, canInstall;

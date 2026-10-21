@@ -1,0 +1,36 @@
+#! env SHOTS_ADMIN=0
+# An update a launcher before this one left running (update.lock held,
+# update.pid names its updater): followed through update.log, games wait,
+# Stop is faint; when it ends it is judged from the log and Restart shows.
+wait 30
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\n
+elsewhere launcher
+wait 400
+expect app updelsewhere 1
+expect app updfollow 1
+expect app updview running
+expect app playlabel Updating...
+tap V
+wait 30
+expect ui UPDATE
+expect app updstep Building
+expect app look:Stop disabled
+expect app look:Update now absent
+shot update-elsewhere-running
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\n==> Running the test suites\n==> Installing into ~/.local\n==> Version: 89abcdef0123456789abcdef0123456789abcdef\n==> Installed.\n
+elsewhere none
+wait 100
+expect app updelsewhere 0
+expect app updview done
+expect app updversion 89abcde
+expect app focus Restart the launcher
+expect app look:NEW VERSION absent
+shot update-elsewhere-done
+# One in a terminal: no log to follow, Update now waits for it.
+tap ESC
+wait 3
+elsewhere terminal
+wait 400
+expect app updelsewhere 1
+expect app updfollow 0
+expect app playlabel Updating...

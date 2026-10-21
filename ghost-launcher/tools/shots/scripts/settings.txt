@@ -170,7 +170,7 @@ expect count 1 --check-update-now
 expect app checking 1
 expect app look:Checking... disabled
 shot settings-online-checking
-write .local/share/ghost-launcher/update.txt status=current\nbehind=0\ncurrent=0123456789abcdef0123456789abcdef01234567\nlatest=0123456789abcdef0123456789abcdef01234567\ntitle=Launcher: Settings\nchecked=4102444800\n
+write .local/share/ghost-launcher/update.txt status=current\nbehind=0\ncurrent=@BUILD@\nlatest=@BUILD@\ntitle=Launcher: Settings\nchecked=4102444800\n
 wait 80
 expect app checking 0
 expect app look:Check now hover

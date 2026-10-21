@@ -2,7 +2,8 @@
 # Blockfall 2.1 ranks Sprint by time on its own Sprint 40 boards (a row
 # stores 10000000 minus the time in hundredths). Its page names them Sprint 40
 # and Sprint (old), shows times (1:12.40, not 9992760), and the page's Best
-# stays the points best rather than a time's big number.
+# stays the points best rather than a time's big number. Since 3.2.0 the bare
+# marathon board is "Classic (old rules)" (marathon-10x20 is Marathon).
 wait 30
 expect ui LIST
 expect app lit Blockfall
@@ -17,7 +18,7 @@ expect app pagetab Scores
 expect app pageboard Classic
 tap X
 wait 3
-expect app pageboard Marathon
+expect app pageboard Classic (old rules)
 tap X
 wait 3
 expect app pageboard Sprint (old)

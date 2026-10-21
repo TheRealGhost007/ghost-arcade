@@ -1235,7 +1235,7 @@ static void DrawChalkboard(const Desk *d, KitLook look) {
     char line[32];
     Desk_BoardLine(d, line, sizeof(line));
     PTextCentered(line, TYPE_S, x + w / 2, y + 36 + sink, chalk);
-    int boxes = d->count < 7 ? d->count : 7, pitch = 16, bx = x + w / 2 - (boxes * pitch - 4) / 2;
+    int boxes = d->count < DESK_VISIBLE ? d->count : DESK_VISIBLE, pitch = 16, bx = x + w / 2 - (boxes * pitch - 4) / 2; /* eight fit the slate */
     for (int i = 0; i < boxes; i++) {
         Rectangle r = {(float)(bx + i * pitch), (float)(y + 58 + sink), 12.0f, 12.0f};
         if (d->rows[i].played) DrawRectangleRec(r, chalk);
@@ -1849,8 +1849,9 @@ void Render_Achievements(const Manifest *m, int selected, int top, const KitView
     KitDraw_List(kv);
 }
 
-static void UpdateHeadline(const UpdateState *u, int y) {
-    if (u->status == UPDATE_BEHIND) PText("A newer version is on GitHub.", 80, y, TYPE_M, kYellow);
+static void UpdateHeadline(const UpdateState *u, bool checking, int y) {
+    if (u->status == UPDATE_UNKNOWN && checking) PText("Asking GitHub about this build...", 80, y, TYPE_M, kWarmWhite);
+    else if (u->status == UPDATE_BEHIND) PText("A newer version is on GitHub.", 80, y, TYPE_M, kYellow);
     else if (u->status == UPDATE_CURRENT) PText("You have the newest version.", 80, y, TYPE_M, kTeal);
     else if (u->checkedAt > 0) PText("GitHub does not know this build.", 80, y, TYPE_M, kWarmWhite); /* it answered */
     else PText("No answer yet.", 80, y, TYPE_M, kWarmWhite);
@@ -1868,11 +1869,28 @@ static void CheckNowNote(const UpdateView *v, const KitView *kv) {
     else if (v->noAnswer && !v->checking) PText("No answer from GitHub. Try again later.", x, y, TYPE_S, kCoinRed);
 }
 
-void Render_Update(const UpdateState *u, const char *sourceDir, const UpdateView *v, const KitView *kv) {
-    BeginScreen("Updates");
+/* Beside a faint button: why it is faint, for keys and the pad too. */
+static void ReasonBeside(const KitView *kv, int id, Color c) {
+    const KitItem *b = Kit_Get(kv->list, id);
+    if (!b || !(b->flags & KIT_DISABLED) || !b->reason[0]) return;
+    int x = (int)(b->r.x + b->r.w) + 24;
+    char fit[KIT_REASON_LEN + 4];
+    Fit(fit, sizeof(fit), b->reason, TYPE_S, WINDOW_WIDTH - 80 - x);
+    PText(fit, x, (int)(b->r.y + b->r.h / 2) - 4, TYPE_S, c);
+}
+
+/* "Or in a terminal: cd ... && ./install.sh --update", cut to the margin. */
+static void TerminalLine(const UpdateView *v, int y) {
+    char line[400], fit[400];
+    snprintf(line, sizeof(line), "Or in a terminal: %s", v->command ? v->command : "./install.sh --update");
+    Fit(fit, sizeof(fit), line, TYPE_S, WINDOW_WIDTH - 160);
+    PText(fit, 80, y, TYPE_S, kTeal);
+}
+
+static void UpdateIdle(const UpdateState *u, const UpdateView *v, const KitView *kv) {
     char line[200];
     int y = 120;
-    UpdateHeadline(u, y);
+    UpdateHeadline(u, v->checking, y);
     y += 44;
 
     PText("This build", 80, y, TYPE_S, kTextDim);
@@ -1895,23 +1913,21 @@ void Render_Update(const UpdateState *u, const char *sourceDir, const UpdateView
         y += 26;
     }
     PText("Last checked", 80, y, TYPE_S, kTextDim);
-    CheckedAgo(u->checkedAt, line, sizeof(line));
+    if (v->checking && u->checkedAt == 0) snprintf(line, sizeof(line), "asking now");
+    else CheckedAgo(u->checkedAt, line, sizeof(line));
     PText(line, 300, y, TYPE_S, kText);
     y += 44;
 
     if (u->status == UPDATE_BEHIND) {
-        PText("To update, run this in a terminal:", 80, y, TYPE_S, kTextDim);
-        y += 26;
-        snprintf(line, sizeof(line), "cd %.80s", (sourceDir && sourceDir[0]) ? sourceDir : "~/Work/ghost-arcade");
-        DrawRectangle(80, y - 8, WINDOW_WIDTH - 160, 58, kCabinetDark);
-        PText(line, 96, y, TYPE_S, kTeal);
-        PText("./install.sh --update", 96, y + 24, TYPE_S, kTeal);
-        y += 72;
-        PText("Nothing is downloaded or installed until you do that.", 80, y, TYPE_S, kTextDim);
+        PText("Update now gets the newest version, builds it, tests it and installs it.", 80, 300, TYPE_S, kText);
+        PText("It takes a few minutes. Your scores, stats and settings stay.", 80, 320, TYPE_S, kTextDim);
+        ReasonBeside(kv, WID_UPDATE_NOW, kCoinRed);
+        const KitItem *now = Kit_Get(kv->list, WID_UPDATE_NOW);
+        if (now && (now->flags & KIT_DISABLED)) TerminalLine(v, 404);
     } else if (u->status == UPDATE_UNKNOWN && u->checkedAt > 0) {
         PText("It is not among the newest changes on GitHub: it was made from", 80, y, TYPE_S, kTextDim); y += 22;
         PText("your own work in progress, or it is very old.", 80, y, TYPE_S, kTextDim);
-    } else if (u->status == UPDATE_UNKNOWN) {
+    } else if (u->status == UPDATE_UNKNOWN && !v->checking) {
         PText("Either GitHub has not been reached yet, or this build was made", 80, y, TYPE_S, kTextDim); y += 22;
         PText("from changes that are not on GitHub (your own work in progress).", 80, y, TYPE_S, kTextDim);
     }
@@ -1920,9 +1936,133 @@ void Render_Update(const UpdateState *u, const char *sourceDir, const UpdateView
     PText("The check is one anonymous request to GitHub, at most every six hours.", 80, WINDOW_HEIGHT - 96, TYPE_S, kTextDim);
     PText("Settings > Online turns it off.", 80, WINDOW_HEIGHT - 74, TYPE_S, kTextDim);
     /* R does nothing while checks are off or one is under way: say so by leaving it out. */
-    const char *hint = (v->checksOff || v->checking) ? ForHints(kv, "Esc goes back", "B goes back")
-                                                     : ForHints(kv, "R checks again now    Esc goes back", "View checks again now    B goes back");
+    bool update = Kit_Get(kv->list, WID_UPDATE_NOW) && !(Kit_Get(kv->list, WID_UPDATE_NOW)->flags & KIT_DISABLED);
+    bool check = !(v->checksOff || v->checking);
+    const char *hint;
+    if (update && check) hint = ForHints(kv, "U updates now    R checks again now    Esc goes back", "X updates now    View checks again now    B goes back");
+    else if (update) hint = ForHints(kv, "U updates now    Esc goes back", "X updates now    B goes back");
+    else if (check) hint = ForHints(kv, "R checks again now    Esc goes back", "View checks again now    B goes back");
+    else hint = ForHints(kv, "Esc goes back", "B goes back");
     PText(hint, 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+}
+
+/* One step's mark: done (a tick on teal), the one under way (yellow), or
+ * still to come (an outline). */
+static void StepMark(int x, int y, int state) {
+    if (state < 0) {
+        DrawRectangle(x, y, 16, 16, kTeal);
+        DrawRectangle(x + 3, y + 8, 3, 3, kInk); DrawRectangle(x + 6, y + 10, 3, 3, kInk);
+        DrawRectangle(x + 9, y + 6, 3, 3, kInk); DrawRectangle(x + 11, y + 3, 3, 3, kInk);
+    } else if (state == 0) {
+        DrawRectangle(x, y, 16, 16, kYellow);
+        DrawRectangle(x + 5, y + 5, 6, 6, kInk);
+    } else {
+        DrawRectangleLines(x, y, 16, 16, kCabinetEdge);
+    }
+}
+
+static void UpdateRunning(const UpdateView *v, const KitView *kv) {
+    char line[160];
+    PText(v->cancelling ? "Stopping the update" : "Updating Ghost Arcade", 80, 120, TYPE_M, kYellow);
+    SelfUpdate_Elapsed(v->elapsed, line, sizeof(line));
+    PTextRight(line, TYPE_M, WINDOW_WIDTH - 80, 120, kText);
+    PText("It keeps going if you leave this screen. Games wait until it is done.", 80, 160, TYPE_S, kTextDim);
+    for (int i = 0; i < SU_SHOWN_STEPS; i++) {
+        SelfUpdateStep s = (SelfUpdateStep)(SU_STEP_FETCH + i);
+        int y = 200 + i * 40;
+        /* Before the first line it is checking packages: the first step is the one under way. */
+        SelfUpdateStep at = v->step == SU_STEP_NONE ? SU_STEP_FETCH : v->step;
+        int state = s < at ? -1 : (s == at ? 0 : 1);
+        StepMark(80, y, state);
+        PText(SelfUpdate_StepLabel(s), 112, y, TYPE_M, state == 0 ? kYellow : (state < 0 ? kText : kTextDim));
+        if (state < 0) PTextRight("done", TYPE_S, WINDOW_WIDTH - 80, y + 4, kTeal);
+        else if (state == 0) {
+            SelfUpdate_Elapsed(v->stepElapsed, line, sizeof(line));
+            PTextRight(line, TYPE_M, WINDOW_WIDTH - 80, y, kYellow);
+        }
+    }
+    if (v->log && v->log->tailCount > 0) {
+        char fit[SU_LINE_LEN + 4];
+        Fit(fit, sizeof(fit), v->log->tail[v->log->tailCount - 1], TYPE_S, WINDOW_WIDTH - 160);
+        PText(fit, 80, 376, TYPE_S, kTextDim);
+    }
+    const KitItem *stop = Kit_Get(kv->list, WID_UPDATE_CANCEL);
+    if (stop && !(stop->flags & KIT_DISABLED))
+        PText("Stopping now installs nothing.", (int)(stop->r.x + stop->r.w) + 24, (int)(stop->r.y + stop->r.h / 2) - 4, TYPE_S, kTextDim);
+    else ReasonBeside(kv, WID_UPDATE_CANCEL, kTextDim);
+    PText(ForHints(kv, "Esc goes back (the update keeps going)", "B goes back (the update keeps going)"), 80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+}
+
+static void UpdateDone(const UpdateView *v, const KitView *kv) {
+    char line[160];
+    PText("Ghost Arcade is up to date.", 80, 120, TYPE_M, kTeal);
+    if (v->version && v->version[0]) snprintf(line, sizeof(line), "Now at version %.7s.", v->version);
+    else snprintf(line, sizeof(line), "The new version is installed.");
+    PText(line, 80, 164, TYPE_S, kText);
+    PText("Games you start from now on are the new versions.", 80, 190, TYPE_S, kTextDim);
+    PText("Restart the launcher to use its new version too. Your stats and", 80, 216, TYPE_S, kTextDim);
+    PText("settings are saved first.", 80, 236, TYPE_S, kTextDim);
+    /* Restart faint (games still open): why, beside Later. */
+    const KitItem *restart = Kit_Get(kv->list, WID_UPDATE_RESTART), *later = Kit_Get(kv->list, WID_UPDATE_LATER);
+    if (restart && later && (restart->flags & KIT_DISABLED) && restart->reason[0]) {
+        char fit[KIT_REASON_LEN + 4];
+        int x = (int)(later->r.x + later->r.w) + 24;
+        Fit(fit, sizeof(fit), restart->reason, TYPE_S, WINDOW_WIDTH - 80 - x);
+        PText(fit, x, (int)(later->r.y + later->r.h / 2) - 4, TYPE_S, kCoinRed);
+    }
+    bool waits = restart && (restart->flags & KIT_DISABLED);
+    PText(waits ? ForHints(kv, "Esc goes back", "B goes back") : ForHints(kv, "Enter presses    Esc goes back", "A presses    B goes back"),
+          80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+}
+
+static void UpdateFailed(const UpdateView *v, const KitView *kv) {
+    PText(v->cancelled ? "You stopped the update." : "The update did not finish.", 80, 120, TYPE_M, v->cancelled ? kWarmWhite : kCoinRed);
+    char fit[SU_LINE_LEN + 8];
+    for (int i = 0; i < 2; i++) {
+        if (!v->words[i] || !v->words[i][0]) continue;
+        Fit(fit, sizeof(fit), v->words[i], TYPE_S, WINDOW_WIDTH - 160);
+        PText(fit, 80, 164 + i * 22, TYPE_S, i == 0 ? kText : kTextDim);
+    }
+    int y = 222;
+    if (!v->cancelled && v->log && v->log->tailCount > 0) {
+        PText("What it said", 80, y, TYPE_S, kTextDim);
+        y += 18;
+        int h = v->log->tailCount * 20 + 12;
+        DrawRectangle(80, y, WINDOW_WIDTH - 160, h, kCabinetDark);
+        for (int i = 0; i < v->log->tailCount; i++) {
+            Fit(fit, sizeof(fit), v->log->tail[i], TYPE_S, WINDOW_WIDTH - 192);
+            PText(fit, 96, y + 8 + i * 20, TYPE_S, kText);
+        }
+        y += h + 14;
+    }
+    if (v->logPath && v->logPath[0] && !v->cancelled) {
+        char line[400];
+        snprintf(line, sizeof(line), "Full log: %s", v->logPath);
+        Fit(fit, sizeof(fit), line, TYPE_S, WINDOW_WIDTH - 160);
+        PText(fit, 80, y, TYPE_S, kTextDim);
+        y += 24;
+    }
+    if (v->terminalHelps) TerminalLine(v, y);
+    const KitItem *back = Kit_Get(kv->list, WID_UPDATE_BACK);
+    const KitItem *retry = Kit_Get(kv->list, WID_UPDATE_RETRY);
+    if (back && retry && (retry->flags & KIT_DISABLED) && retry->reason[0]) {
+        int x = (int)(back->r.x + back->r.w) + 24;
+        Fit(fit, sizeof(fit), retry->reason, TYPE_S, WINDOW_WIDTH - 80 - x);
+        PText(fit, x, (int)(back->r.y + back->r.h / 2) - 4, TYPE_S, kCoinRed);
+    }
+    bool retryOk = retry && !(retry->flags & KIT_DISABLED);
+    PText(retryOk ? ForHints(kv, "U tries again    Esc goes back", "X tries again    B goes back") : ForHints(kv, "Esc goes back", "B goes back"),
+          80, WINDOW_HEIGHT - 48, TYPE_S, kTextDim);
+}
+
+void Render_Update(const UpdateState *u, const UpdateView *v, const KitView *kv) {
+    BeginScreen("Updates");
+    switch (v->mode) {
+        case UPV_RUNNING: UpdateRunning(v, kv); break;
+        case UPV_DONE: UpdateDone(v, kv); break;
+        case UPV_FAILED: UpdateFailed(v, kv); break;
+        default: UpdateIdle(u, v, kv); break;
+    }
     KitDraw_List(kv);
 }
 

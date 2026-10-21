@@ -285,6 +285,24 @@ void drv_app(const char *key, char *out, size_t n) {
     else if (strcmp(key, "songsview") == 0) snprintf(out, n, "%s", a->page.songsView == SONGS_WHO ? "who" : "hall");
     else if (strcmp(key, "songstop") == 0) snprintf(out, n, "%d", a->page.songs.top);
     else if (strcmp(key, "hallentry") == 0) snprintf(out, n, "%d", a->pageData.hallEntry);
+    /* Update now */
+    else if (strcmp(key, "updview") == 0) {
+        static const char *const kViews[] = {"idle", "running", "done", "failed"};
+        snprintf(out, n, "%s", kViews[a->updView]);
+    }
+    else if (strcmp(key, "updseen") == 0) snprintf(out, n, "%d", (int)a->updSeen);
+    else if (strcmp(key, "updfollow") == 0) snprintf(out, n, "%d", (int)a->updFollow);
+    else if (strcmp(key, "updelsewhere") == 0) snprintf(out, n, "%d", (int)a->updElsewhere);
+    else if (strcmp(key, "updstep") == 0) snprintf(out, n, "%s", SelfUpdate_StepLabel(a->updLog.step));
+    else if (strcmp(key, "updfail") == 0) {
+        char w0[128], w1[128];
+        SelfUpdate_FailWords(a->updFail, &a->updLog, w0, w1, sizeof(w0));
+        snprintf(out, n, "%s", w0);
+    }
+    else if (strcmp(key, "updwhy") == 0) snprintf(out, n, "%s", a->updWhy);
+    else if (strcmp(key, "updversion") == 0) snprintf(out, n, "%.7s", a->updLog.version);
+    else if (strcmp(key, "restart") == 0) snprintf(out, n, "%d", (int)a->restart);
+    else if (strcmp(key, "behind") == 0) snprintf(out, n, "%d", (int)UpdateBehind(a));
     else snprintf(out, n, "?unknown key %s", key);
 }
 

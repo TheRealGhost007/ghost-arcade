@@ -8,7 +8,7 @@
 wait 30
 expect selected 0
 expect app chip:Play Enter normal
-expect app chip:Daily D disabled
+expect app chip:Daily D normal
 shot hall-strip-keys
 
 # A side machine: the glow and the hand. The lit one: the hand, its coin
@@ -94,20 +94,39 @@ click 924 616
 wait 3
 expect selected 0
 
-# Daily is faint on Blockfall, which has none: pointing at it says why on
+# Daily on Blockfall, which has one since 3.6.0: the chip is live under the
+# pointer, and D drops the coin and starts the daily.
+mouse 174 616
+wait 3
+expect app look:Daily hover
+expect app cursor hand
+shot hall-daily-hover
+mouse 480 450
+wait 2
+tap D
+wait 70
+expect launched Blockfall --daily
+expect launches 2
+gameexit
+wait 5
+
+# Daily is faint on Coilrush, which has none: pointing at it says why on
 # the card, and so does D (which used to do nothing at all).
+tap RIGHT
+wait 30
+expect selected 1
 mouse 174 616
 wait 3
 expect app look:Daily disabled
 expect app cursor default
-expect app status Blockfall has no daily challenge.
+expect app status Coilrush has no daily challenge.
 shot hall-daily-reason
 mouse 480 450
 wait 2
 tap D
 wait 3
-expect app note Blockfall has no daily challenge.
-expect launches 1
+expect app note Coilrush has no daily challenge.
+expect launches 2
 shot hall-daily-note
 # Moving on takes the note with it.
 tap RIGHT
@@ -115,12 +134,13 @@ wait 3
 expect app note
 expect app status Press Enter to play
 # On Brickburst it works: a click drops the daily coin.
-tap RIGHT
 wait 30
+expect selected 2
 expect app chip:Daily D normal
 click 174 616
 wait 70
 expect launched Brickburst --daily
+expect launches 3
 gameexit
 wait 5
 

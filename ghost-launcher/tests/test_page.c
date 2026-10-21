@@ -243,6 +243,16 @@ static void test_blockfall_times(void) {
     Boards_ModeWordsFor("coilrush", "sprint", NULL, w, sizeof(w));
     ok &= strcmp(w, "Sprint") == 0;
     CHECK(ok, "times: board names Sprint 40 and Sprint (old), only for Blockfall");
+    /* Blockfall 3.2.0: the classic Marathon's fresh board and its old-rules one. */
+    Boards_ModeWordsFor("blockfall", "marathon-10x20", NULL, w, sizeof(w));
+    ok = strcmp(w, "Marathon") == 0;
+    Boards_ModeWordsFor("blockfall", "marathon", NULL, w, sizeof(w));
+    ok &= strcmp(w, "Classic (old rules)") == 0;
+    Boards_ModeWordsFor("blockfall", "marathon-14x20", NULL, w, sizeof(w));
+    ok &= strcmp(w, "Marathon 14x20") == 0;
+    Boards_ModeWordsFor("coilrush", "marathon", NULL, w, sizeof(w));
+    ok &= strcmp(w, "Marathon") == 0;
+    CHECK(ok, "times: Blockfall's marathon-10x20 is Marathon and its bare marathon Classic (old rules); other games' marathon is just Marathon");
 
     /* The page's boards and the card's best, from files. */
     WriteUnder("XDG_DATA_HOME", "ghost-launcher/scores/blockfall.txt",

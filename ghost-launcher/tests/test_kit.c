@@ -831,16 +831,24 @@ static void test_screens(void) {
     CHECK(Kit_FirstFocus(&l) == WID_TROPHY_GAME && !(l.nav & KIT_NAV_X), "trophies: Left/Right change the game");
     Screens_Trophies(&l, "", 0, 0);
     CHECK(!Kit_Get(&l, WID_TROPHY_GAME), "trophies: no machines, no stepper");
-    Screens_Updates(&l, false, false);
+    UpdatesLayout up = {.mode = UPV_IDLE, .whyNot = ""};
+    Screens_Updates(&l, &up);
     const KitItem *chk = Kit_Get(&l, WID_CHECK_NOW);
     CHECK(HasBackAndClose(&l) && ListIsSane(&l), "updates: Back, the X, buttons sane");
     CHECK(chk && strcmp(chk->label, "Check now") == 0 && Kit_CanFocus(chk), "updates: Check now");
-    Screens_Updates(&l, true, false);
+    up.checking = true;
+    Screens_Updates(&l, &up);
     chk = Kit_Get(&l, WID_CHECK_NOW);
     CHECK(chk && strcmp(chk->label, "Checking...") == 0 && (chk->flags & KIT_DISABLED), "updates: Checking... while it waits");
-    Screens_Updates(&l, false, true);
+    up.checking = false;
+    up.checksOff = true;
+    Screens_Updates(&l, &up);
     chk = Kit_Get(&l, WID_CHECK_NOW);
     CHECK(chk && (chk->flags & KIT_DISABLED) && chk->reason[0], "updates: checks switched off: faint, with the reason");
+    up.offerUpdate = true;
+    Screens_Updates(&l, &up);
+    CHECK(ListIsSane(&l) && Kit_Get(&l, WID_UPDATE_NOW) && Kit_CanFocus(Kit_Get(&l, WID_UPDATE_NOW)),
+          "updates: Update now works with checks off, when an update is known");
     Screens_Plain(&l);
     CHECK(HasBackAndClose(&l) && l.count == 2, "stats and the game form: Back and the X");
 }

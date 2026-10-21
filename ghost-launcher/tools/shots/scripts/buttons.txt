@@ -77,7 +77,7 @@ wait 3
 # Checking... until GitHub answers or 20 s pass.
 tap V
 wait 3
-expect app focus Check now
+expect app focus Update now
 shot updates-focus-check
 click 202 462
 wait 3

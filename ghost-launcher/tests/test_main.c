@@ -1529,6 +1529,7 @@ int main(void) {
     test_row_all();
     test_page_all();
     test_extras_all();
+    test_update_all();
 
     Cleanup();
     printf("%d checks, %d failures\n", gChecks, gFailures);

@@ -1,0 +1,21 @@
+# Update now waits for the games the launcher started: faint, saying
+# "Close your games first.", and U does nothing; once the game closes it
+# can run.
+wait 30
+tap ENTER
+wait 150
+expect launches 1
+tap V
+wait 3
+expect ui UPDATE
+expect app updwhy Close your games first.
+expect app look:Update now disabled
+tap U
+wait 3
+expect count 0 --update
+expect app updview idle
+shot update-game-running
+gameexit
+wait 10
+expect app updwhy 
+expect app look:Update now normal

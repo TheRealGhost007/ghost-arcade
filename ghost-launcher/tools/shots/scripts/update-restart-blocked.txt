@@ -1,0 +1,33 @@
+#! env SHOTS_ADMIN=0
+# Done, but a game started after it is still open: Restart the launcher is
+# faint ("Close your games first."), Enter does nothing; once the game
+# closes it works.
+wait 30
+tap V
+wait 3
+tap U
+wait 3
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Installing into ~/.local\n==> Version: 89abcdef0123456789abcdef0123456789abcdef\n==> Installed.\n
+update 0
+wait 20
+expect app updview done
+tap ESC
+wait 3
+expect ui LIST
+tap ENTER
+wait 150
+expect launches 1
+tap V
+wait 3
+expect app look:Restart the launcher disabled
+expect app focus Restart the launcher
+tap ENTER
+wait 5
+expect ui UPDATE
+expect count 0 restart
+shot update-restart-blocked
+gameexit
+wait 10
+expect app look:Restart the launcher focused
+tap ENTER
+quits

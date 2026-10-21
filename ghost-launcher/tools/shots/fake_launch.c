@@ -11,6 +11,7 @@ static char sLog[8192];
 static struct { bool running; char name[MANIFEST_FIELD_LEN]; double start; } sGame;
 static bool sExitPending = false;
 static struct { InstallStatus status; char name[MANIFEST_FIELD_LEN]; } sInstall;
+static struct { SelfUpdateRun run; int exitCode; bool cancelled; } sUpdate;
 
 static void Note(const char *what, const char *name, const char *extra) {
     size_t used = strlen(sLog);
@@ -89,3 +90,70 @@ void Launch_InstallAcknowledge(void) {
 
 void Launch_SyncDetached(void) { Note("sync", "scores --check-update", NULL); }
 void Launch_CheckUpdateNow(void) { Note("sync", "--check-update-now", NULL); }
+
+/* Update now: nothing runs. The script writes update.log itself (with
+ * `write`) and ends it with `update CODE`; the log is emptied on start, as
+ * the real one is. */
+void Launch_UpdateLogPath(char *out, size_t size) {
+    const char *xdgData = getenv("XDG_DATA_HOME"), *home = getenv("HOME");
+    if (xdgData && xdgData[0]) snprintf(out, size, "%s/ghost-launcher/update.log", xdgData);
+    else if (home && home[0]) snprintf(out, size, "%s/.local/share/ghost-launcher/update.log", home);
+    else if (size > 0) out[0] = '\0';
+}
+
+bool Launch_UpdateStart(const char *sourceDir, char *outError, int outErrorSize) {
+    if (sUpdate.run == SU_RUN_RUNNING) { snprintf(outError, outErrorSize, "An update is already running."); return false; }
+    char log[700];
+    Launch_UpdateLogPath(log, sizeof(log));
+    FILE *f = log[0] ? fopen(log, "w") : NULL;
+    if (f) fclose(f);
+    sUpdate.run = SU_RUN_RUNNING;
+    sUpdate.exitCode = 0;
+    sUpdate.cancelled = false;
+    Note("update", sourceDir, "--update");
+    return true;
+}
+
+void FakeLaunch_FinishUpdate(int exitCode) {
+    if (sUpdate.run != SU_RUN_RUNNING) return;
+    sUpdate.run = SU_RUN_ENDED;
+    sUpdate.exitCode = exitCode;
+}
+
+SelfUpdateRun Launch_UpdateStatus(int *exitCode, bool *cancelled) {
+    if (exitCode) *exitCode = sUpdate.exitCode;
+    if (cancelled) *cancelled = sUpdate.cancelled;
+    return sUpdate.run;
+}
+
+void Launch_UpdateAcknowledge(void) { if (sUpdate.run == SU_RUN_ENDED) sUpdate.run = SU_RUN_IDLE; }
+
+/* Stopping ends it at once, as a SIGTERM to install.sh would. */
+bool Launch_UpdateCancel(bool hard) {
+    if (sUpdate.run != SU_RUN_RUNNING) return false;
+    sUpdate.cancelled = true;
+    sUpdate.run = SU_RUN_ENDED;
+    sUpdate.exitCode = -1;
+    Note("update", "cancel", hard ? "hard" : NULL);
+    return true;
+}
+
+/* An update that is not this launcher's, as the script says (`elsewhere`):
+ * 0 none, 1 another launcher's (update.log is its output), 2 a terminal's. */
+static int sElsewhere;
+void FakeLaunch_SetElsewhere(int kind) { sElsewhere = kind; }
+
+bool Launch_UpdateElsewhere(UpdateElsewhere *out) {
+    if (out) {
+        out->running = sElsewhere != 0;
+        out->launcherLog = sElsewhere == 1;
+        out->startedAt = 0;
+    }
+    return sElsewhere != 0 && sUpdate.run != SU_RUN_RUNNING;
+}
+
+/* The launcher is not replaced: the log says it would have been. */
+bool Launch_RestartLauncher(const char *installedPath) {
+    Note("restart", installedPath && installedPath[0] ? installedPath : "ghost-launcher", NULL);
+    return true;
+}
