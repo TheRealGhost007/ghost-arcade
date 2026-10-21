@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <sys/file.h>
+#include <sys/syscall.h>
 
 #define MAX_ACTIVE_LAUNCHES 16
 
@@ -383,6 +384,16 @@ static void SayAndExit(const char *msg, int code) {
     _exit(code);
 }
 
+/* Closes every descriptor from `low` up, between fork and exec: close_range
+ * where the kernel has it (Linux 5.9 and newer), otherwise one at a time
+ * below `limit`. Both are plain system calls. */
+static void CloseFrom(int low, long limit) {
+#ifdef SYS_close_range
+    if (syscall(SYS_close_range, (unsigned)low, ~0U, 0) == 0) return;
+#endif
+    for (long fd = low; fd < limit; fd++) close((int)fd);
+}
+
 bool Launch_UpdateStart(const char *sourceDir, char *outError, int outErrorSize) {
     if (sUpdate.run == SU_RUN_RUNNING) {
         snprintf(outError, outErrorSize, "An update is already running.");
@@ -442,6 +453,11 @@ bool Launch_UpdateStart(const char *sourceDir, char *outError, int outErrorSize)
         return false;
     }
 
+    /* How far the child closes descriptors one at a time without close_range. */
+    long fdLimit = sysconf(_SC_OPEN_MAX);
+    if (fdLimit < 256) fdLimit = 256;
+    if (fdLimit > 65536) fdLimit = 65536;
+
     pid_t pid = fork();
     if (pid < 0) {
         snprintf(outError, outErrorSize, "Couldn't start the update: %s", strerror(errno));
@@ -455,13 +471,23 @@ bool Launch_UpdateStart(const char *sourceDir, char *outError, int outErrorSize)
     if (pid == 0) {
         /* Only async-signal-safe calls from here to exec. */
         setsid(); /* its own session and process group: no terminal, and Cancel stops all of it */
-        dup2(devnull, STDIN_FILENO);
-        dup2(log, STDOUT_FILENO);
-        dup2(log, STDERR_FILENO);
-        /* The lock stays held by the updater and all it starts (the other
-         * descriptors close on exec). */
-        int flags = fcntl(lock, F_GETFD);
-        if (flags >= 0) fcntl(lock, F_SETFD, flags & ~FD_CLOEXEC);
+        /* The updater gets 0, 1, 2 and the lock on 3, nothing else.
+         * Descriptors the launcher inherited without close-on-exec (from the
+         * desktop, a terminal or CI) would otherwise stay open in install.sh,
+         * make, the compiler and the tests. Copies above 9 come first, so
+         * moving one never overwrites another (a launcher started with 0, 1
+         * or 2 closed can have them there). */
+        int keepNull = fcntl(devnull, F_DUPFD, 10);
+        int keepLog = fcntl(log, F_DUPFD, 10);
+        int keepLock = fcntl(lock, F_DUPFD, 10);
+        if (keepNull < 0 || keepLog < 0 || keepLock < 0) SayAndExit("xx  Couldn't set up the updater.\n", 126);
+        dup2(keepNull, STDIN_FILENO);
+        dup2(keepLog, STDOUT_FILENO);
+        dup2(keepLog, STDERR_FILENO);
+        if (dup2(keepLock, 3) != 3) SayAndExit("xx  Couldn't hand the update lock to the updater.\n", 126);
+        /* dup2 leaves 0 to 3 open across exec, so the updater and all it
+         * starts hold the lock; everything above 3 goes. */
+        CloseFrom(4, fdLimit);
         if (chdir(sourceDir) != 0) SayAndExit("xx  Can't open the folder Ghost Arcade was built from.\n", 126);
         /* argv, not a shell string; the test suites stay on. */
         char *argv[] = {script, (char *)"--update", NULL};
