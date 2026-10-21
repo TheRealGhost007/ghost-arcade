@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "check.h"
+#include "version.h"
 #include "app.h"
 #include "backdrop.h"
 #include "comfort.h"
@@ -156,8 +157,8 @@ static void test_setup_rules(void) {
 
     Settings_Default(&s);
     GameConfig cfg = Setup_Config(&s);
-    CHECK(cfg.mode == MODE_MARATHON && cfg.width == 10 && cfg.height == 20 && !cfg.modernScoring,
-          "setup: the classic Marathon keeps the classic scoring");
+    CHECK(cfg.mode == MODE_MARATHON && cfg.width == 10 && cfg.height == 20 && cfg.modernScoring,
+          "setup: the classic Marathon plays the modern rules too (3.2.0)");
     s.setupMode = MODE_SPRINT;
     cfg = Setup_Config(&s);
     CHECK(cfg.mode == MODE_SPRINT && cfg.modernScoring, "setup: every other board scores the modern way");
@@ -293,6 +294,70 @@ static void test_back_stack(void) {
           "menu: Esc or B moves to Quit first; on Quit it quits");
 }
 
+/* The Updates screen's newest entry is this build (3.6.1): kChangelog's
+ * index 0 names BLOCKFALL_VERSION, its notes are the version's own array,
+ * the versions only go down, and README.md tells of the release. Read as
+ * text (changelog.h pulls in raylib through ui.h); make runs the tests
+ * from the game's directory. */
+static int ReadAll(const char *path, char *buf, size_t size) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return 0;
+    size_t n = fread(buf, 1, size - 1, f);
+    buf[n] = '\0';
+    fclose(f);
+    return (int)n;
+}
+
+static long VersionNumber(const char *v) {
+    int a = 0, b = 0, c = 0;
+    if (sscanf(v, "%d.%d.%d", &a, &b, &c) != 3) return -1;
+    return a * 10000L + b * 100L + c;
+}
+
+static void test_changelog(void) {
+    static char text[256 * 1024];
+    int n = ReadAll("src/changelog.h", text, sizeof(text));
+    CHECK(n > 0, "changelog: src/changelog.h reads (the tests run from the game's directory)");
+    if (n <= 0) return;
+    const char *list = strstr(text, "kChangelog[] = {");
+    CHECK(list != NULL, "changelog: kChangelog is there");
+    if (!list) return;
+    char first[16] = "", notes[32] = "", want[32];
+    const char *e = strstr(list, "{\"");
+    CHECK(e && sscanf(e, "{\"%15[^\"]\", \"%*[^\"]\", %31[^}]}", first, notes) == 2,
+          "changelog: the newest entry reads as {version, date, notes}");
+    CHECK(strcmp(first, BLOCKFALL_VERSION) == 0, "changelog: the newest entry is BLOCKFALL_VERSION's");
+    snprintf(want, sizeof(want), "kNotes_%s", BLOCKFALL_VERSION);
+    for (char *c = want; *c; c++) if (*c == '.') *c = '_';
+    CHECK(strcmp(notes, want) == 0, "changelog: the newest entry lists its own version's notes");
+    char decl[64];
+    snprintf(decl, sizeof(decl), "%s[] = {", want);
+    const char *arr = strstr(text, decl);
+    const char *end = arr ? strstr(arr, "NULL,\n};") : NULL;
+    CHECK(arr && end && arr < list, "changelog: the notes are declared above the list and end with NULL");
+    int strings = 0;
+    for (const char *q = arr ? strchr(arr, '\n') : NULL; q && end && q < end; q = strchr(q + 1, '\n'))
+        if (strncmp(q + 1, "    \"", 5) == 0) strings++;
+    CHECK(strings >= 1, "changelog: the newest release has at least one note");
+
+    long prev = 1000000L;
+    bool down = true;
+    int entries = 0;
+    for (const char *q = list; (q = strstr(q, "{\"")) != NULL; q += 2) {
+        char v[16];
+        if (sscanf(q, "{\"%15[^\"]\"", v) != 1) break;
+        long num = VersionNumber(v);
+        if (num < 0 || num >= prev) down = false;
+        prev = num;
+        entries++;
+    }
+    CHECK(entries >= 18 && down, "changelog: every version listed once, newest first");
+
+    static char readme[256 * 1024];
+    CHECK(ReadAll("README.md", readme, sizeof(readme)) > 0 && strstr(readme, BLOCKFALL_VERSION) != NULL,
+          "changelog: README.md tells of this release");
+}
+
 void test_menus_all(void) {
     test_numbers();
     test_title_drop();
@@ -302,4 +367,5 @@ void test_menus_all(void) {
     test_preview();
     test_skyline();
     test_back_stack();
+    test_changelog();
 }

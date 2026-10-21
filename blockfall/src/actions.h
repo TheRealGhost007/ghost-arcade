@@ -51,6 +51,8 @@ typedef struct {
 typedef struct {
     bool left, right, softDrop;          /* held */
     bool rotate, rotateLeft, hardDrop, hold, pause; /* pressed this frame */
+    bool rotateHalf;                     /* pressed this frame: Rotate 180 (3.2.0; nothing until a key is set) */
+    bool undo;                           /* pressed this frame: Undo (3.5.0; the Practice room alone acts on it) */
     bool restartKey, restartPad;         /* your Restart keys; your Restart buttons (View) */
     bool back;                           /* the Pause row's second key or button, and Esc: the pause menu, then back */
     bool mute, volumeDown, volumeUp, fps;

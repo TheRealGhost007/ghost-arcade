@@ -6,8 +6,12 @@ tap ENTER
 wait 3
 expect screen SETUP
 expect app focus Power
-tap DOWN
+# (3.4.0: Dig sits under Power, so Down would pick it; the pointer moves the
+# bar onto Width without picking a mode)
+mouse 150 388
+wait 2
 expect app focus Width
+expect app mode Power
 tap RIGHT
 wait 2
 expect file .config/blockfall/config.ini setup_width=13
@@ -27,6 +31,7 @@ wait 3
 expect screen MENU
 tap ENTER
 wait 3
+tap DOWN
 tap DOWN
 tap DOWN
 tap LEFT

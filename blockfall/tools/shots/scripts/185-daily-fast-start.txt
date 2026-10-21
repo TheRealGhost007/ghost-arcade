@@ -1,0 +1,17 @@
+#! env SHOTS_DAILY=20261025 SHOTS_SETUP=0,0,10,20
+# 25 October 2026 is the fast start: Ultra on the classic board from level
+# 8, the pieces falling at that level's pace from the first one.
+wait 10
+expect app dailysub Fast start, no run yet
+tap UP
+tap UP
+tap ENTER
+wait 4
+expect app daily:twist Fast start
+tap ENTER
+wait 12
+expect screen PLAYING
+expect app daily on
+expect game mode Ultra
+expect game level 8
+shot 185-daily-fast-run

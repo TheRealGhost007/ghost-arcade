@@ -45,9 +45,9 @@ bool LRect_Inside(LRect inner, LRect outer);
 typedef enum { PLACE_SIDE, PLACE_STRIP } PanelPlace;
 
 /* What the panel shows: four stats, the first the mode's main number
- * (Marathon and Power the score, Sprint the lines left, Ultra the time left,
- * Zen the fresh starts). */
-typedef enum { STAT_SCORE, STAT_LEVEL, STAT_LINES, STAT_BEST, STAT_TIME, STAT_TIME_LEFT, STAT_LINES_LEFT, STAT_FRESH, STAT_KINDS } StatKind;
+ * (Marathon, Power and Dig the score, Sprint the lines left, Ultra the time
+ * left, Zen the fresh starts; Dig shows its Dug count: 3.4.0). */
+typedef enum { STAT_SCORE, STAT_LEVEL, STAT_LINES, STAT_BEST, STAT_TIME, STAT_TIME_LEFT, STAT_LINES_LEFT, STAT_FRESH, STAT_DUG, STAT_UNDO, STAT_KINDS } StatKind;
 #define HUD_STATS 4
 typedef struct {
     StatKind stat[HUD_STATS];
@@ -55,9 +55,15 @@ typedef struct {
     int pipsStat;  /* the stat with the ten level pips under it, or -1 */
     bool chips;    /* combo and back-to-back (modern scoring) */
     bool bars;     /* Freeze and Slow (Power) */
+    bool rise;     /* the next garbage row's warning bar (Dig, 3.4.0) */
     bool card;     /* the controls card is wanted */
+    int queue;     /* small pieces shown after Next, 0 to QUEUE_SHOWN_MAX (3.2.0; 0: the Next box as it always was) */
 } HudSpec;
 HudSpec Layout_Spec(GameMode mode, bool modernScoring, bool showCard);
+/* The spec for a game as it is: its mode's, and in the Practice room
+ * (3.5.0) the pieces that can be taken back (STAT_UNDO, "Undos left") in
+ * Best's place, since a practice run has no best. */
+HudSpec Layout_SpecFor(const Game *g, bool showCard);
 const char *Layout_StatLabel(StatKind k);
 
 /* The controls card: ten rows (the eight play actions, with Pause's two
@@ -70,6 +76,19 @@ const char *Layout_StatLabel(StatKind k);
 #define PREVIEW_CELL 16
 #define PREVIEW_BOX_H 80
 #define STRIP_BOX_W 96
+/* The Next queue (3.2.0): after the large next piece, up to five small
+ * ones. At the side they sit in a row under it, making the Next box
+ * QUEUE_ROW_H taller (Hold and the stats move down by that); in the strip
+ * they sit in two columns to its right, making the box QUEUE_STRIP_W wider.
+ * Each takes a slot of 4x2 small cells; the cell shrinks from 8 px until
+ * the slots fit (never under QUEUE_MIN_CELL). */
+#define QUEUE_SHOWN_MAX 5
+#define QUEUE_ROW_H 24
+#define QUEUE_STRIP_W 52
+#define QUEUE_CELL 8
+#define QUEUE_MIN_CELL 4
+#define QUEUE_GAP 4
+#define QUEUE_PAD 8
 #define STRIP_SLOT_W 135 /* a status item's slot in the strip's status row */
 
 /* Where a piece's four blocks sit in a Next or Hold box: PREVIEW_CELL px
@@ -83,10 +102,14 @@ typedef struct {
     int cell;                      /* block size in px */
     int boardX, boardY, boardW, boardH; /* the well's inside */
     LRect panel;                   /* the side panel or the strip */
-    LRect next, hold;              /* the preview boxes */
+    LRect next, hold;              /* the preview boxes (next holds the queue's slots too when there are any) */
+    LRect nextBig;                 /* the part of the Next box the large piece is centred in (the whole box without a queue) */
+    LRect queue;                   /* where the queue's small pieces go; empty without a queue */
+    int queueSlots, queueCols, queueCell; /* how many slots, in how many columns, with cells this big */
     LRect stat[HUD_STATS];         /* label, value and (for one) the pips */
     int statSize[HUD_STATS];       /* the value's size: 32 or 16 */
     LRect combo, b2b, freeze, slow;/* status items; empty when the mode has none */
+    LRect rise;                    /* Dig's "Next row" warning bar (3.4.0); empty elsewhere */
     bool showCard;
     LRect card;                    /* divider and rows; empty when not shown */
     int cardCols, cardRowsPerCol, cardRowY;
@@ -98,6 +121,11 @@ int Layout_SideCell(int w, int h);
 int Layout_StripCell(int w, int h);
 PanelPlace Layout_PlaceOf(int w, int h, int *cell);
 PlayLayout Layout_Play(int w, int h, const HudSpec *spec);
+/* The queue's slot i (0 = the piece after Next), a box of 4x2 small cells (3.2.0). */
+LRect Layout_QueueSlot(const PlayLayout *l, int i);
+/* Where a small piece's four blocks sit in slot i: queueCell px each,
+ * unturned, centred in the slot. */
+void Layout_QueueCells(const PlayLayout *l, int i, PieceType piece, int outX[4], int outY[4]);
 LRect Layout_Well(const PlayLayout *l);      /* the well's inside */
 LRect Layout_WellFrame(const PlayLayout *l); /* with its frame */
 /* Row i of the controls card: its label's left edge and its keys' right
@@ -148,5 +176,80 @@ PopupPlace Layout_Popup(const PlayLayout *l, const char *text, int cx, int cy, i
 
 /* The pause menu and the results card are centred on the whole window, so
  * they fit every board whatever its shape (pausemenu.h, results.h). */
+
+/* ------------------------------------------- the menus' lines that must fit
+ * (3.6.1). Where four menu screens put text whose width depends on the
+ * words, so the tests can check every word the screens can show against
+ * the 40..580 margin and against its neighbours, measured as the screens
+ * measure (Ui_Measure). */
+
+/* The main menu's "Your bests": a header line under Quit, then the five
+ * modes (Marathon, Sprint, Ultra, Power, Dig) two to a line on three lines,
+ * each label at the left of its column and its value right-aligned at the
+ * column's right edge, all at 8 px. Until 3.6.1 they were three columns of
+ * 160 px, too narrow for "Marathon" and "no run yet" side by side. The
+ * block ends above the skyline at its tallest. */
+#define MENU_ROWS_BOTTOM 508   /* Quit's bottom edge */
+#define MENU_SKYLINE_TOP 568   /* SKY_BOTTOM - SKY_ROWS * SKY_CELL (backdrop.h) */
+#define MENU_BESTS_X 60
+#define MENU_BESTS_Y 516       /* the header */
+#define MENU_BESTS_FIRST 16    /* from the header to the first modes' line */
+#define MENU_BESTS_PITCH 14
+#define MENU_BESTS_COLS 2
+#define MENU_BESTS_COL_PITCH 280
+#define MENU_BESTS_COL_W 220
+#define MENU_BESTS_MODES 5
+void Layout_MenuBest(int i, int *labelX, int *valueRight, int *y);
+
+/* The Stats screen's three record tiles: a label, the value at 32 px and
+ * under it the day it was set; under All modes the mode on its own line and
+ * the day on the next (one line, "Marathon, 2026-10-18", ran into the next
+ * tile until 3.6.1). Everything in a tile keeps STATS_TILE_W, so 8 px stay
+ * clear before the next, and the third ends at 580. */
+#define STATS_TILE_X0 40
+#define STATS_TILE_PITCH 182
+#define STATS_TILE_W 174
+#define STATS_TILE_Y 432
+#define STATS_TILE_VALUE_Y 448
+#define STATS_TILE_SUB_Y 488
+#define STATS_TILE_SUB_PITCH 14
+#define STATS_RULE2_Y 520      /* the rule under the tiles: 512 until 3.6.1 */
+int Layout_StatsTileX(int i);
+
+/* The Practice room's rows: plates inside the margin (they ran from 20 to
+ * 600 until 3.6.1), the label at the left at 16 px and a stepper ("< value
+ * >", each arrow in its own KIT_ARROW_W cell) or an Off/On toggle at the
+ * right, 8 px clear of the longest label and of the plate's right end. */
+#define PRACTICE_ROW_X 40
+#define PRACTICE_ROW_W 540
+#define PRACTICE_LABEL_X 52
+#define PRACTICE_STEPPER_X 346
+#define PRACTICE_STEPPER_W 226
+#define PRACTICE_TOGGLE_X 352
+#define PRACTICE_TOGGLE_W 144
+
+/* Play setup: the six mode rows, the Size header and its two rows on the
+ * left; the right column ends at 580 (596 until 3.6.1). The two best lines
+ * there are the word ("Your best", "World best"), then your place or who
+ * holds the world best at SETUP_BEST_MID_X, then the value right-aligned
+ * at the column's right edge. */
+#define SETUP_LEFT_X 24
+#define SETUP_LEFT_W 286
+#define SETUP_ROW_H 32
+#define SETUP_MODE_Y 136
+#define SETUP_MODE_PITCH 36
+#define SETUP_HEAD_DY 18      /* a header's text sits this far above its first row */
+#define SETUP_SIZE_Y 376      /* 372 until 3.6.1, its header 6 px under Dig's row */
+#define SETUP_SIZE_PITCH 36
+#define SETUP_SCORES_Y 452    /* the Scores button, under Height */
+#define SETUP_RIGHT_X 334
+#define SETUP_RIGHT_W 246
+#define SETUP_BESTS_Y 498
+#define SETUP_BEST_MID_X 432  /* "World best" ends at 423 */
+/* The words between a best line's word and its value, cut to fit 8 px
+ * clear of the value: a name keeps as many letters as fit and ends in a
+ * full stop ("The Real."), a place drops its " here" ("#3"); "" when not
+ * even that fits. Returns the width it takes. */
+int Layout_SetupMiddle(const char *middle, bool name, const char *value, MeasureFn measure, char *out, int size);
 
 #endif

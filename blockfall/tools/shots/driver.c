@@ -16,6 +16,13 @@
  * SHOTS_WIPE=1 (`#! env SHOTS_WIPE=1`): the scripts written before it shoot
  * the first frames of a run as they always did.
  *
+ * The Daily challenge (3.6.0) is always the same day here: the shared daily
+ * code's Daily_Seed and Daily_Mode are wrapped to answer for SHOTS_DAILY
+ * (YYYYMMDD, 20261020 unless set), so the twist and the pieces repeat. A
+ * daily run keeps the day's seed (Game_InitDaily and a daily Game_Restart
+ * are not reseeded). SHOTS_DAILYLAUNCH=1 starts the game with --daily, as
+ * Ghost Launcher's D key does.
+ *
  * Particles and other effects draw from raylib's GetRandomValue, which the
  * harness answers from its own sequence: it starts again at every run start
  * (Game_InitConfig, Game_Restart), so what a run looks like does not depend
@@ -31,11 +38,15 @@
  *   focus on|off | write PATH TEXT | close | quits | log TEXT
  *   seed N                    seed for the next Game_Init/InitConfig/Restart
  *   game CMD ...              edit the running Game between two frames:
- *       clear | row Y PATTERN (Y=0 bottom row; . empty, IOTSZJL, # mixed)
- *       piece T [ROT [X [Y]]] | next T | hold T|none
+ *       clear | row Y PATTERN (Y=0 bottom row; . empty, IOTSZJL, # mixed,
+ *                              G garbage: Dig, 3.4.0)
+ *       piece T [ROT [X [Y]]] | next T | queue T,O,S,Z,J | hold T|none
+ *       queuepower I NAME [CELL]  (queued piece I, 1 to 5, carries NAME)
  *       power NAME [CELL] | nextpower NAME [CELL] | holdpower NAME [CELL]
  *       score N | level N | lines N | combo N | b2b 0|1 | elapsed S
  *       timeleft S | freeze S | slow S | best N | holdused 0|1
+ *       rise S | dug N            (Dig: the next garbage row comes in S
+ *                                  seconds; the rows dug so far)
  *   shot NAME
  *   tapshot KEY NAME          KEY goes down and that same frame is shot (the
  *                             frame a press acts: a clear's frame 1); it goes
@@ -43,6 +54,13 @@
  *   expect screen NAME        MENU SETUP SETTINGS SCORES UPDATES HOWTO PLAYING
  *   expect game KEY VALUE     phase score level lines filled combo mode w h
  *                             current px py won zen hold power hidden pieces
+ *                             queue (the pieces after next, '|'-joined:
+ *                             the rules' five, 3.2.0) tspin (none mini
+ *                             full) perfect (0/1) dug rises risein (%.2f s
+ *                             to the next rise) garbage (rows holding
+ *                             garbage) gaps (the garbage rows' gap columns,
+ *                             bottom first, '|'-joined; 'x' a row that is
+ *                             not plain garbage: Dig, 3.4.0)
  *   expect view KEY VALUE     what the play screen was handed: best unit
  *                             newbest focuslost chip sound volume card
  *                             (card is the controls card's eight rows of
@@ -50,25 +68,45 @@
  *                             hard hold pause restart; padcard the same for
  *                             the pad's caps)
  *                             pad (the card shows pad buttons) passed (Best
- *                             was passed) showcard
+ *                             was passed) showcard intensity (the music's,
+ *                             %.2f: danger.h)
  *   expect hud KEY VALUE      what the play screen last drew: place (side or
  *                             strip), cell, card (1 shown), callouts (top to
  *                             bottom, '|'-joined, or none), popup (the newest
- *                             or none), shown (the score as drawn)
+ *                             or none), shown (the score as drawn), danger
+ *                             (0/1), dangerframe (the frame's redness, %.2f),
+ *                             queue (small pieces drawn after Next, by
+ *                             name, '|'-joined, or none: 3.2.0),
+ *                             free (rows clear above the stack), nextblocked
+ *                             (the next piece's red outline), timer (Sprint's
+ *                             clock as drawn, "1:12.40"), split (its split
+ *                             line, "10: -1.4 s", or none), splitgold,
+ *                             linesgold (0/1), risefill (Dig's Next row bar
+ *                             as drawn, %.2f), risewarn (it was red, 0/1),
+ *                             risedrop (px the stack was drawn low after a
+ *                             rise: 3.4.0)
  *   expect feel KEY VALUE     how play moved in the last frame (feel.h):
- *                             stage (none flash zip drop), rows, total (the
- *                             clear's length, %.2f s), lift (px, the most a
- *                             falling row is above its place), dx dy (px the
+ *                             stage (none flash zip sweep drop), rows, total
+ *                             (the clear's length, %.2f s), lift (px, the most
+ *                             a falling row is above its place), dx dy (px the
  *                             piece is drawn from its place), pop, fill (%.2f),
  *                             settle, bits (pixels in flight, or >0), ghost
  *                             flight slide ready squash smear impact bevel
- *                             streak quadframe (0/1), cue (none ready go)
+ *                             streak quadframe (0/1), cue (none ready go),
+ *                             power (none bomb-blink bomb-shock laser-charge
+ *                             laser-beam thaw: the power-up show drawn last),
+ *                             frost (%.2f), afterimages (the Slow's, drawn),
+ *                             sweepbar (cells from the left wall, or -1.0)
  *   expect awaiting 0|1       Settings is waiting for a key or a button
  *   expect scores KEY VALUE   mode board count world period blink (the
  *                             blinking row, 0-based, or -1) oldbest
  *   expect fullscreen 0|1
  *   expect cursor arrow|hand  the pointer the game last asked for
- *   expect app KEY VALUE      main_wrap.c's drv_app: pause (open/closed),
+ *   expect app KEY VALUE      main_wrap.c's drv_app: daily (on/off: the run
+ *                             is a daily), dailysub (the menu item's second
+ *                             line), daily:KEY (the Daily screen: twist date
+ *                             datewords best rank runs streak beststreak
+ *                             worldrank here world), pause (open/closed),
  *                             pausepage (main/settings), dialog (its title or
  *                             none), results (on/off), resultsdone, againchip
  *                             (the results card's "again" cap as the last frame drew it, or none), card:KEY
@@ -87,6 +125,7 @@
  *                             dialogset, key:ACTION:SLOT and pad:ACTION:SLOT
  *                             (config.ini's names; '_' for spaces), das, arr,
  *                             softdrop, grid, patterns, autopause, showhowto,
+ *                             nextqueue (Settings > Game's Next queue, 3.2.0),
  *                             strip (the Feel strip's piece column);
  *                             How to play: howtopage, howtofirst, demopress,
  *                             democlears ('1,4' or none), demovariant,
@@ -121,8 +160,9 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include "daily.h"
 
-int blockfall_main(void);
+int blockfall_main(int argc, char **argv);
 
 void __real_EndDrawing(void);
 void __real_EndTextureMode(void);
@@ -135,6 +175,10 @@ RenderTexture2D __real_LoadRenderTexture(int width, int height);
 void __real_Game_Init(Game *g, uint64_t seed, long highScore, int highLevel, int highLines);
 void __real_Game_InitConfig(Game *g, GameConfig cfg, uint64_t seed, long highScore, int highLevel, int highLines);
 void __real_Game_Restart(Game *g, uint64_t seed);
+void __real_Game_InitPractice(Game *g, GameConfig cfg, PracticeRules rules, uint64_t seed);
+void __real_Game_InitDaily(Game *g, GameConfig cfg, DailyRules rules, uint64_t seed);
+uint64_t __real_Daily_Seed(void);
+const char *__real_Daily_Mode(void);
 void __real_Render_Frame(const Game *g, const RenderView *view);
 void __real_ScoresView_Draw(ScoresViewInfo *v);
 void __real_Wipe_Start(Wipe *w, bool motion);
@@ -514,7 +558,7 @@ static void DoGame(const Event *e) {
         const char *pat = n >= 2 ? b : "";
         for (int x = 0; x < g->board.w; x++) {
             char ch = x < (int)strlen(pat) ? pat[x] : '.';
-            int t = ch == '#' ? (x * 3 + y) % PIECE_COUNT : PieceByName((char[]){ch, 0});
+            int t = ch == '#' ? (x * 3 + y) % PIECE_COUNT : (ch == 'G' || ch == 'g' ? (int)CELL_GARBAGE : PieceByName((char[]){ch, 0}));
             g->board.cells[row][x] = (int8_t)(ch == '.' ? CELL_EMPTY : (t < 0 ? CELL_EMPTY : t));
         }
     } else if (strcmp(cmd, "piece") == 0 && n >= 1) {
@@ -529,7 +573,18 @@ static void DoGame(const Event *e) {
         g->lowestRow = g->py;
         g->grounded = false;
         if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py)) { sGameFails++; Log("GAME FAIL (line %d): piece does not fit", e->arg); }
-    } else if (strcmp(cmd, "next") == 0 && n >= 1) g->next = (PieceType)PieceByName(a);
+    } else if (strcmp(cmd, "next") == 0 && n >= 1) g->next = g->queue[0] = (PieceType)PieceByName(a);
+    else if (strcmp(cmd, "queuepower") == 0 && n >= 2) { /* queuepower I NAME [CELL]: a queued piece's power-up (3.2.0) */
+        int i = atoi(a);
+        if (i >= 1 && i < QUEUE_MAX) { g->queuePower[i] = PowerByName(b); g->queueCell[i] = n >= 3 ? atoi(c) : 0; }
+    }
+    else if (strcmp(cmd, "queue") == 0 && n >= 1) { /* queue T,O,S,...: the pieces after next (3.2.0) */
+        int i = 1;
+        for (char *tok = strtok(a, ","); tok && i < QUEUE_MAX; tok = strtok(NULL, ","), i++) {
+            int t = PieceByName(tok);
+            if (t >= 0) g->queue[i] = (PieceType)t;
+        }
+    }
     else if (strcmp(cmd, "hold") == 0 && n >= 1) g->hold = strcmp(a, "none") == 0 ? (PieceType)-1 : (PieceType)PieceByName(a);
     else if (strcmp(cmd, "power") == 0 && n >= 1) { g->curPower = PowerByName(a); g->curPowerCell = n >= 2 ? atoi(b) : 0; }
     else if (strcmp(cmd, "nextpower") == 0 && n >= 1) { g->nextPower = PowerByName(a); g->nextPowerCell = n >= 2 ? atoi(b) : 0; }
@@ -545,6 +600,13 @@ static void DoGame(const Event *e) {
     else if (strcmp(cmd, "freeze") == 0) g->freezeTimer = (float)atof(a);
     else if (strcmp(cmd, "slow") == 0) g->slowTimer = (float)atof(a);
     else if (strcmp(cmd, "holdused") == 0) g->holdUsed = atoi(a) != 0;
+    else if (strcmp(cmd, "dug") == 0) g->dug = atoi(a);
+    else if (strcmp(cmd, "rise") == 0) { /* Dig: the next row in S seconds */
+        float s = (float)atof(a);
+        if (g->digInterval <= 0.0f) g->digInterval = Game_DigInterval(g->elapsed);
+        g->digTimer = g->digInterval - s;
+        if (g->digTimer < 0.0f) g->digTimer = 0.0f;
+    }
     else { sGameFails++; Log("GAME FAIL (line %d): unknown game command %s", e->arg, e->text); return; }
     if (sVerbose) Log("game %s", e->text);
 }
@@ -573,6 +635,30 @@ static void GameValue(const char *key, char *out, size_t n) {
     else if (strcmp(key, "elapsed") == 0) snprintf(out, n, "%.2f", g->elapsed);
     else if (strcmp(key, "timeleft") == 0) snprintf(out, n, "%.2f", g->timeLeft);
     else if (strcmp(key, "next") == 0) snprintf(out, n, "%s", Tetromino_Name(g->next));
+    else if (strcmp(key, "queue") == 0) {
+        out[0] = '\0';
+        for (int i = 1; i < QUEUE_MAX; i++) {
+            size_t used = strlen(out);
+            snprintf(out + used, n - used, "%s%s", i > 1 ? "|" : "", Tetromino_Name(g->queue[i]));
+        }
+    }
+    else if (strcmp(key, "tspin") == 0) snprintf(out, n, "%s", g->lastTSpin == TSPIN_FULL ? "full" : (g->lastTSpin == TSPIN_MINI ? "mini" : "none"));
+    else if (strcmp(key, "perfect") == 0) snprintf(out, n, "%d", (int)g->lastPerfectClear);
+    else if (strcmp(key, "dug") == 0) snprintf(out, n, "%d", g->dug);
+    else if (strcmp(key, "rises") == 0) snprintf(out, n, "%d", g->digRises);
+    else if (strcmp(key, "risein") == 0) snprintf(out, n, "%.2f", Game_DigSecondsLeft(g));
+    else if (strcmp(key, "garbage") == 0) snprintf(out, n, "%d", Game_GarbageRows(&g->board));
+    else if (strcmp(key, "gaps") == 0) { /* the garbage rows' gap columns from the floor up */
+        out[0] = '\0';
+        int total = Board_TotalH(&g->board);
+        for (int row = total - 1; row >= BOARD_HIDDEN && Board_RowHasGarbage(&g->board, row); row--) {
+            size_t used = strlen(out);
+            int gap = Game_GarbageGap(&g->board, row);
+            if (gap >= 0) snprintf(out + used, n - used, "%s%d", used ? "|" : "", gap);
+            else snprintf(out + used, n - used, "%sx", used ? "|" : "");
+        }
+        if (!out[0]) snprintf(out, n, "none");
+    }
     else if (strcmp(key, "hidden") == 0) { /* blocks in the rows above the well */
         int c = 0;
         for (int y = 0; y < BOARD_HIDDEN; y++) for (int x = 0; x < g->board.w; x++) if (g->board.cells[y][x] != CELL_EMPTY) c++;
@@ -610,6 +696,7 @@ static void ViewValue(const char *key, char *out, size_t n) {
     else if (strcmp(key, "pad") == 0) snprintf(out, n, "%d", (int)v->padHints);
     else if (strcmp(key, "passed") == 0) snprintf(out, n, "%d", (int)v->passedBest);
     else if (strcmp(key, "showcard") == 0) snprintf(out, n, "%d", (int)v->showControls);
+    else if (strcmp(key, "intensity") == 0) snprintf(out, n, "%.2f", v->intensity);
     else snprintf(out, n, "?unknown %.40s", key);
 }
 
@@ -623,6 +710,18 @@ static void HudValue(const char *key, char *out, size_t n) {
     else if (strcmp(key, "card") == 0) snprintf(out, n, "%d", (int)r->layout.showCard);
     else if (strcmp(key, "shown") == 0) snprintf(out, n, "%ld", r->shownScore);
     else if (strcmp(key, "popup") == 0) snprintf(out, n, "%s", r->popups ? r->popup : "none");
+    else if (strcmp(key, "danger") == 0) snprintf(out, n, "%d", (int)r->dangerOn);
+    else if (strcmp(key, "dangerframe") == 0) snprintf(out, n, "%.2f", r->dangerFrame);
+    else if (strcmp(key, "free") == 0) snprintf(out, n, "%d", r->freeRows);
+    else if (strcmp(key, "nextblocked") == 0) snprintf(out, n, "%d", (int)r->nextBlocked);
+    else if (strcmp(key, "timer") == 0) snprintf(out, n, "%s", r->timer[0] ? r->timer : "none");
+    else if (strcmp(key, "split") == 0) snprintf(out, n, "%s", r->split[0] ? r->split : "none");
+    else if (strcmp(key, "splitgold") == 0) snprintf(out, n, "%d", (int)r->splitGold);
+    else if (strcmp(key, "linesgold") == 0) snprintf(out, n, "%d", (int)r->linesGold);
+    else if (strcmp(key, "risefill") == 0) snprintf(out, n, "%.2f", r->riseFill);
+    else if (strcmp(key, "risewarn") == 0) snprintf(out, n, "%d", (int)r->riseWarn);
+    else if (strcmp(key, "risedrop") == 0) snprintf(out, n, "%d", r->riseDrop);
+    else if (strcmp(key, "queue") == 0) snprintf(out, n, "%s", r->queue > 0 ? r->queuePieces : "none");
     else if (strcmp(key, "callouts") == 0) {
         if (!r->callouts) { snprintf(out, n, "none"); return; }
         out[0] = '\0';
@@ -637,10 +736,14 @@ static void HudValue(const char *key, char *out, size_t n) {
 /* How play moved in the last frame (feel.h, read through Render_Inspect). */
 static void FeelValue(const char *key, char *out, size_t n) {
     const RenderInspect *r = &sInspect;
-    static const char *const kStages[] = {"none", "flash", "zip", "drop"};
+    static const char *const kStages[] = {"none", "flash", "zip", "sweep", "drop"};
     static const char *const kCues[] = {"none", "ready", "go", "count"};
     if (!sHaveView) snprintf(out, n, "noview");
-    else if (strcmp(key, "stage") == 0) snprintf(out, n, "%s", r->clearStage >= 0 && r->clearStage < 4 ? kStages[r->clearStage] : "?");
+    else if (strcmp(key, "stage") == 0) snprintf(out, n, "%s", r->clearStage >= 0 && r->clearStage < 5 ? kStages[r->clearStage] : "?");
+    else if (strcmp(key, "power") == 0) snprintf(out, n, "%s", r->power);
+    else if (strcmp(key, "frost") == 0) snprintf(out, n, "%.2f", r->frost);
+    else if (strcmp(key, "afterimages") == 0) snprintf(out, n, "%d", r->afterimages);
+    else if (strcmp(key, "sweepbar") == 0) snprintf(out, n, "%.1f", r->sweepBar);
     else if (strcmp(key, "rows") == 0) snprintf(out, n, "%d", r->clearRows);
     else if (strcmp(key, "total") == 0) snprintf(out, n, "%.2f", r->clearTotal);
     else if (strcmp(key, "lift") == 0) snprintf(out, n, "%d", r->lift);
@@ -1006,12 +1109,50 @@ void __wrap_Game_InitConfig(Game *g, GameConfig cfg, uint64_t seed, long hs, int
     sRandState = RAND_SEED; /* a run's effects do not depend on the menus before it */
     Where("Game_InitConfig");
 }
-void __wrap_Game_Restart(Game *g, uint64_t seed) {
+/* A Practice room run (3.5.0): seeded like any other. */
+void __wrap_Game_InitPractice(Game *g, GameConfig cfg, PracticeRules rules, uint64_t seed) {
     (void)seed;
     sGame = g;
-    __real_Game_Restart(g, NextSeed());
+    __real_Game_InitPractice(g, cfg, rules, NextSeed());
+    sRandState = RAND_SEED;
+    Where("Game_InitPractice");
+}
+void __wrap_Game_Restart(Game *g, uint64_t seed) {
+    sGame = g;
+    /* A daily (3.6.0) restarts on the day's seed: the pieces are the point. */
+    __real_Game_Restart(g, g->daily.on ? seed : NextSeed());
     sRandState = RAND_SEED;
     Where("Game_Restart");
+}
+/* A Daily challenge run (3.6.0): the day's seed as it is (the wrapped
+ * Daily_Seed below fixes the day), the effects' sequence starting over. */
+void __wrap_Game_InitDaily(Game *g, GameConfig cfg, DailyRules rules, uint64_t seed) {
+    sGame = g;
+    __real_Game_InitDaily(g, cfg, rules, seed);
+    sRandState = RAND_SEED;
+    Where("Game_InitDaily");
+}
+/* The shared daily code answers for SHOTS_DAILY (YYYYMMDD), 20261020 by
+ * default, whatever the clock says. */
+static void ShotsDay(int *y, int *m, int *d) {
+    const char *s = getenv("SHOTS_DAILY");
+    int date = s && s[0] ? atoi(s) : 20261020;
+    if (date < 19700101) date = 20261020;
+    *y = date / 10000;
+    *m = (date / 100) % 100;
+    *d = date % 100;
+}
+uint64_t __wrap_Daily_Seed(void) {
+    int y, m, d;
+    ShotsDay(&y, &m, &d);
+    return Daily_SeedForDate(y, m, d);
+}
+const char *__wrap_Daily_Mode(void) {
+    static char buf[24];
+    int y, m, d;
+    ShotsDay(&y, &m, &d);
+    Daily_ModeForDate(y, m, d, buf, sizeof(buf));
+    return buf;
 }
 void __wrap_Render_Frame(const Game *g, const RenderView *v) {
     sView = *v;
@@ -1077,7 +1218,11 @@ int main(void) {
     LoadScript(script);
     SetTraceLogLevel(LOG_WARNING);
     sStarted = true;
-    int rc = blockfall_main();
+    /* As Ghost Launcher starts it: plain, or with --daily (SHOTS_DAILYLAUNCH=1). */
+    char *gameArgv[3] = {"blockfall", NULL, NULL};
+    int gameArgc = 1;
+    if (getenv("SHOTS_DAILYLAUNCH")) gameArgv[gameArgc++] = "--daily";
+    int rc = blockfall_main(gameArgc, gameArgv);
     sStarted = false; /* its App is still there, but the game is gone */
     bool quitEarly = !sClosing;
     sGame = NULL; /* it lived on blockfall_main's stack, which is gone now */

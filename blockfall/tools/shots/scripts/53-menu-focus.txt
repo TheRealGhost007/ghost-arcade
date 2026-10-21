@@ -1,4 +1,4 @@
-# The main menu's buttons: every focus with the gliding bar, a frame in the
+# The main menu's buttons (eight since 3.6.0's Daily challenge, above Quit like 3.3.0's Stats): every focus with the gliding bar, a frame in the
 # middle of a glide, a press held (pressed look) and its flash, hover with the
 # mouse, a click, Up wrapping to Quit, and the pad's hints after pad use.
 wait 60
@@ -23,6 +23,14 @@ wait 8
 shot 53-focus-updates
 tap DOWN
 wait 8
+expect app focus Stats
+shot 53-focus-stats
+tap DOWN
+wait 8
+expect app focus Daily challenge
+shot 53-focus-daily
+tap DOWN
+wait 8
 expect app focus Quit
 shot 53-focus-quit
 tap DOWN
@@ -45,13 +53,13 @@ expect screen SETUP
 tap ESCAPE
 wait 12
 # The mouse: hover lights a button (the focus follows the pointer), a click acts on release
-mouse 300 320
+mouse 300 288
 wait 2
 expect app device mouse
 expect app look:Scores hover
 expect app focus Scores
 shot 53-hover-scores
-mouse 300 280
+mouse 300 250
 wait 2
 shot 53-hover-howto
 mdown left
@@ -64,8 +72,8 @@ wait 2
 expect screen HOWTO
 tap ESCAPE
 wait 12
-# a press dragged off acts on nothing
-mouse 300 410
+# a press dragged off acts on nothing (Updates' row)
+mouse 300 365
 mdown left
 mouse 300 600
 mup left

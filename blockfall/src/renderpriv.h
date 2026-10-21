@@ -19,6 +19,7 @@
 #include "hudfx.h"
 #include "feel.h"
 #include "ui.h"
+#include <stddef.h>
 #include <stdint.h>
 
 /* The shared palette lives in ghost-common's ui.c; these just read it. This
@@ -54,10 +55,11 @@ int Rp_CellY(const PlayLayout *l, int row);
 /* The frame (its level-up and quad flashes, the ghost's row marks), the
  * well and its grid. ghost: GHOST_OFF, GHOST_OUTLINE or GHOST_SOLID; grid:
  * GRID_ON, GRID_FAINT or GRID_OFF (persist.h). */
-void Well_DrawFrame(const Game *g, const PlayLayout *l, const HudFx *hud, const Feel *f, int ghost, int grid);
-/* Inside the well's clip: the stack or the clear replaying, the landed
- * piece, the ghost and the falling piece. */
-void Well_DrawInside(const Game *g, const PlayLayout *l, const Feel *f, int ghost);
+void Well_DrawFrame(const Game *g, const PlayLayout *l, const HudFx *hud, const Feel *f, int ghost, int grid, const Danger *d);
+/* Inside the well's clip: the danger stripes, the stack or the clear
+ * replaying, the landed piece, the ghost and the falling piece, and the
+ * next piece's red outline when it would not fit (d may be NULL). */
+void Well_DrawInside(const Game *g, const PlayLayout *l, const Feel *f, int ghost, const Danger *d);
 /* The grid's colour for a GRID_* look (the well's GridOver uses it too). */
 Color Well_GridColor(int grid);
 /* The end show over the stack (results.h): the blocked piece blinking red
@@ -75,18 +77,29 @@ void Effects_Tick(float dt, const PlayLayout *l, const Feel *f);
 void Effects_EndShow(const Game *g, const PlayLayout *l, const Results *end);
 /* The well's shake this frame (whole pixels, 0 with Screen shake off). */
 int Effects_ShakeY(void);
-/* Inside the well's clip: tints, blasts and the pixels. */
-void Effects_DrawInWell(const Game *g, const PlayLayout *l, float dt);
+/* Inside the well's clip: the Freeze's and Slow's looks, the Bomb's, the
+ * Laser's and the Sweep's shows, and the pixels. */
+void Effects_DrawInWell(const Game *g, const PlayLayout *l, const Feel *f, float dt);
 /* The callouts and popups (while the run is on). */
 void Effects_DrawCallouts(const PlayLayout *l, const HudFx *hud);
 /* READY, GO, or the countdown's 3, 2, 1 over the well. */
 void Effects_DrawCue(const PlayLayout *l, const StartCue *cue, const HudFx *hud);
 /* The well's pixels in flight (for the harness). */
 int Effects_Bits(void);
+/* The power-ups' shows as last drawn (for the harness): a word for the
+ * bomb's or laser's stage (or thaw, or none), the frost's size, the
+ * afterimages drawn. */
+void Effects_Inspect(char *power, size_t n, float *frost, int *afterimages);
 
 /* panel.c */
 void Panel_Draw(const Game *g, const RenderView *v, const PlayLayout *l, const HudFx *hud, const Feel *f);
 /* The piece flying from the well into Hold, over everything. */
 void Panel_DrawFlight(const Game *g, const PlayLayout *l, const Feel *f);
+/* What the last panel drew for Sprint (for the harness): the clock, the
+ * split line ("" none) and whether it and the lines left were gold. */
+void Panel_Inspect(char *timer, size_t tn, char *split, size_t sn, bool *splitGold, bool *linesGold);
+/* Dig's "Next row" bar as last drawn (for the harness): its fill (0 to 1)
+ * and whether it was in its warning (3.4.0). */
+void Panel_InspectRise(float *fill, bool *warn);
 
 #endif

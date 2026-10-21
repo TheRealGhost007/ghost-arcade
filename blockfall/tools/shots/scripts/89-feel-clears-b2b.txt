@@ -1,6 +1,7 @@
 #! env SHOTS_SETUP=0,1,14,20
 # Phase 4 on Wide 14x20 (modern scoring): a quad, then a quad back to back. The
-# second adds its BACK-TO-BACK line and its sound is two semitones brighter;
+# second adds its BACK-TO-BACK line, its sound is brighter (two semitones for
+# the back-to-back, one more for the combo) and a sparkle takes the thud's place;
 # both burst all four rows at once and flash the frame gold.
 wait 10
 tap ENTER
@@ -32,7 +33,8 @@ game piece I 1 11
 wait 2
 mark sounds
 tapshot SPACE 89-b2b-f1
-expect sounds sfx:2,pitched:4
+# the back-to-back sparkle is the accent, not the thud
+expect sounds sfx:16,pitched:4
 expect hud callouts QUAD|BACK-TO-BACK
 expect feel stage flash
 expect feel quadframe 1

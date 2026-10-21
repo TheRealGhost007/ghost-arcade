@@ -58,7 +58,8 @@ game elapsed 119.9
 mark sounds
 wait 8
 expect game won 1
-expect sounds jingle:LEVEL_UP
+# the clock jumped into its last ten seconds (3.1.0's warning), then time up's one sound
+expect sounds jingle:WARNING,jingle:LEVEL_UP
 expect app card:title TIME UP
 wait 22
 shot 108-ultra-dim-f30

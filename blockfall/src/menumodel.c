@@ -29,6 +29,23 @@ void Menu_BestText(RecordUnit unit, long value, const char *none, char *out, siz
     else Menu_Group(value, out, size);
 }
 
+void Menu_RecordWords(const StatRecord *r, int kind, int who, bool all, bool anyRun, char *value, size_t vn, char *line1, size_t n1, char *line2, size_t n2) {
+    if (n2) line2[0] = '\0';
+    if (!r || r->value <= 0) {
+        snprintf(value, vn, "-");
+        snprintf(line1, n1, "%s", anyRun ? "none yet" : "no run yet");
+        return;
+    }
+    if (kind == 0) Stats_FormatPps(r->value, value, vn);
+    else Menu_Group(r->value, value, vn);
+    if (all && who >= 0 && who < MODE_COUNT) {
+        snprintf(line1, n1, "%s", Game_ModeName((GameMode)who));
+        if (n2) snprintf(line2, n2, "%s", r->date);
+    } else {
+        snprintf(line1, n1, "%s", r->date);
+    }
+}
+
 /* -------------------------------------------------------- the title drop */
 
 int Title_LetterLift(int letter, float t) {
@@ -105,14 +122,17 @@ void SizeTween_Step(SizeTween *s, float w, float h, float dt, float seconds, boo
 
 /* --------------------------------------------------------- play setup */
 
-static const char *const kNotes[MODE_COUNT] = {"endless", "40 lines", "two minutes", "no game over", "power-ups"};
+static const char *const kNotes[MODE_COUNT] = {"endless", "40 lines", "two minutes", "no game over", "power-ups", "rising rows"};
 
+/* Each wraps in four lines at 8 px in Play setup's right column
+ * (SETUP_RIGHT_W, 246 px since 3.6.1; tests/test_layout.c checks it). */
 static const char *const kAbout[MODE_COUNT] = {
     "Endless. Every ten lines the pace climbs, and the run ends when the stack reaches the top.",
     "Clear 40 lines as fast as you can. Your time is your score, the fastest first.",
     "Two minutes on the clock. Score as much as you can before the time is up.",
     "No game over and no clock. A full well clears itself and you carry on. Zen keeps no scores.",
     "Marathon with power-ups: some pieces carry a bomb, a laser, a freeze, a slow or a sweep.",
+    "Grey rows, one gap each; another pushes up every few seconds, sooner as you go. Rows cleared count as Dug.",
 };
 
 const char *Setup_ModeNote(GameMode mode) { return (mode >= 0 && mode < MODE_COUNT) ? kNotes[mode] : ""; }
@@ -125,6 +145,7 @@ void Setup_Sanitize(Settings *s) {
     if (s->setupPreset < 0 || s->setupPreset >= BOARD_PRESET_COUNT) s->setupPreset = 0;
     s->setupWidth = Clamp(s->setupWidth, BOARD_MIN_W, BOARD_MAX_W);
     s->setupHeight = Clamp(s->setupHeight, BOARD_MIN_H, BOARD_MAX_H);
+    Practice_Sanitize(s);
 }
 
 void Setup_Size(const Settings *s, int *w, int *h) {
@@ -141,8 +162,10 @@ GameConfig Setup_Config(const Settings *s) {
     GameConfig cfg;
     cfg.mode = (GameMode)(s->setupMode % MODE_COUNT);
     Setup_Size(s, &cfg.width, &cfg.height);
-    /* The classic marathon keeps the classic scoring, so its old scores still mean what they did. */
-    cfg.modernScoring = !(cfg.mode == MODE_MARATHON && cfg.width == 10 && cfg.height == 20);
+    /* Modern rules on every board since 3.2.0, the classic 10x20 Marathon
+     * included (the owner's decision in REWORK_PLAN.md): its old scores
+     * stay on their own board, "Classic (old rules)" (runrecord.h). */
+    cfg.modernScoring = true;
     return cfg;
 }
 
@@ -219,6 +242,147 @@ bool Setup_PreviewRubble(int w, int h, int x, int y) {
     if (x == gap) return false;
     unsigned chance = y == 0 ? 90u : (y == 1 ? 72u : 45u); /* thinner toward the top */
     return Hash(w, h, x, y) % 100u < chance;
+}
+
+int Setup_PreviewGap(int w, int h, int y) {
+    if (w <= 1) return 0;
+    if (y < 0) y = 0;
+    int gap = (int)(Hash(w, h, 7, y) % (unsigned)w);
+    if (y > 0) {
+        int below = Setup_PreviewGap(w, h, y - 1);
+        if (gap == below) gap = (gap + 1 + (int)(Hash(w, h, 11, y) % (unsigned)(w - 1))) % w;
+    }
+    return gap;
+}
+
+/* ------------------------------------------------- the Practice room */
+
+static const char *const kProLabels[PRO_COUNT] = {"Start level", "Gravity", "Lock delay", "Hold", "Starting garbage", "Finesse hints"};
+static const char *const kProHelp[PRO_COUNT] = {
+    "The level the run begins at, 1 to 20: its speed, and the lines count up from there.",
+    "Off: the piece hangs where it is until you drop it. Soft and hard drops still work.",
+    "Off: a landed piece never locks by itself, so you can slide it about; a hard drop locks it.",
+    "Once: one Hold per piece, as in a run. Infinite: as often as you like, to try each piece in turn.",
+    "Grey rows the well starts with, one gap each (Dig's rows), to practise digging.",
+    "A piece that took more presses than it needed says how many as it lands (\"2 extra presses\").",
+};
+/* "Once per piece" until 3.6.1: wider than the stepper. */
+static const char *const kHoldWords[2] = {"Once", "Infinite"};
+
+const char *Practice_OptionLabel(PracticeOption o) { return (o >= 0 && o < PRO_COUNT) ? kProLabels[o] : ""; }
+const char *Practice_OptionHelp(PracticeOption o) { return (o >= 0 && o < PRO_COUNT) ? kProHelp[o] : ""; }
+
+PracticeOptionKind Practice_OptionKind(PracticeOption o) {
+    switch (o) {
+        case PRO_LEVEL: case PRO_GARBAGE: return PRO_KIND_NUMBER;
+        case PRO_HOLD: return PRO_KIND_CHOICE;
+        default: return PRO_KIND_TOGGLE;
+    }
+}
+
+void Practice_OptionRange(PracticeOption o, int *min, int *max) {
+    int lo = 0, hi = 1;
+    if (o == PRO_LEVEL) { lo = PRACTICE_LEVEL_MIN; hi = PRACTICE_LEVEL_MAX; }
+    else if (o == PRO_GARBAGE) { lo = 0; hi = PRACTICE_GARBAGE_MAX; }
+    if (min) *min = lo;
+    if (max) *max = hi;
+}
+
+const char *Practice_ChoiceWord(PracticeOption o, int index) {
+    if (o == PRO_HOLD && index >= 0 && index < 2) return kHoldWords[index];
+    return NULL;
+}
+
+int Practice_OptionValue(const Settings *s, PracticeOption o) {
+    int lo, hi, v;
+    Practice_OptionRange(o, &lo, &hi);
+    switch (o) {
+        case PRO_LEVEL: v = s->practiceLevel; break;
+        case PRO_GRAVITY: v = s->practiceGravity ? 1 : 0; break;
+        case PRO_LOCK: v = s->practiceLock ? 1 : 0; break;
+        case PRO_HOLD: v = s->practiceInfiniteHold ? 1 : 0; break;
+        case PRO_GARBAGE: v = s->practiceGarbage; break;
+        case PRO_HINTS: v = s->practiceHints ? 1 : 0; break;
+        default: v = lo; break;
+    }
+    return Clamp(v, lo, hi);
+}
+
+void Practice_OptionWords(const Settings *s, PracticeOption o, char *out, size_t size) {
+    int v = Practice_OptionValue(s, o);
+    switch (Practice_OptionKind(o)) {
+        case PRO_KIND_NUMBER:
+            if (o == PRO_GARBAGE) {
+                if (v == 0) snprintf(out, size, "none");
+                else snprintf(out, size, v == 1 ? "%d row" : "%d rows", v);
+            } else {
+                snprintf(out, size, "%d", v);
+            }
+            break;
+        case PRO_KIND_CHOICE: snprintf(out, size, "%s", Practice_ChoiceWord(o, v)); break;
+        default: snprintf(out, size, "%s", v ? "On" : "Off"); break;
+    }
+}
+
+bool Practice_SetOption(Settings *s, PracticeOption o, int value) {
+    int lo, hi;
+    Practice_OptionRange(o, &lo, &hi);
+    value = Clamp(value, lo, hi);
+    if (value == Practice_OptionValue(s, o)) return false;
+    switch (o) {
+        case PRO_LEVEL: s->practiceLevel = value; break;
+        case PRO_GRAVITY: s->practiceGravity = value != 0; break;
+        case PRO_LOCK: s->practiceLock = value != 0; break;
+        case PRO_HOLD: s->practiceInfiniteHold = value != 0; break;
+        case PRO_GARBAGE: s->practiceGarbage = value; break;
+        case PRO_HINTS: s->practiceHints = value != 0; break;
+        default: return false;
+    }
+    return true;
+}
+
+void Practice_Sanitize(Settings *s) {
+    s->practiceLevel = Clamp(s->practiceLevel, PRACTICE_LEVEL_MIN, PRACTICE_LEVEL_MAX);
+    s->practiceGarbage = Clamp(s->practiceGarbage, 0, PRACTICE_GARBAGE_MAX);
+}
+
+PracticeRules Practice_Rules(const Settings *s) {
+    PracticeRules r;
+    memset(&r, 0, sizeof(r));
+    r.on = true;
+    r.startLevel = Clamp(s->practiceLevel, PRACTICE_LEVEL_MIN, PRACTICE_LEVEL_MAX);
+    r.noGravity = !s->practiceGravity;
+    r.noLock = !s->practiceLock;
+    r.infiniteHold = s->practiceInfiniteHold;
+    r.garbageRows = Clamp(s->practiceGarbage, 0, PRACTICE_GARBAGE_MAX);
+    r.hints = s->practiceHints;
+    return r;
+}
+
+GameConfig Practice_Config(const Settings *s) {
+    GameConfig cfg = Setup_Config(s);
+    cfg.mode = MODE_MARATHON; /* the room is a Marathon with its rules bent (Practice_Rules), whatever Play setup had */
+    return cfg;
+}
+
+void Practice_Summary(const Settings *s, char *out, size_t size) {
+    char board[40];
+    Setup_BoardLabel(s, board, sizeof(board));
+    snprintf(out, size, "Practice on %s", board);
+}
+
+void Practice_UndoWords(const ControlWords *w, char *out, size_t size) {
+    bool key = w->undoName[0] && strcmp(w->undoName, "none") != 0;
+    char pad[16];
+    snprintf(pad, sizeof(pad), "%s", w->padUndo);
+    char *sp = strchr(pad, ' '); /* the first button of its two */
+    if (sp) *sp = '\0';
+    if (!key && !pad[0]) {
+        snprintf(out, size, "Undo has no key or button: set one in Settings > Controls.");
+        return;
+    }
+    if (key && pad[0]) snprintf(out, size, "%s or %s takes the last piece back, up to %d times.", w->undoName, pad, PRACTICE_UNDO_MAX);
+    else snprintf(out, size, "%s takes the last piece back, up to %d times.", key ? w->undoName : pad, PRACTICE_UNDO_MAX);
 }
 
 /* ----------------------------------------------------------- the menu */

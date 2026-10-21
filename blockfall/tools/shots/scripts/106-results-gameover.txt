@@ -42,7 +42,7 @@ expect app card:big 15020
 expect app card:best Best 24 680, 9 660 to go
 expect app card:rank #3 on this machine    World: would be #6
 expect app card:stat0 Lines=47
-expect file .local/share/ghost-launcher/scores/blockfall.txt marathon|TRG|15020|
+expect file .local/share/ghost-launcher/scores/blockfall.txt marathon-10x20|TRG|15020|
 shot 106-end-f2
 wait 4
 shot 106-end-f7

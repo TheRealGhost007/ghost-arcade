@@ -138,7 +138,10 @@ tap ENTER
 wait 305
 expect awaiting 0
 expect app note Nothing was pressed, so it stays as it was.
-# Reset controls asks first: Keep mine, then Reset
+# Reset controls asks first: Keep mine, then Reset (past Rotate 180, the
+# tenth row since 3.2.0, and Undo, the eleventh since 3.5.0)
+tap DOWN
+tap DOWN
 tap DOWN
 tap DOWN
 tap DOWN
@@ -165,6 +168,8 @@ expect app note Every key and button is back to how Blockfall came.
 shot 121-after-reset
 expect file .config/blockfall/config.ini soft_drop=DOWN
 # Hold's second key once more, for the file
+tap UP
+tap UP
 tap UP
 tap UP
 tap UP

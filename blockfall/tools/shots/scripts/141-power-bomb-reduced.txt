@@ -1,0 +1,40 @@
+#! env SHOTS_SETUP=4,0,10,20 SHOTS_FLASH=1 SHOTS_MOTION=reduced SHOTS_SHAKE=0
+# Bomb with Reduced flashing, Reduced motion and shake off: the 3x3 holds
+# steady under a soft tint of the bomb's colour (never white) and the
+# shockwave only fades in place. The power marks glow steadily too.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game row 3 .##..##...
+game piece T 0 3
+game power Bomb 2
+game nextpower Laser 1
+game next I
+game hold S
+game holdpower Sweep 2
+wait 12
+shot 141-marks-calm
+mark sounds
+tapshot SPACE 141-bomb-calm-f1
+expect sounds jingle:COIN,sfx:9
+expect feel power bomb-blink
+expect pixels 130 487 90 90 nowhite 200
+wait 2
+shot 141-bomb-calm-f4
+expect feel power bomb-blink
+expect pixels 130 487 90 90 nowhite 200
+expect pixels 130 487 90 90 above 120
+wait 5
+shot 141-bomb-calm-f10
+expect feel power bomb-shock
+# the shockwave's square: no white in it
+expect pixels 95 450 160 160 nowhite 200
+wait 10
+shot 141-bomb-calm-f21
+expect feel power bomb-shock

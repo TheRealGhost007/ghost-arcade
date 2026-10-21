@@ -21,8 +21,8 @@ wait 6
 expect app mode Ultra
 expect screen SETUP
 shot 55-clicked-ultra
-# the board picker's right arrow, clicked
-click 580 224
+# the board picker's right arrow, clicked (its cell ends at 580 since 3.6.1)
+click 560 224
 wait 12
 expect app board Wide 14x20
 shot 55-board-arrow
@@ -73,7 +73,10 @@ wait 10
 expect screen SETUP
 expect app focus Scores for this board
 shot 55-back-from-scores
-# the Start button with pad A
+# the Start button with pad A (past the Practice room button, 3.5.0)
+tap DOWN
+wait 2
+expect app focus Practice room
 tap DOWN
 wait 4
 expect app focus Start

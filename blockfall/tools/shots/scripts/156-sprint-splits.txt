@@ -1,0 +1,66 @@
+#! env SHOTS_SETUP=1,0,10,20 SHOTS_PACE=1 SHOTS_READY=1
+# Sprint splits (3.1.0), against a best pace of 0:25.50, 0:51.00, 1:16.50 and
+# 1:40.00: the clock is the big number with hundredths and starts on GO; the
+# 10 mark says -2.1 s in gold (ahead), the 20 mark +1.2 s (behind), over the
+# well and under the clock; the counter turns gold in the last five lines;
+# the finish says New best by 0.8 s, and the run becomes the pace to race.
+#! after-file .local/share/blockfall/splits.dat sprint40|234
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Sprint
+expect feel cue ready
+expect hud timer 0:00.00
+expect hud split none
+expect view best 9990000
+shot 156-sprint-ready
+wait 60
+expect feel cue none
+# the 10 mark, ahead of the pace
+game clear
+game row 0 #########.
+game piece I 1 7
+game lines 9
+game elapsed 23.40
+tapshot SPACE 156-split-10-f1
+expect game lines 10
+expect hud split 10: -2.1 s
+expect hud splitgold 1
+expect hud callouts 10: -2.1 s|LEVEL 2
+wait 10
+shot 156-split-10
+# the 20 mark, behind, under the DOUBLE that took it
+game clear
+game row 0 #########.
+game row 1 #########.
+game piece I 1 7
+game lines 19
+game elapsed 52.20
+tapshot SPACE 156-split-20-f1
+expect game lines 21
+expect hud split 20: +1.2 s
+expect hud splitgold 0
+expect hud callouts DOUBLE|20: +1.2 s|LEVEL 3
+wait 10
+shot 156-split-20
+# the last five lines: the counter in gold
+game lines 35
+game elapsed 88.00
+wait 2
+expect hud linesgold 1
+shot 156-last-five-gold
+# the finish: 1:39.20 against 1:40.00 (a hard drop locks before the frame's clock moves)
+game clear
+game row 0 #########.
+game piece I 1 7
+game lines 39
+game elapsed 99.20
+tapshot SPACE 156-finish-f1
+expect game won 1
+wait 130
+expect app results on
+expect app card:newbest 1
+expect app card:best New best by 0.8 s (was 1:40.00)
+shot 156-finish-new-best

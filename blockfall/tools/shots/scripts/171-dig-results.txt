@@ -1,0 +1,86 @@
+#! env SHOTS_SETUP=5,0,10,20
+# The end of a Dig: the garbage reaches the top row and the next rise pushes
+# it past the top, so the run is over as a top-out. The card names Dig on
+# the board, counts the rows dug, and the run goes on the dig board (shared,
+# the classic size: "dig"); Scores opens on the Dig tab with the row blinking.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Dig
+# one piece down, so the run is a run (a piece locked and it scored)
+tap SPACE
+wait 2
+expect game pieces 1
+game clear
+game row 0 GGGGGGGGG.
+game row 1 GGGG.GGGGG
+game row 2 G.GGGGGGGG
+game row 3 GGGGGG.GGG
+game row 4 GG.GGGGGGG
+game row 5 GGGGGGGG.G
+game row 6 GGG.GGGGGG
+game row 7 GGGGGGG.GG
+game row 8 .GGGGGGGGG
+game row 9 GGGGG.GGGG
+game row 10 GG.GGGGGGG
+game row 11 GGGGGGGG.G
+game row 12 GGGG.GGGGG
+game row 13 G.GGGGGGGG
+game row 14 GGGGGG.GGG
+game row 15 GGG.GGGGGG
+game row 16 GGGGGGG.GG
+game row 17 G.GGG.GGGG
+game row 18 GG.GGGGG.G
+game row 19 GGGGG.GGGG
+game piece O 0 4 2
+game score 2600
+game dug 9
+game lines 11
+game rise 0.3
+wait 17
+expect game phase PLAYING
+expect game hidden 0
+wait 1
+expect game phase GAMEOVER
+expect app results on
+expect app card:title GAME OVER
+expect app card:sub Dig on Classic 10x20
+expect app card:big 2600
+expect app card:stat9 Dug=9
+expect app card:newbest 1
+expect app card:best No best before this one
+expect file .local/share/ghost-launcher/scores/blockfall.txt dig|TRG|2600|
+shot 171-end-f1
+wait 30
+shot 171-end-rows
+wait 90
+expect app resultsdone 1
+shot 171-results
+tap DOWN
+wait 2
+expect app focus Scores
+tap ENTER
+wait 4
+expect screen SCORES
+expect scores mode Dig
+expect scores board Classic 10x20
+expect scores count 1
+expect scores blink 0
+expect app boards 10x20|14x20|8x26|18x30|6x14
+shot 171-scores-dig
+tap ESCAPE
+wait 4
+expect screen PLAYING
+# Play again: a fresh well of eight rows
+tap UP
+wait 2
+expect app focus Play again
+tap ENTER
+wait 4
+expect screen PLAYING
+expect game phase PLAYING
+expect game garbage 8
+expect game dug 0
+expect view best 2600

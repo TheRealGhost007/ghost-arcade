@@ -1,0 +1,56 @@
+#! env SHOTS_STATS=1 SHOTS_MOTION=reduced
+# Stats (3.3.0) on the pad, with Reduced motion: the bar is there at once
+# (no grow-in), the hints are pad buttons, the d-pad moves the bar down the
+# rows (and keeps the pad's hints), LB and RB do nothing here, and B goes back
+# to the menu, on Stats.
+wait 60
+pad on
+wait 2
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+pad tap DOWN
+wait 8
+expect app focus Stats
+pad tap A
+wait 1
+expect screen STATS
+expect app hints pad
+expect app focus All modes
+expect app stats:grow 1.00
+expect app stats:runs 33
+shot 165-pad-all-modes
+pad tap DOWN
+pad tap DOWN
+wait 3
+expect app focus Sprint
+expect app stats:row Sprint
+expect app stats:runs 9
+expect app stats:lines 328
+expect app stats:time 12m 00s
+expect app stats:pps 2.34
+expect app stats:combo 4
+expect app stats:quads 7
+expect app stats:bar 40|120|72|96|0
+expect app stats:grow 1.00
+shot 165-pad-sprint
+pad tap RB
+wait 3
+expect app focus Sprint
+expect screen STATS
+# holding Down repeats: from Sprint, Ultra, Power, Dig, Zen, then round to
+# All modes (a step on the press, one at 0.4 s, then every 0.1 s: five in 44)
+pad hold DOWN 44
+wait 2
+expect app focus All modes
+pad tap UP
+wait 3
+expect app focus Zen
+expect app stats:row Zen
+expect app stats:runs 0
+shot 165-pad-zen
+pad tap B
+wait 3
+expect screen MENU
+expect app focus Stats

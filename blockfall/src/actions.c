@@ -37,6 +37,8 @@ void Actions_Read(const PlayKeys *k, const KeyReader *kb, const Input *pad, bool
 
     out->rotate = Hit(k, kb, pad, ACT_ROTATE);
     out->rotateLeft = Hit(k, kb, pad, ACT_ROTATE_LEFT);
+    out->rotateHalf = Hit(k, kb, pad, ACT_ROTATE_180);
+    out->undo = Hit(k, kb, pad, ACT_UNDO);
     out->hardDrop = Hit(k, kb, pad, ACT_HARD);
     out->hold = Hit(k, kb, pad, ACT_HOLD);
     /* The Pause row: its first key and button pause, its second ones also

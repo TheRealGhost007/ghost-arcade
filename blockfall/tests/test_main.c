@@ -456,13 +456,16 @@ static void test_modern_scoring(void) {
     Game_HardDrop(&g);
     CHECK(g.combo == -1, "modern: a lock that clears nothing breaks the combo");
 
-    /* Back-to-back quads pay half again. */
+    /* Back-to-back quads pay half again. (A block above the four rows: a
+     * quad that empties the well is a perfect clear since 3.2.0, with a
+     * bonus of its own; tests/test_modern.c covers that.) */
     Game_InitConfig(&g, (GameConfig){MODE_MARATHON, 10, 20, true}, 4, 0, 1, 0);
     long quad[2];
     for (int round = 0; round < 2; round++) {
         Board_Init(&g.board, 10, 20);
         int bottom = Board_TotalH(&g.board) - 1;
         for (int y = bottom - 3; y <= bottom; y++) FillRowExceptCells(&g, y, 9, 1);
+        g.board.cells[bottom - 4][0] = PIECE_J;
         g.current = PIECE_I; g.rotation = 1; g.px = 7; g.py = BOARD_HIDDEN;
         g.level = 1;
         s0 = g.score;
@@ -654,6 +657,14 @@ int main(void) {
     test_menus_all();
     test_around_all();
     test_settings_all();
+    test_sound_all();
+    test_powerfx_all();
+    test_danger_all();
+    test_modern_all();
+    test_stats_all();
+    test_dig_all();
+    test_practice_all();
+    test_daily_all();
     DropTempHome();
 
     printf("\n%d checks, %d failures\n", gChecks, gFailures);

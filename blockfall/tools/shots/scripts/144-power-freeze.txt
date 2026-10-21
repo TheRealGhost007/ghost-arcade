@@ -1,0 +1,50 @@
+#! env SHOTS_SETUP=4,0,10,20
+# Freeze (3.1.0): an ice wash crosses the well, frost grows in from the
+# corners over 0.6 s and holds; in the last 1.5 s it blinks (the bar in the
+# panel with it), and when it ends the frost breaks with a thaw tick.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game piece O 0 6
+game power Freeze 0
+wait 2
+mark sounds
+tapshot SPACE 144-freeze-f1
+expect sounds jingle:COIN,sfx:11
+expect hud callouts FREEZE
+expect feel frost 0.05
+wait 5
+shot 144-freeze-f7
+wait 14
+shot 144-freeze-f22
+wait 20
+shot 144-freeze-f43
+expect feel frost 1.00
+# the top-left frost (its second stair, under the ice frame), lit
+expect pixels 44 60 16 2 above 120
+# the last 1.5 s: it blinks (4 Hz)
+game freeze 1.4
+shot 144-freeze-blink-dim
+expect pixels 44 60 16 2 below 100
+wait 4
+shot 144-freeze-blink-lit
+expect pixels 44 60 16 2 above 120
+wait 7
+shot 144-freeze-blink-dim-again
+expect pixels 44 60 16 2 below 100
+# the end: the frost breaks, with its tick
+game freeze 0.03
+mark sounds
+wait 3
+shot 144-freeze-thaw
+expect feel power thaw
+expect feel bits >0
+expect sounds sfx:12
+wait 20
+expect feel power none

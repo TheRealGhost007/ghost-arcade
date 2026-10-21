@@ -106,7 +106,7 @@ static bool ReplayMatches(const Feel *f, const Game *g, const char **why) {
  * started, never more than 2 px below, home at the end. */
 static bool FallMatches(Feel *f, int cell, const char **why) {
     ClearReplay *r = &f->clear;
-    float start = r->times.flash + r->times.zip, total = Feel_ClearTotal(r->times);
+    float start = r->times.flash + r->times.zip + r->times.sweep, total = Feel_ClearTotal(r->times);
     float keep = r->t;
     bool ok = true;
     int prev[BOARD_MAX_TOTAL_H];
@@ -235,7 +235,9 @@ static void test_replay_in_real_runs(void) {
             }
             Game_Update(&g, FRAME * 4.0f);
             Feel_React(&f, &g, &kFull);
-            if (g.justLocked && g.lastClearCount > 0 && !g.justZenReset) {
+            /* (a Dig rise on the lock's frame moves the rows: the replay
+             * rightly ends, so there is nothing to match) */
+            if (g.justLocked && g.lastClearCount > 0 && !g.justZenReset && !g.justRose) {
                 clears++;
                 if (!ReplayMatches(&f, &g, &why) || !FallMatches(&f, 20, &why)) bad++;
             }
@@ -299,7 +301,7 @@ static void test_clear_stages(void) {
           "stages: halfway through the zip the cells nearest the piece are gone, the far wall's still there");
     CHECK(Feel_ClearCellGone(r, 0, r->times.flash + r->times.zip), "stages: every cell gone by the end of the zip");
     int frames = 0;
-    ClearStage seen[4] = {0};
+    ClearStage seen[CLEAR_DROP + 1] = {0};
     while (Feel_ClearStage(&f) != CLEAR_NONE && frames < 60) {
         seen[Feel_ClearStage(&f)] = 1;
         Frame(&f, &g, &kFull);

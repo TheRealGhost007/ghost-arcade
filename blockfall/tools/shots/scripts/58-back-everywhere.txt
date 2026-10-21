@@ -68,11 +68,11 @@ tap UP
 tap ENTER
 wait 3
 expect screen SETUP
-tap DOWN
-tap DOWN
-tap DOWN
-tap DOWN
-tap DOWN
+# (the pointer onto Width, then Down to Height and the Scores button: Down
+# from the list would pick Dig first since 3.4.0)
+mouse 150 388
+wait 2
+expect app focus Width
 tap DOWN
 tap DOWN
 tap ENTER

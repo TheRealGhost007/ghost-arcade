@@ -128,7 +128,8 @@ mark sounds
 tapshot SPACE 88-feel-clears-quad-f1
 expect feel stage flash
 expect feel rows 4
-expect sounds sfx:2,sfx:4,sfx:5
+# the quad rings a semitone up (it follows the triple in the chain); the level up waits 0.15 s
+expect sounds sfx:2,pitched:4
 expect pixels 40 626 300 30 white 220
 expect feel ghost 0
 expect feel impact 1
@@ -143,6 +144,7 @@ expect feel stage zip
 expect feel bits >0
 wait 5
 shot 88-feel-clears-quad-f14
+expect sounds sfx:2,pitched:4,sfx:5
 expect feel stage drop
 expect feel ghost 0
 wait 20

@@ -5,8 +5,13 @@
  *    action including Rotate left (actions.h), Left and Right held together
  *    cancel, M, - and = show the volume chip,
  *    the controls card shows the pad's buttons after pad use, NEW BEST and
- *    a soft coin the first time a run passes its best, pitched clear sounds
- *    and a dull tick for a turn that cannot be made.
+ *    a soft coin the first time a run passes its best. Which sounds a frame
+ *    plays is soundplan.h's (one big sound and one accent per lock, the
+ *    level up's waiting 0.15 s); this file only hands its cues to sfx.h.
+ *    Danger (danger.h) is updated here each frame of play and its warning
+ *    goes to the planner; the music's intensity follows the board the way
+ *    danger.h says. A Sprint's splits (splits.h) are taken here and its
+ *    pace file written when a finished Sprint beats it.
  *  - Esc (or your Back key), P (or your Pause key), pad Start or pad B open
  *    the pause menu (pausemenu.h), and so does the window losing focus
  *    (unless Settings > Game > Auto pause is off). R
@@ -22,10 +27,20 @@
  *    (or your Restart key or button), Change setup, Scores (that board, the run's row
  *    blinking) and Menu (or Esc, pad B).
  *  - Every run starts with the block wipe (wipe.h), and leaving one wipes
- *    into the screen it goes to. */
+ *    into the screen it goes to.
+ *  - The Practice room (3.5.0, scr_practice.c): the run opens as a practice
+ *    run (Practice_Config) with no best; your Undo key or button takes the
+ *    last piece back (practice.h, a copy of the Game per piece); nothing is
+ *    recorded (runrecord.c never counts it) and Restart and Quit never ask.
+ *  - The Daily challenge (3.6.0, scr_daily.c, challenge.h): the run opens
+ *    on today's twist with the day's seed (a restart uses it again), its
+ *    best is the day's board's, it is recorded on that board and in
+ *    runs.log under the day's key, and the day goes into daily.dat for the
+ *    streak. The results card's Daily and Scores go to the Daily screen. */
 #define _POSIX_C_SOURCE 200809L /* localtime_r */
 #include "screens.h"
 #include "blockdraw.h"
+#include "challenge.h"
 #include "hudfx.h"
 #include "feel.h"
 #include "comfort.h"
@@ -102,12 +117,30 @@ static Submitted SubmitRun(App *a) {
     if (p->runSubmitted) return out;
     p->runSubmitted = true;
     p->endRecorded = false;
-    RunRecord r = Record_Classify(g, Tune_Modified());
+    bool tuned = Tune_Modified();
+    RunRecord r = Record_Classify(g, tuned);
     if (!r.counts) return out; /* a playtest, or a restart before anything happened */
 
     char logKey[GHOSTLINK_MODE_LEN];
-    Record_LogKey(g->cfg.mode, g->cfg.width, g->cfg.height, logKey, sizeof(logKey));
+    Record_LogKeyOf(g, logKey, sizeof(logKey)); /* a daily's line carries the day's key (3.6.0) */
     RunLog_Append(GHOST_GAME_SLUG, logKey, g->score, g->level);
+    if (g->daily.on) {
+        /* The Daily challenge (3.6.0): the day, its runs and your best, for
+         * the streak (challenge.h). */
+        static DailyLog log;
+        DailyLog_Load(&log);
+        DailyLog_Add(&log, g->daily.date, g->score);
+        DailyLog_Save(&log);
+    }
+    /* The lifetime stats (3.3.0): the run's counters folded into its mode,
+     * in Blockfall's own file; the same runs count as for the log. */
+    {
+        static LifeStats life;
+        char day[STATS_DATE_LEN];
+        Today(day, sizeof(day));
+        Stats_Load(&life);
+        if (Stats_Fold(&life, g, tuned, day)) Stats_Save(&life);
+    }
     if (g->cfg.mode != MODE_ZEN) {
         bool had[MAX_TROPHIES];
         int n = TrophiesHeld(had);
@@ -143,12 +176,24 @@ static Submitted SubmitRun(App *a) {
 
 /* ------------------------------------------------------ starting a run */
 
+/* Danger starts clear, and a Sprint loads the pace to race on its board. */
+static void StartRace(PlayState *p) {
+    Danger_Reset(&p->danger);
+    SprintPace pace;
+    memset(&pace, 0, sizeof(pace));
+    if (p->game.cfg.mode == MODE_SPRINT) Splits_Load(p->game.cfg.width, p->game.cfg.height, &pace);
+    Splits_Reset(&p->splits, &pace);
+    p->view.intensity = Danger_Intensity(&p->game, p->danger.freeRows, false);
+}
+
 void ScrPlay_Init(App *a) {
     PlayState *p = &a->play;
     Game_Init(&p->game, MakeSeed(0), a->save.highScore, a->save.highLevel, a->save.highLines);
     p->runSubmitted = true; /* nothing to record until a run actually starts */
     p->restartNonce = 1;
     Controls_Words(&a->settings, &p->view.keys);
+    Danger_Reset(&p->danger);
+    Splits_Reset(&p->splits, NULL);
 }
 
 void ScrPlay_Enter(App *a, bool back) {
@@ -162,17 +207,39 @@ void ScrPlay_Enter(App *a, bool back) {
         p->fresh = true;
         return;
     }
-    GameConfig cfg = Setup_Config(&a->settings);
+    /* The Practice room (3.5.0): its Start opens this screen with the flag
+     * set; the run is then a Marathon with its rules bent, with no best
+     * (nothing it does is recorded) and the undo stack at its start. */
+    bool practice = p->startPractice, daily = p->startDaily;
+    p->startPractice = p->startDaily = false;
+    /* The Daily challenge (3.6.0): today's twist with the day's seed; its
+     * best is the day's board's. */
+    int dailyDate = 0;
+    DailyTwist twist = TWIST_CLASSIC;
+    char dailyKey[GHOSTLINK_MODE_LEN] = "";
+    if (daily) {
+        ScrDaily_Today(&dailyDate, &p->dailySeed, &twist);
+        Daily_BoardKey(dailyDate, dailyKey, sizeof(dailyKey));
+    }
+    GameConfig cfg = practice ? Practice_Config(&a->settings) : (daily ? Daily_Config(twist) : Setup_Config(&a->settings));
     p->restartNonce++;
     p->view.unit = Record_UnitOf(cfg.mode);
-    p->view.best = Record_LoadBest(cfg.mode, cfg.width, cfg.height, a->save.highScore);
+    p->view.best = practice ? 0 : (daily ? Record_LoadBestKey(dailyKey) : Record_LoadBest(cfg.mode, cfg.width, cfg.height, a->save.highScore));
     p->view.newBest = p->view.focusLost = false;
     p->view.passedBest = p->view.justPassedBest = false;
     p->view.run = (unsigned)p->restartNonce;
     p->view.showControls = !a->settings.hideControls;
-    Game_InitConfig(&p->game, cfg, MakeSeed(p->restartNonce), p->view.unit == UNIT_POINTS ? p->view.best : 0, a->save.highLevel,
-                    a->save.highLines);
+    if (practice)
+        Game_InitPractice(&p->game, cfg, Practice_Rules(&a->settings), MakeSeed(p->restartNonce));
+    else if (daily) {
+        Game_InitDaily(&p->game, cfg, Daily_Rules(dailyDate, twist), p->dailySeed);
+        p->game.highScore = p->view.best;
+    } else
+        Game_InitConfig(&p->game, cfg, MakeSeed(p->restartNonce), p->view.unit == UNIT_POINTS ? p->view.best : 0, a->save.highLevel,
+                        a->save.highLines);
     Menu_BoardName(p->game.cfg.width, p->game.cfg.height, p->board, sizeof(p->board));
+    Undo_Reset(&p->undo, &p->game);
+    p->view.undoLeft = 0;
     Ui_ClearParticles();
     p->runSubmitted = false;
     p->prevGameOver = false;
@@ -183,6 +250,8 @@ void ScrPlay_Enter(App *a, bool back) {
     PlayDriver_Start(&p->driver, a->settings.readyGo, false); /* READY, then GO */
     p->view.cue = p->driver.cue;
     p->view.moveRepeat = false;
+    SoundPlan_Reset(&p->sound, &p->game);
+    StartRace(p);
     App_Wipe(a);
     Scr_Cursor(false);
 }
@@ -194,6 +263,22 @@ int ScrPlay_MusicMode(const App *a) {
 }
 
 /* ------------------------------------------------------------- sound */
+
+/* The planner's cues go to the shared sound code as they are. */
+static void PlayCue(const SoundCue *c) {
+    switch (c->how) {
+        case SND_PLAY: Sfx_Play(c->id); break;
+        case SND_PITCHED: Sfx_PlayPitched(c->id, c->arg); break;
+        case SND_VARIED: Sfx_PlayVaried(c->id, c->arg); break;
+        case SND_JINGLE: Sfx_Jingle((SfxJingle)c->id); break;
+    }
+}
+
+static void FlushSounds(PlayState *p) {
+    SoundCue cues[SOUND_CUES];
+    int n = SoundPlan_Take(&p->sound, cues, SOUND_CUES);
+    for (int i = 0; i < n; i++) PlayCue(&cues[i]);
+}
 
 static void SoundKeys(App *a, const PlayInput *pi) {
     Settings *s = &a->settings;
@@ -312,12 +397,23 @@ static void Restart(App *a) {
     Submitted s = SubmitRun(a);
     if (s.trophy) Sfx_Jingle(JINGLE_LEVEL_UP);
     p->restartNonce++;
-    view->best = Record_LoadBest(game->cfg.mode, game->cfg.width, game->cfg.height, a->save.highScore);
+    if (game->daily.on) {
+        char key[GHOSTLINK_MODE_LEN];
+        Record_KeyOf(game, key, sizeof(key));
+        view->best = Record_LoadBestKey(key); /* the day's board, which the run just left may have raised */
+    } else {
+        view->best = game->practice.on ? 0 : Record_LoadBest(game->cfg.mode, game->cfg.width, game->cfg.height, a->save.highScore);
+    }
     view->newBest = view->focusLost = false;
     view->passedBest = false;
     view->run = (unsigned)p->restartNonce;
-    Game_Restart(game, MakeSeed(p->restartNonce));
+    /* A practice run restarts as one and a daily as one: the rules live in
+     * the game; the daily's seed is the day's again, so the pieces come as
+     * they did (3.6.0). */
+    Game_Restart(game, game->daily.on ? p->dailySeed : MakeSeed(p->restartNonce));
     game->highScore = view->unit == UNIT_POINTS ? view->best : 0;
+    Undo_Reset(&p->undo, game);
+    view->undoLeft = 0;
     p->runSubmitted = false;
     p->prevGameOver = false;
     p->endRecorded = false;
@@ -325,6 +421,8 @@ static void Restart(App *a) {
     Results_End(&p->results);
     PlayDriver_Start(&p->driver, a->settings.readyGo, true); /* only GO, and play at once */
     view->cue = p->driver.cue;
+    SoundPlan_Reset(&p->sound, game);
+    StartRace(p);
     App_Wipe(a);
 }
 
@@ -392,7 +490,7 @@ static void OnEnd(App *a) {
     bool tuned = Tune_Modified();
     RunRecord r = Record_Classify(game, tuned);
     view->newBest = r.toBoard && Record_Beats(r.value, view->best);
-    long saveBest = r.toSave ? a->save.highScore : 0; /* the classic best before this run */
+    long saveBest = r.toSave ? a->save.highScore : 0; /* the classic best before this run (never since 3.2.0: save.dat is the old rules' best) */
     Submitted s = SubmitRun(a);
 
     int rankHere = 0, worldRows = 0, worldRank = 0;
@@ -409,6 +507,10 @@ static void OnEnd(App *a) {
     ResultsCard card;
     Results_Build(&card, game, &f);
     Results_Begin(&p->results, &card, Comfort_Motion());
+    /* A finished Sprint that beats the pace on its board (or the first) is
+     * the pace to race next time. A playtest is never recorded. */
+    if (game->cfg.mode == MODE_SPRINT && game->won && !tuned && Splits_Better(&p->splits.run, &p->splits.best))
+        Splits_Save(game->cfg.width, game->cfg.height, &p->splits.run);
     p->againChip[0] = '\0';
     for (int i = 0; i < CONFETTI; i++) sConfetti[i].life = 0.0f;
     /* One sound now: the cleared sting or the game over. A new best's
@@ -429,15 +531,25 @@ static void UpdateResults(App *a, const RunKeys *keys, const Input *in, float dt
     switch (s.action) {
         case RA_AGAIN: Scr_SoundConfirm(); Restart(a); return;
         case RA_SETUP:
+        case RA_SCORES:
             Scr_SoundConfirm();
+            if (p->game.daily.on) {
+                /* A daily's Daily and Scores both go to the Daily screen,
+                 * which shows today's board (3.6.0). */
+                Results_End(&p->results);
+                App_Home(a);
+                App_Open(a, SCR_DAILY);
+                App_Wipe(a);
+                return;
+            }
+            if (s.action == RA_SCORES) {
+                ScrScores_OpenForRun(a, p->game.cfg.mode, p->game.cfg.width, p->game.cfg.height, p->endRecorded ? p->endValue : 0, p->endDate);
+                return;
+            }
             Results_End(&p->results);
             App_Home(a);
             App_Open(a, SCR_SETUP);
             App_Wipe(a);
-            return;
-        case RA_SCORES:
-            Scr_SoundConfirm();
-            ScrScores_OpenForRun(a, p->game.cfg.mode, p->game.cfg.width, p->game.cfg.height, p->endRecorded ? p->endValue : 0, p->endDate);
             return;
         case RA_MENU: Scr_SoundBack(); Leave(a); return;
         default: break;
@@ -487,7 +599,7 @@ static void UpdatePause(App *a, const RunKeys *keys, const PlayInput *pi, const 
     }
     /* Auto-repeat keeps time while paused, as it always has (the game does
      * not move: it is paused). */
-    PlayIntent held = {pi->left, pi->right, pi->softDrop, false, false, false, false};
+    PlayIntent held = {pi->left, pi->right, pi->softDrop, false, false, false, false, false};
     PlayStepResult step;
     Play_Step(&p->driver, &p->game, &held, dt, Tune_Speed(), &step);
     KitList l;
@@ -497,14 +609,13 @@ static void UpdatePause(App *a, const RunKeys *keys, const PlayInput *pi, const 
 
 /* ------------------------------------------------------------- a frame */
 
-void ScrPlay_Update(App *a, const Input *in, float dt) {
+static void UpdateFrame(App *a, const Input *in, float dt) {
     PlayState *p = &a->play;
     Game *game = &p->game;
     RenderView *view = &p->view;
     bool quiet = p->fresh;
     p->fresh = false;
 
-    Music_SetIntensity(fminf(1.0f, 0.40f + 0.06f * (float)game->level));
     if (view->chipTime > 0.0f) view->chipTime -= dt;
     view->justPassedBest = false;
     view->padHints = in->hintDevice == DEV_PAD;
@@ -514,6 +625,7 @@ void ScrPlay_Update(App *a, const Input *in, float dt) {
     Actions_Read(&a->keys, &kKeyboard, in, quiet, &pi);
     if (pi.fps) view->showFps = !view->showFps;
     SoundKeys(a, &pi);
+    SoundPlan_Tick(&p->sound, dt); /* a level up's sound, 0.15 s after its clear */
     RunKeys keys = {pi.pause, pi.restartKey || pi.restartPad, pi.back};
 
     if (p->results.on) { UpdateResults(a, &keys, in, dt); return; }
@@ -544,18 +656,32 @@ void ScrPlay_Update(App *a, const Input *in, float dt) {
         Restart(a);
     }
 
+    /* The Practice room's undo (3.5.0): your Undo key or button takes the
+     * last piece back (practice.h), in play, never while READY holds the
+     * run or on the first frame; outside the room the key does nothing. */
+    bool practice = game->practice.on;
+    if (practice && pi.undo && game->phase == GS_PLAYING && !PlayDriver_Waiting(&p->driver)) Undo_Pop(&p->undo, game);
+
     /* The moves and gravity, as always (or READY and the countdown holding
      * them). */
-    PlayIntent intent = {pi.left, pi.right, pi.softDrop, pi.rotate, pi.hardDrop, pi.hold, pi.rotateLeft};
+    PlayIntent intent = {pi.left, pi.right, pi.softDrop, pi.rotate, pi.hardDrop, pi.hold, pi.rotateLeft, pi.rotateHalf};
     PlayStepResult step;
     Play_Step(&p->driver, game, &intent, dt, Tune_Speed(), &step);
+    /* A piece locked: the state now is the next piece's start, kept so it
+     * can be taken back. */
+    if (practice && game->justLocked) Undo_Push(&p->undo, game);
+    view->undoLeft = practice ? Undo_Left(&p->undo) : 0;
     view->moveRepeat = step.moveRepeat;
     view->cue = p->driver.cue;
-    if (step.held) Sfx_Play(SFX_ROTATE); /* Hold still borrows the turn's sound (the sound pass gives it its own) */
-    if (p->driver.cue.goSound) {
-        p->driver.cue.goSound = false;
-        Sfx_Jingle(JINGLE_GO);
-    }
+    bool go = p->driver.cue.goSound;
+    p->driver.cue.goSound = false;
+    /* Danger (its warning goes to the planner below), a Sprint's splits, and
+     * the music following the board: looks and sound only. */
+    Danger_Update(&p->danger, game, dt);
+    Splits_React(&p->splits, game);
+    Splits_Tick(&p->splits, dt);
+    view->intensity = Danger_Intensity(game, p->danger.freeRows, p->danger.on);
+    Music_SetIntensity(view->intensity);
 
     bool nowGameOver = game->phase == GS_GAMEOVER;
     bool ending = nowGameOver && !p->prevGameOver;
@@ -563,26 +689,19 @@ void ScrPlay_Update(App *a, const Input *in, float dt) {
     /* The first time the run passes the best it started with: a NEW BEST
      * callout and a soft coin (not on the frame the run ends: that has its
      * own one sound). */
-    if (game->phase == GS_PLAYING &&
-        Hud_PassesBest(game->score, view->best, view->unit, game->cfg.mode, !Tune_Modified(), view->passedBest)) {
-        view->passedBest = view->justPassedBest = true;
-        Sfx_Jingle(JINGLE_COIN);
-    }
-    if (!ending) {
-        if (game->justMoved) Sfx_Play(SFX_MOVE);
-        if (game->justRotated) Sfx_Play(SFX_ROTATE);
-        else if (step.rotateBlocked) Sfx_PlayPitched(SFX_ROTATE, ROTATE_BLOCKED_PITCH); /* the press registered */
-        if (game->justHardDropped) Sfx_Play(SFX_HARD_DROP);
-        if (game->justLocked && game->lastClearCount > 0) {
-            int id = game->lastClearCount >= 4 ? SFX_QUAD : SFX_CLEAR;
-            float pitch = Feel_ClearPitch(game->lastClearCount, game->lastWasB2B);
-            if (pitch == 1.0f) Sfx_Play(id); /* a single and a quad sound as they always have */
-            else Sfx_PlayPitched(id, pitch);
-        }
-        if (game->lastWasLevelUp) Sfx_Play(SFX_LEVEL_UP);
-    } else {
-        OnEnd(a);
-    }
+    bool passed = game->phase == GS_PLAYING &&
+                  Hud_PassesBest(game->score, view->best, view->unit, game->cfg.mode, !Tune_Modified(), view->passedBest);
+    if (passed) view->passedBest = view->justPassedBest = true;
+    /* What this frame sounds like (soundplan.h decides; the end's one sound
+     * is OnEnd's). */
+    SoundEvents ev = {step.moved, step.rotated, step.rotateBlocked, step.held, go, passed, ending, p->danger.warn};
+    SoundPlan_React(&p->sound, game, &ev);
+    if (ending) OnEnd(a);
+}
+
+void ScrPlay_Update(App *a, const Input *in, float dt) {
+    UpdateFrame(a, in, dt);
+    FlushSounds(&a->play); /* whatever the frame asked for, whichever way it went */
 }
 
 /* ------------------------------------------------------------ drawing */
@@ -806,7 +925,10 @@ void ScrPlay_Draw(App *a, float dt) {
     int gp = a->settings.ghostPiece;
     p->view.ghost = gp == GHOST_OFF ? GHOST_OFF : (gp == GHOST_SOLID ? GHOST_SOLID : GHOST_OUTLINE); /* a look this build does not know: the outline */
     p->view.grid = a->settings.grid;
+    p->view.queue = a->settings.nextQueue;
     p->view.end = p->results.on ? &p->results : NULL;
+    p->view.danger = &p->danger;
+    p->view.splits = &p->splits;
     p->view.overlay = (p->results.on || p->pause.open) ? DrawOverlay : NULL;
     p->view.overlayCtx = a;
     p->view.wipe = &a->wipe;
@@ -814,6 +936,7 @@ void ScrPlay_Draw(App *a, float dt) {
      * one-frame events the sounds just used. */
     Render_Frame(&p->game, &p->view);
     Game_ConsumeFrameFlags(&p->game);
+    Splits_Consume(&p->splits);
 }
 
 void ScrPlay_Shutdown(App *a) {

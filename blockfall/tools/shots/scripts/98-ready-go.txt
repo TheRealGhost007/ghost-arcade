@@ -43,7 +43,7 @@ expect game pieces 0
 expect game hold T
 expect game current J
 expect game rotation 1
-expect sounds sfx:1,jingle:GO,sfx:1
+expect sounds sfx:1,sfx:8,jingle:GO
 shot 98-go-f37
 expect game elapsed 0.02
 expect game px 2

@@ -1,0 +1,101 @@
+#! env SHOTS_SETUP=0,0,10,20
+#! after-file .config/blockfall/config.ini next_queue=4
+#! after-file .config/blockfall/config.ini rotate_half=V
+# 3.2.0: Settings > Game has the Next queue (1 to 6, at 5), and Controls a
+# tenth row, Rotate 180, with no key until you set one. V bound to it turns
+# the piece half way round in a run; Delete clears its only key (it is the
+# one optional action).
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect screen SETTINGS
+expect app settab Controls
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Rotate 180
+expect app focus Rotate 180 key
+expect app key:Rotate_180:1 NONE
+shot 162-rotate-180-row
+tap ENTER
+wait 2
+expect awaiting 1
+tap V
+wait 3
+expect awaiting 0
+expect app key:Rotate_180:1 V
+expect app note Rotate 180's key is now V.
+shot 162-rotate-180-bound
+tap DELETE
+wait 2
+expect app key:Rotate_180:1 NONE
+expect app note Rotate 180's key is cleared.
+tap ENTER
+wait 2
+tap V
+wait 3
+expect app key:Rotate_180:1 V
+# the Game tab: the queue
+tap TAB
+tap TAB
+tap TAB
+tap TAB
+wait 3
+expect app settab Game
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Next queue
+expect app nextqueue 5
+shot 162-next-queue-row
+tap LEFT
+wait 2
+expect app nextqueue 4
+expect file .config/blockfall/config.ini next_queue=4
+tap LEFT
+tap LEFT
+tap LEFT
+tap LEFT
+wait 2
+expect app nextqueue 1
+shot 162-next-queue-one
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 2
+expect app nextqueue 4
+# in a run: V turns the piece half way; the queue shows three small pieces
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+game piece T 0 3
+game queue L,I,O,S,Z
+wait 2
+expect hud queue L|I|O
+tap V
+wait 2
+expect game rotation 2
+shot 162-half-turn-in-play
+tap V
+wait 2
+expect game rotation 0

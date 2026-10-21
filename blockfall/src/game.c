@@ -1,4 +1,5 @@
 #include "game.h"
+#include "finesse.h"
 #include <string.h>
 #include <stddef.h>
 
@@ -31,15 +32,32 @@ static PieceType Bag_Next(Bag *bag) {
     return bag->bag[bag->bagPos++];
 }
 
-/* Power mode: about one piece in seven carries a power-up on one block. */
-static void RollNextPower(Game *g) {
-    g->nextPower = PU_NONE;
-    g->nextPowerCell = 0;
-    if (g->cfg.mode != MODE_POWER) return;
+/* Power mode: about one piece in seven carries a power-up on one block.
+ * Rolled right after the piece is drawn from the bag, as it always was, so
+ * the rng's calls come in the same order whether one piece is drawn ahead
+ * (before 3.2.0) or QUEUE_MAX (the queue): the same seed gives the same
+ * pieces with the same power-ups. */
+static void RollPower(Game *g, PowerUp *power, int *cell) {
+    *power = PU_NONE;
+    *cell = 0;
+    if (g->cfg.mode != MODE_POWER && !g->daily.powerUps) return; /* the Daily's Power twist rolls them too (3.6.0) */
     if (Rng_Range(&g->bag.rng, 100) < POWER_CHANCE_PERCENT) {
-        g->nextPower = (PowerUp)(1 + (int)Rng_Range(&g->bag.rng, PU_COUNT - 1));
-        g->nextPowerCell = (int)Rng_Range(&g->bag.rng, CELLS_PER_PIECE);
+        *power = (PowerUp)(1 + (int)Rng_Range(&g->bag.rng, PU_COUNT - 1));
+        *cell = (int)Rng_Range(&g->bag.rng, CELLS_PER_PIECE);
     }
+}
+
+/* Draws one more piece onto the end of the queue. */
+static void Draw(Game *g, int at) {
+    g->queue[at] = Bag_Next(&g->bag);
+    RollPower(g, &g->queuePower[at], &g->queueCell[at]);
+}
+
+/* next (and its power-up) is the queue's first piece. */
+static void MirrorNext(Game *g) {
+    g->next = g->queue[0];
+    g->nextPower = g->queuePower[0];
+    g->nextPowerCell = g->queueCell[0];
 }
 
 static void Place(Game *g) {
@@ -51,6 +69,10 @@ static void Place(Game *g) {
     g->lockResets = 0;
     g->lowestRow = g->py;
     g->grounded = false;
+    g->lastMoveWasTurn = false;
+    g->lastKick = 0;
+    g->lastTurnHalf = false;
+    g->presses = 0; /* finesse counts from the piece coming in (a swap from Hold too) */
 }
 
 /* The stack reached the top: a piece that cannot come in (a spawn, or a
@@ -70,16 +92,124 @@ static void TopOut(Game *g) {
     }
 }
 
+/* The piece that comes in is `next` as it stands (a test or the harness
+ * may have set it alone, and that is honoured); then the queue moves up
+ * one and a fresh piece is drawn onto its end. */
 static void SpawnNext(Game *g) {
     g->current = g->next;
     g->curPower = g->nextPower;
     g->curPowerCell = g->nextPowerCell;
-    g->next = Bag_Next(&g->bag);
-    RollNextPower(g);
+    for (int i = 0; i + 1 < QUEUE_MAX; i++) {
+        g->queue[i] = g->queue[i + 1];
+        g->queuePower[i] = g->queuePower[i + 1];
+        g->queueCell[i] = g->queueCell[i + 1];
+    }
+    Draw(g, QUEUE_MAX - 1);
+    MirrorNext(g);
     g->holdUsed = false;
     Place(g);
 
     if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py)) TopOut(g);
+}
+
+/* ------------------------------------------------------------ Dig (3.4.0) */
+
+static bool HiddenRowsUsed(const Board *b);
+
+float Game_DigInterval(float elapsed) {
+    if (!(elapsed > 0.0f)) elapsed = 0.0f;
+    float k = elapsed / DIG_RISE_RAMP_SECONDS;
+    if (k > 1.0f) k = 1.0f;
+    return DIG_RISE_START_SECONDS - (DIG_RISE_START_SECONDS - DIG_RISE_END_SECONDS) * k;
+}
+
+float Game_DigFill(const Game *g) {
+    if (g->cfg.mode != MODE_DIG || g->digInterval <= 0.0f) return 0.0f;
+    float k = g->digTimer / g->digInterval;
+    return k < 0.0f ? 0.0f : (k > 1.0f ? 1.0f : k);
+}
+
+bool Game_DigWarning(const Game *g) { return g->cfg.mode == MODE_DIG && Game_DigFill(g) >= 1.0f - DIG_WARN_SHARE; }
+
+float Game_DigSecondsLeft(const Game *g) {
+    if (g->cfg.mode != MODE_DIG) return 0.0f;
+    float left = g->digInterval - g->digTimer;
+    return left < 0.0f ? 0.0f : left;
+}
+
+void Game_GarbageRow(Board *b, int row, int gap) {
+    if (row < 0 || row >= Board_TotalH(b)) return;
+    for (int x = 0; x < b->w; x++) b->cells[row][x] = x == gap ? (int8_t)CELL_EMPTY : CELL_GARBAGE;
+}
+
+int Game_GarbageGap(const Board *b, int row) {
+    if (row < 0 || row >= Board_TotalH(b)) return -1;
+    int gap = -1;
+    for (int x = 0; x < b->w; x++) {
+        int8_t v = b->cells[row][x];
+        if (v == CELL_EMPTY) {
+            if (gap >= 0) return -1; /* two gaps */
+            gap = x;
+        } else if (v != CELL_GARBAGE) {
+            return -1;
+        }
+    }
+    return gap;
+}
+
+int Game_GarbageRows(const Board *b) {
+    int n = 0;
+    for (int row = BOARD_HIDDEN; row < Board_TotalH(b); row++)
+        if (Board_RowHasGarbage(b, row)) n++;
+    return n;
+}
+
+/* A gap column for a new garbage row: any but the newest row's, so two
+ * rows never open the same way (a well one cell wide has no choice). */
+static int DigPickGap(Game *g) {
+    int w = g->board.w;
+    if (w <= 1) return 0;
+    int gap = (int)Rng_Range(&g->digRng, (uint32_t)(g->digLastGap >= 0 ? w - 1 : w));
+    if (g->digLastGap >= 0 && gap >= g->digLastGap) gap++;
+    g->digLastGap = gap;
+    return gap;
+}
+
+/* The run's first rows: DIG_START_ROWS of garbage up from the floor. */
+static void DigFillStart(Game *g) {
+    g->digLastGap = -1;
+    int total = Board_TotalH(&g->board);
+    int rows = DIG_START_ROWS < g->board.h - 4 ? DIG_START_ROWS : g->board.h - 4; /* a short well keeps four rows clear */
+    for (int i = 0; i < rows; i++) Game_GarbageRow(&g->board, total - 1 - i, DigPickGap(g));
+    g->digTimer = 0.0f;
+    g->digInterval = Game_DigInterval(0.0f);
+}
+
+/* A garbage row pushes up from the floor: the stack moves up a row, and the
+ * falling piece with it when it would otherwise overlap. A block pushed
+ * above the well, or a piece with nowhere to go, tops the run out. */
+static void DigRise(Game *g) {
+    Board *b = &g->board;
+    int total = Board_TotalH(b);
+    for (int y = 0; y + 1 < total; y++) memcpy(b->cells[y], b->cells[y + 1], sizeof(b->cells[y]));
+    Game_GarbageRow(b, total - 1, DigPickGap(g));
+    g->digRises++;
+    g->justRose = true;
+    g->digInterval = Game_DigInterval(g->elapsed);
+    if (HiddenRowsUsed(b)) {
+        TopOut(g);
+        return;
+    }
+    if (!Board_TestFit(b, g->current, g->rotation, g->px, g->py)) {
+        if (g->py <= 0 || !Board_TestFit(b, g->current, g->rotation, g->px, g->py - 1)) {
+            TopOut(g);
+            return;
+        }
+        g->py -= 1;
+        g->lowestRow -= 1; /* the floor it measured from came up with it */
+        g->justRosePiece = true;
+    }
+    g->grounded = !Board_TestFit(b, g->current, g->rotation, g->px, g->py + 1);
 }
 
 /* Any block in the rows above the visible well: solid, but never drawn. */
@@ -113,6 +243,7 @@ static int ApplyPower(Game *g, PowerUp p, int x, int y) {
     g->lastPowerX = x;
     g->lastPowerY = y;
     g->lastPowerRemoved = 0;
+    g->powerBoard = g->board; /* presentation only: what the power's show takes apart */
     g->stats.powers++;
     g->score += 150; /* for picking one up */
     switch (p) {
@@ -146,7 +277,7 @@ static int ApplyPower(Game *g, PowerUp p, int x, int y) {
 /* The run's counters (the results card), on every board alike: the combo
  * and back-to-back are counted the way modern scoring counts them, whether
  * or not this board pays for them. */
-static void CountClear(RunStats *st, int cleared) {
+static void CountClear(RunStats *st, int cleared, bool difficult) {
     if (cleared <= 0) {
         st->combo = -1;
         return;
@@ -155,11 +286,77 @@ static void CountClear(RunStats *st, int cleared) {
     st->clears[cleared]++;
     st->combo++;
     if (st->combo > st->bestCombo) st->bestCombo = st->combo;
-    if (cleared == 4 && st->lastQuad) st->backToBacks++;
-    st->lastQuad = cleared == 4;
+    if (difficult && st->lastQuad) st->backToBacks++;
+    st->lastQuad = difficult;
+}
+
+/* ---------------------------------------------------- T-spins (3.2.0) */
+
+/* A cell round the T is "filled" when it holds a block or lies outside the
+ * well (walls and floor count, as the guideline has it). */
+static bool Filled(const Board *b, int x, int y) {
+    if (x < 0 || x >= b->w || y < 0 || y >= Board_TotalH(b)) return true;
+    return b->cells[y][x] != CELL_EMPTY;
+}
+
+TSpinKind Game_TSpinKind(const Game *g) {
+    if (g->current != PIECE_T || !g->lastMoveWasTurn) return TSPIN_NONE;
+    /* The T's centre is its local (1,1) in every rotation; its corners are
+     * the box's. The two "front" corners are the ones at the side the T
+     * points to: up (rotation 0), right (1), down (2), left (3). */
+    const Board *b = &g->board;
+    int cx = g->px + 1, cy = g->py + 1;
+    bool tl = Filled(b, cx - 1, cy - 1), tr = Filled(b, cx + 1, cy - 1);
+    bool bl = Filled(b, cx - 1, cy + 1), br = Filled(b, cx + 1, cy + 1);
+    int filled = (tl ? 1 : 0) + (tr ? 1 : 0) + (bl ? 1 : 0) + (br ? 1 : 0);
+    if (filled < 3) return TSPIN_NONE;
+    bool front;
+    switch (g->rotation & 3) {
+        case 0: front = tl && tr; break;
+        case 1: front = tr && br; break;
+        case 2: front = bl && br; break;
+        default: front = tl && bl; break;
+    }
+    /* The fifth-kick upgrade is a quarter turn's alone: a half turn's
+     * index 4 is the 180 list's sideways step, not the TST kick. */
+    if (front || (!g->lastTurnHalf && g->lastKick == TSPIN_FULL_KICK)) return TSPIN_FULL;
+    return TSPIN_MINI;
+}
+
+long Game_ClearPoints(int cleared, TSpinKind tspin) {
+    static const long kClassic[5] = {0, 100, 300, 500, 800};
+    static const long kTSpin[5] = {400, 800, 1200, 1600, 1600};
+    static const long kMini[5] = {100, 200, 400, 400, 400};
+    if (cleared < 0) cleared = 0;
+    if (cleared > 4) cleared = 4;
+    if (tspin == TSPIN_FULL) return kTSpin[cleared];
+    if (tspin == TSPIN_MINI) return kMini[cleared];
+    return kClassic[cleared];
+}
+
+long Game_PerfectClearBonus(int cleared, bool b2bQuad) {
+    static const long kBonus[5] = {0, 800, 1200, 1800, 2000};
+    if (cleared <= 0) return 0;
+    if (cleared > 4) cleared = 4;
+    if (cleared == 4 && b2bQuad) return 3200;
+    return kBonus[cleared];
 }
 
 static void LockAndAdvance(Game *g) {
+    TSpinKind tspin = Game_TSpinKind(g); /* read before the T is stamped (its corners are never its own cells either way) */
+    /* The Practice room's finesse hint (3.5.0): the fewest presses that
+     * would have put the piece here, against the presses it took. Read
+     * before the piece is stamped (its own cells would be in the way); a
+     * placement finesse does not count (a tuck, a spin) gives no hint. It
+     * is only looked up with hints on, and the rules never read it. */
+    g->lastFinesseExtra = -1;
+    g->lastFinesseOptimal = -1;
+    g->lastFinessePresses = g->presses;
+    if (g->practice.on && g->practice.hints) {
+        int best = Finesse_Optimal(&g->board, g->current, g->rotation, g->px, g->py);
+        g->lastFinesseOptimal = best;
+        if (best >= 0) g->lastFinesseExtra = g->presses > best ? g->presses - best : 0;
+    }
     Board_LockPiece(&g->board, g->current, g->rotation, g->px, g->py);
     g->piecesLocked++;
     g->lockBoard = g->board; /* presentation only: what the clear replays from */
@@ -180,29 +377,58 @@ static void LockAndAdvance(Game *g) {
         powerY = g->py + cells[idx].y;
     }
 
+    /* Dig: the full rows that hold garbage are dug (counted before the
+     * clear takes them). */
+    int dug = 0;
+    if (g->cfg.mode == MODE_DIG)
+        for (int row = 0; row < Board_TotalH(&g->board); row++)
+            if (Board_RowFull(&g->board, row) && Board_RowHasGarbage(&g->board, row)) dug++;
     int cleared = Board_ClearLines(&g->board, g->lastClearRows);
     g->lastClearCount = cleared;
     g->justLocked = true;
-    CountClear(&g->stats, cleared);
+    g->lastDug = dug;
+    g->dug += dug;
+    bool difficult = cleared == 4 || (tspin != TSPIN_NONE && cleared > 0);
+    bool perfect = cleared > 0 && Board_CountFilled(&g->board) == 0;
+    CountClear(&g->stats, cleared, difficult);
+    g->lastTSpin = tspin;
+    g->lastPerfectClear = perfect;
+    if (tspin != TSPIN_NONE) g->stats.tspins++;
+    if (tspin != TSPIN_NONE && cleared > 0) g->stats.tspinClears[cleared > 4 ? 4 : cleared]++;
+    if (perfect) g->stats.perfectClears++;
 
-    if (cleared > 0) {
-        static const int kScoreTable[5] = {0, 100, 300, 500, 800};
-        long points = (long)kScoreTable[cleared] * g->level;
+    if (cleared > 0 || (tspin != TSPIN_NONE && g->cfg.modernScoring)) {
+        /* The classic table times the level; under modern rules a T-spin
+         * has its own (lines or not), a difficult clear (a quad or a T-spin
+         * clear) right after a difficult one pays half again, a chain of
+         * clears adds its combo, and a clear that leaves the well empty adds
+         * the perfect clear bonus. A T-spin that clears nothing neither
+         * breaks nor makes back-to-back. */
+        long points = Game_ClearPoints(cleared, g->cfg.modernScoring ? tspin : TSPIN_NONE) * g->level;
         if (g->cfg.modernScoring) {
-            /* a quad after a quad pays half again as much */
-            if (cleared == 4 && g->backToBack) {
+            bool b2b = difficult && g->backToBack;
+            if (b2b) {
                 points += points / 2;
                 g->lastWasB2B = true;
             }
-            g->backToBack = (cleared == 4);
-            g->combo++;
-            g->lastCombo = g->combo;
-            g->lastComboBonus = g->combo > 0 ? 50L * g->combo * g->level : 0;
-            points += g->lastComboBonus;
+            if (cleared > 0) {
+                g->backToBack = difficult;
+                g->combo++;
+                g->lastCombo = g->combo;
+                g->lastComboBonus = g->combo > 0 ? 50L * g->combo * g->level : 0;
+                points += g->lastComboBonus;
+            }
+            if (perfect) points += Game_PerfectClearBonus(cleared, b2b && cleared == 4) * g->level;
         }
         g->score += points;
+    }
+    if (cleared > 0) {
         g->linesCleared += cleared;
-        int newLevel = g->cfg.mode == MODE_ZEN ? 1 : 1 + g->linesCleared / LINES_PER_LEVEL;
+        if (dug > 0) g->score += (long)DIG_ROW_BONUS * dug * g->level; /* Dig: each garbage row dug */
+        /* Zen's level never moves, nor Dig's: there the rises are the pressure.
+         * A practice run counts up from its start level (3.5.0). */
+        int from = g->practice.on ? g->practice.startLevel : (g->daily.on ? g->daily.startLevel : 1);
+        int newLevel = (g->cfg.mode == MODE_ZEN || g->cfg.mode == MODE_DIG) ? 1 : from + g->linesCleared / LINES_PER_LEVEL;
         if (newLevel != g->level) {
             g->level = newLevel;
             g->lastWasLevelUp = true;
@@ -271,6 +497,7 @@ const char *Game_ModeName(GameMode m) {
         case MODE_ULTRA: return "Ultra";
         case MODE_ZEN: return "Zen";
         case MODE_POWER: return "Power";
+        case MODE_DIG: return "Dig";
         default: return "";
     }
 }
@@ -303,14 +530,34 @@ void Game_InitConfig(Game *g, GameConfig cfg, uint64_t seed, long highScore, int
     Game_Restart(g, seed);
 }
 
+void Game_InitPractice(Game *g, GameConfig cfg, PracticeRules rules, uint64_t seed) {
+    rules.on = true;
+    Game_InitConfig(g, cfg, seed, 0, 1, 0);
+    g->practice = rules;
+    Game_Restart(g, seed); /* again, with the rules in place (the first start was a plain run's) */
+}
+
+void Game_InitDaily(Game *g, GameConfig cfg, DailyRules rules, uint64_t seed) {
+    rules.on = true;
+    Game_InitConfig(g, cfg, seed, 0, 1, 0);
+    g->daily = rules;
+    Game_Restart(g, seed); /* again, with the rules in place */
+}
+
+bool Game_Timed(const Game *g) { return g->cfg.mode == MODE_ULTRA || g->daily.on; }
+
 void Game_Restart(Game *g, uint64_t seed) {
     long hs = g->highScore;
     int hl = g->highLevel;
     int hln = g->highLines;
     GameConfig cfg = g->cfg;
+    PracticeRules practice = g->practice;
+    DailyRules daily = g->daily;
     if (cfg.width == 0) cfg = Game_DefaultConfig(); /* a Game that was zeroed, not initialised */
     memset(g, 0, sizeof(*g));
     g->cfg = cfg;
+    g->practice = practice;
+    g->daily = daily;
     g->highScore = hs;
     g->highLevel = hl;
     g->highLines = hln;
@@ -318,20 +565,61 @@ void Game_Restart(Game *g, uint64_t seed) {
     Board_Init(&g->board, cfg.width, cfg.height);
     Rng_Seed(&g->bag.rng, seed);
     g->bag.bagPos = PIECE_COUNT; /* force a shuffle on first draw */
-    g->next = Bag_Next(&g->bag);
-    RollNextPower(g);
+    for (int i = 0; i < QUEUE_MAX; i++) Draw(g, i);
+    MirrorNext(g);
 
     g->hold = (PieceType)-1;
     g->combo = -1;
     g->stats.combo = -1;
-    g->timeLeft = cfg.mode == MODE_ULTRA ? ULTRA_SECONDS : 0.0f;
+    g->timeLeft = cfg.mode == MODE_ULTRA ? ULTRA_SECONDS : (daily.on ? DAILY_SECONDS : 0.0f);
     g->level = 1;
     g->linesCleared = 0;
     g->score = 0;
     g->fallInterval = ComputeFallInterval(1);
     g->phase = GS_PLAYING;
+    g->digLastGap = -1;
+    g->lastFinesseExtra = -1;
+    g->lastFinesseOptimal = -1;
+    if (cfg.mode == MODE_DIG) {
+        /* Its own rng, so the garbage never moves the bag: a seed gives the
+         * pieces it gives in every mode. */
+        Rng_Seed(&g->digRng, seed ^ 0xD16D16D16ull);
+        DigFillStart(g);
+    }
+    if (g->daily.on) {
+        /* The Daily challenge (3.6.0): the fast start's level (clamped, so a
+         * twist can never ask for level 0). */
+        int lvl = g->daily.startLevel;
+        g->level = lvl < 1 ? 1 : (lvl > DAILY_LEVEL_MAX ? DAILY_LEVEL_MAX : lvl);
+        g->daily.startLevel = g->level;
+        g->fallInterval = ComputeFallInterval(g->level);
+    }
+    if (g->practice.on) {
+        /* The Practice room (3.5.0): its start level, and its starting
+         * garbage as Dig's rows (one gap each, from the garbage's own rng,
+         * so the pieces are still the seed's). The level is clamped here
+         * too, so a hand-edited config.ini cannot ask for level 0. */
+        int lvl = g->practice.startLevel;
+        g->level = lvl < PRACTICE_LEVEL_MIN ? PRACTICE_LEVEL_MIN : (lvl > PRACTICE_LEVEL_MAX ? PRACTICE_LEVEL_MAX : lvl);
+        g->practice.startLevel = g->level;
+        g->fallInterval = ComputeFallInterval(g->level);
+        int rows = g->practice.garbageRows;
+        if (rows > PRACTICE_GARBAGE_MAX) rows = PRACTICE_GARBAGE_MAX;
+        if (rows > g->board.h - 4) rows = g->board.h - 4; /* a short well keeps four rows clear, as Dig does */
+        if (rows > 0) {
+            Rng_Seed(&g->digRng, seed ^ 0xD16D16D16ull);
+            int total = Board_TotalH(&g->board);
+            for (int i = 0; i < rows; i++) Game_GarbageRow(&g->board, total - 1 - i, DigPickGap(g));
+        }
+    }
 
     SpawnNext(g);
+}
+
+bool Game_IsPractice(const Game *g) { return g->practice.on; }
+
+void Game_NotePress(Game *g) {
+    if (g->phase == GS_PLAYING) g->presses++;
 }
 
 void Game_Update(Game *g, float dt) {
@@ -340,7 +628,7 @@ void Game_Update(Game *g, float dt) {
     g->elapsed += dt;
     if (g->freezeTimer > 0.0f) { g->freezeTimer -= dt; if (g->freezeTimer < 0.0f) g->freezeTimer = 0.0f; }
     if (g->slowTimer > 0.0f) { g->slowTimer -= dt; if (g->slowTimer < 0.0f) g->slowTimer = 0.0f; }
-    if (g->cfg.mode == MODE_ULTRA) {
+    if (Game_Timed(g)) {
         g->timeLeft -= dt;
         if (g->timeLeft <= 0.0f) {
             g->timeLeft = 0.0f;
@@ -350,6 +638,22 @@ void Game_Update(Game *g, float dt) {
         }
     }
 
+    if (g->cfg.mode == MODE_DIG) {
+        /* The next garbage row: its wait runs with play (a pause holds it,
+         * as READY does by never getting here). */
+        g->digTimer += dt;
+        while (g->digTimer >= g->digInterval && g->digInterval > 0.0f) {
+            g->digTimer -= g->digInterval;
+            DigRise(g);
+            if (g->phase != GS_PLAYING) return;
+        }
+    }
+
+    /* The Practice room (3.5.0): with gravity off the piece hangs where it
+     * is (drops still work); with the lock off it never locks by itself (a
+     * hard drop locks it). */
+    bool noGravity = g->practice.on && g->practice.noGravity;
+    bool noLock = g->practice.on && g->practice.noLock;
     bool canFall = Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py + 1);
     if (canFall) {
         g->grounded = false;
@@ -357,12 +661,13 @@ void Game_Update(Game *g, float dt) {
          * kick that lifts a landed piece buys no time (it used to: tapping
          * rotate kept a piece alive for ever). With the resets spent it runs
          * in the air too, and the piece locks the moment it is back down. */
-        if (g->lockResets >= MAX_LOCK_RESETS) g->lockTimer += dt;
-        if (g->freezeTimer <= 0.0f) g->fallTimer += dt; /* Freeze: gravity waits */
+        if (g->lockResets >= MAX_LOCK_RESETS && !noLock) g->lockTimer += dt;
+        if (g->freezeTimer <= 0.0f && !noGravity) g->fallTimer += dt; /* Freeze: gravity waits */
         float interval = EffectiveFallInterval(g);
         if (g->fallTimer >= interval) {
             g->fallTimer -= interval;
             g->py += 1;
+            g->lastMoveWasTurn = false;
             NoteDescent(g);
             if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py + 1)) {
                 g->grounded = true;
@@ -371,6 +676,7 @@ void Game_Update(Game *g, float dt) {
     } else {
         g->grounded = true;
         g->fallTimer = 0.0f;
+        if (noLock) return;
         g->lockTimer += dt;
         if (g->lockTimer >= LOCK_DELAY_SECONDS) {
             LockAndAdvance(g);
@@ -382,6 +688,7 @@ bool Game_MoveLeft(Game *g) {
     if (g->phase != GS_PLAYING) return false;
     if (Board_TestFit(&g->board, g->current, g->rotation, g->px - 1, g->py)) {
         g->px -= 1;
+        g->lastMoveWasTurn = false;
         g->justMoved = true;
         NotifyActionSuccess(g);
         return true;
@@ -393,6 +700,7 @@ bool Game_MoveRight(Game *g) {
     if (g->phase != GS_PLAYING) return false;
     if (Board_TestFit(&g->board, g->current, g->rotation, g->px + 1, g->py)) {
         g->px += 1;
+        g->lastMoveWasTurn = false;
         g->justMoved = true;
         NotifyActionSuccess(g);
         return true;
@@ -406,6 +714,7 @@ bool Game_SoftDrop(Game *g) {
         g->py += 1;
         g->score += 1;
         g->fallTimer = 0.0f;
+        g->lastMoveWasTurn = false;
         g->justSoftDropped = true;
         NoteDescent(g);
         return true;
@@ -417,25 +726,24 @@ bool Game_Rotate(Game *g, int dir) {
     if (g->phase != GS_PLAYING) return false;
     if (g->current == PIECE_O) return false; /* symmetric, nothing to do */
 
-    int newRot = g->rotation + (dir >= 0 ? 1 : -1);
+    int from = ((g->rotation % 4) + 4) % 4;
+    int newRot = (from + (dir == 2 ? 2 : (dir >= 0 ? 1 : 3))) % 4;
 
-    /* Generic small kick search (not a literal SRS kick table): try the
-     * in-place rotation first, then nudge left/right/up, then corners, then
-     * the wider shifts an I-piece can need. Keeps rotation forgiving near
-     * walls, floors and stack edges without per-transition kick data that
-     * would be easy to get subtly wrong from memory. */
-    static const int kKicks[][2] = {
-        {0, 0}, {-1, 0}, {1, 0}, {0, -1}, {-1, -1}, {1, -1},
-        {-2, 0}, {2, 0}, {0, -2}, {-1, 1}, {1, 1},
-    };
-
-    for (size_t i = 0; i < sizeof(kKicks) / sizeof(kKicks[0]); i++) {
-        int tx = g->px + kKicks[i][0];
-        int ty = g->py + kKicks[i][1];
+    /* SRS (3.2.0): the published wall-kick table for this piece and turn
+     * (tetromino.c), the first offset that fits. It replaced a generic
+     * nudge list that let pieces climb the stack. */
+    Cell kicks[TETROMINO_MAX_KICKS];
+    int n = Tetromino_Kicks(g->current, from, newRot, kicks);
+    for (int i = 0; i < n; i++) {
+        int tx = g->px + kicks[i].x;
+        int ty = g->py + kicks[i].y;
         if (Board_TestFit(&g->board, g->current, newRot, tx, ty)) {
-            g->rotation = ((newRot % 4) + 4) % 4;
+            g->rotation = newRot;
             g->px = tx;
             g->py = ty;
+            g->lastMoveWasTurn = true;
+            g->lastKick = i;
+            g->lastTurnHalf = dir == 2;
             g->justRotated = true;
             NotifyActionSuccess(g);
             return true;
@@ -451,6 +759,7 @@ void Game_HardDrop(Game *g) {
         g->py += 1;
         cells++;
     }
+    if (cells > 0) g->lastMoveWasTurn = false; /* a drop that moved is a move; one that did not leaves a T-spin a T-spin */
     g->score += 2L * cells;
     g->justHardDropped = true;
     g->lastDropCells = cells;
@@ -478,7 +787,7 @@ bool Game_Hold(Game *g) {
         /* Zen sweeps here too: it promises no game over. */
         if (!Board_TestFit(&g->board, g->current, g->rotation, g->px, g->py)) TopOut(g);
     }
-    g->holdUsed = true;
+    g->holdUsed = !(g->practice.on && g->practice.infiniteHold); /* the Practice room's infinite hold (3.5.0) */
     g->justHeld = true;
     g->stats.holds++;
     return true;
@@ -510,4 +819,13 @@ void Game_ConsumeFrameFlags(Game *g) {
     g->lastCombo = 0;
     g->lastComboBonus = 0;
     g->lastWasB2B = false;
+    g->lastTSpin = TSPIN_NONE;
+    g->lastPerfectClear = false;
+    g->lastDug = 0;
+    g->justRose = false;
+    g->justRosePiece = false;
+    g->lastFinesseExtra = -1;
+    g->lastFinesseOptimal = -1;
+    g->lastFinessePresses = 0;
+    g->justUndid = false;
 }

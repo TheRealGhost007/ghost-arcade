@@ -94,6 +94,9 @@ bool Scr_Kit(App *a, KitList *l, const KitState **state) {
             *state = &a->set.kit;
             return true;
         case SCR_HOWTO: ScrHowTo_Layout(a, l); *state = &a->howto.kit; return true;
+        case SCR_STATS: ScrStats_Layout(a, l); *state = &a->stats.kit; return true;
+        case SCR_PRACTICE: ScrPractice_Layout(a, l); *state = &a->practice.kit; return true;
+        case SCR_DAILY: ScrDaily_Layout(a, l); *state = &a->daily.kit; return true;
         case SCR_PLAY: return ScrPlay_Kit(a, l, state);
         default: Kit_Clear(l, 0); *state = NULL; return false;
     }

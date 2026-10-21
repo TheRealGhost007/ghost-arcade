@@ -29,12 +29,15 @@
 #include "ghostlink.h"
 #include "uiinput.h"
 #include "uikit.h"
+#include "daily.h"
 
 /* Catalog name in Ghost Launcher (profile lookups). */
 #define GHOST_GAME_NAME "Blockfall"
 
 static const char *const kSfxFiles[SFX_COUNT] = {
     "move.wav", "rotate.wav", "harddrop.wav", "clear.wav", "quad.wav", "levelup.wav", "gameover.wav",
+    /* 3.1.0: the sound pass (soundplan.h names them in this order) */
+    "lock.wav", "hold.wav", "bomb.wav", "laser.wav", "freeze.wav", "thaw.wav", "slow.wav", "windup.wav", "sweep.wav", "b2b.wav",
 };
 
 typedef struct {
@@ -51,6 +54,9 @@ static const Screen kScreens[SCR_COUNT] = {
     [SCR_SETTINGS] = {ScrSettings_Enter, ScrSettings_Update, ScrSettings_Draw},
     [SCR_HOWTO] = {ScrHowTo_Enter, ScrHowTo_Update, ScrHowTo_Draw},
     [SCR_UPDATES] = {ScrUpdates_Enter, ScrUpdates_Update, ScrUpdates_Draw},
+    [SCR_STATS] = {ScrStats_Enter, ScrStats_Update, ScrStats_Draw},
+    [SCR_PRACTICE] = {ScrPractice_Enter, ScrPractice_Update, ScrPractice_Draw},
+    [SCR_DAILY] = {ScrDaily_Enter, ScrDaily_Update, ScrDaily_Draw},
 };
 
 /* Everything the screens share. Static: the Game inside is big, and the
@@ -98,8 +104,12 @@ static void SettleScreens(App *a, const Input *in, float dt) {
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
     App *a = &sApp;
+    /* The shared daily code (3.6.0): today's date for the Daily challenge,
+     * and --daily (Ghost Launcher's D key) opens the game on it. */
+    Daily_Init(argc, argv);
+    bool openDaily = Daily_Active();
     Settings_Load(&a->settings);
     Setup_Sanitize(&a->settings); /* a hand-edited config can hold anything */
     Comfort_SetReducedMotion(a->settings.reducedMotion);
@@ -139,6 +149,7 @@ int main(void) {
      * play's Basics over it, and so does the next launch after Settings >
      * Game > Show How to play. */
     Nav_Init(&a->nav, SCR_MENU);
+    if (openDaily) Nav_Push(&a->nav, SCR_DAILY); /* --daily: the Daily screen over the menu (How to play still comes first on a first launch) */
     if (!HowTo_Seen(RECORD_SLUG) || a->settings.showHowTo) {
         a->howto.firstLaunch = true;
         Nav_Push(&a->nav, SCR_HOWTO);

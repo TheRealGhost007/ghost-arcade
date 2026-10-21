@@ -1,0 +1,95 @@
+#! env SHOTS_SETUP=0,0,10,20 SHOTS_NOSCORES=1 SHOTS_NOACH=1
+#! after-nofile .local/share/blockfall/runs.log marathon
+#! after-nofile .local/share/blockfall/stats.dat marathon
+#! after-nofile .local/share/ghost-launcher/scores/blockfall.txt marathon-10x20
+#! after-nofile .local/share/ghost-launcher/achievements/blockfall.txt r0
+# The Practice room's undo (3.5.0): U (or the pad's RB) takes the last piece
+# back, exactly: the well, the piece and the queue as they were when it came
+# in. UNDO shows over the well with a low swoosh, the panel's Undos left
+# counts down, and once the run's start is reached nothing more goes back.
+# Nothing a practice run does is recorded: leaving with points writes no
+# runs.log, no stats, no score and no trophy; Quit to menu does not ask.
+wait 10
+tap ENTER
+wait 12
+mouse 167 502
+wait 2
+click 167 502
+wait 4
+expect screen PRACTICE
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect app practice on
+game clear
+game piece O 0 3
+game queue T,S,Z,J,L
+game next I
+wait 2
+tap SPACE
+wait 2
+expect game pieces 1
+expect game filled 4
+expect game current I
+expect app undoleft 1
+tap SPACE
+wait 2
+expect game pieces 2
+expect game filled 8
+expect game current T
+expect app undoleft 2
+shot 176-two-locked
+mark sounds
+tapshot U 176-undo-one
+expect game pieces 1
+expect game filled 4
+expect game current I
+expect game next T
+expect app undoleft 1
+expect app undone 1
+expect hud callouts UNDO
+expect sounds pitched:8
+wait 12
+shot 176-undo-held
+# the second undo reaches the run's start; a third does nothing
+pad on
+pad tap RB
+wait 2
+expect game pieces 0
+expect game filled 0
+expect app undoleft 0
+expect app undone 2
+pad tap RB
+wait 2
+expect game pieces 0
+expect app undone 2
+shot 176-undo-at-start
+# points, then Quit to menu: it leaves at once, and nothing is recorded
+pad off
+tap SPACE
+wait 2
+game score 4800
+game lines 6
+wait 2
+tap ESCAPE
+wait 4
+expect app pause open
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app focus Quit to menu
+tap ENTER
+wait 4
+expect app dialog none
+expect screen MENU
+expect app best:Marathon no run yet
+expect nofile .local/share/blockfall/runs.log marathon

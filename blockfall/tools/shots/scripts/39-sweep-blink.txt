@@ -1,6 +1,9 @@
 #! env SHOTS_SETUP=4,0,10,20
-# After a Sweep the landing blink is on the piece, three rows down with the
-# board, not on the empty cells where it landed.
+# A Sweep replays since 3.1.0: on its first frame the piece is still where it
+# landed, with its landing flash, while the green bar starts across the bottom
+# three rows; once the bar has passed and the stack has dropped, the piece
+# sits three rows down with the board and nothing is lit where it landed (an
+# old bug blinked the empty cells there).
 wait 10
 tap ENTER
 wait 2
@@ -18,8 +21,14 @@ game power Sweep 0
 wait 2
 tap SPACE
 shot 39-sweep-frame1
-# where it landed: empty now, no blink (the old blink lit it up). Since 2.4.0
-# the hard drop's smear (the piece's own colour, never white) runs through it.
-expect pixels 161 417 58 58 nowhite 145
-# where it is: the blink is on the piece
-expect pixels 161 507 58 58 white 145
+expect feel stage sweep
+# where it landed: the piece, flashing, on the board as it was stamped
+expect pixels 161 417 58 58 white 145
+wait 32
+shot 39-sweep-after
+expect feel stage none
+# where it landed: empty now, and dark
+expect pixels 161 417 58 58 below 60
+# where it is: three rows down, no flash left
+expect pixels 161 507 58 58 above 120
+expect pixels 161 507 58 58 nowhite 145

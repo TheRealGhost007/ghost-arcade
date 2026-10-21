@@ -1,12 +1,14 @@
 /* Scores, a browser on the button kit (REWORK_PLAN.md, "Scores you can
  * browse by mode and board"):
- *  - tabs for Marathon, Sprint, Ultra and Power (a click, Left/Right or
- *    LB/RB), and a faint Zen tab that says Zen keeps no scores;
+ *  - tabs for Marathon, Sprint, Ultra, Power and Dig (3.4.0; a click,
+ *    Left/Right or LB/RB), and a faint Zen tab that says Zen keeps no scores;
  *  - a board picker "< Classic 10x20 >" under them ([ and ], X or pad X, a
  *    click or the wheel): the five presets, the size set up in Play setup,
  *    and every other size this machine or the world has rows on. Sprint's
  *    old points boards, from before it was ranked by time, are listed last
- *    as "(old)";
+ *    as "(old)", and so is the classic 10x20 Marathon's board from before
+ *    3.2.0's modern rules, "Classic 10x20 (old rules)" (its table is the
+ *    old "marathon" rows and save.dat's best, never written to again);
  *  - This machine | World (a click, Up/Down) and All time | This week |
  *    Today (a click, T or pad Y);
  *  - the table with its medals and your rows, where you stand, and the
@@ -26,11 +28,11 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { SCORE_TAB_MARATHON, SCORE_TAB_SPRINT, SCORE_TAB_ULTRA, SCORE_TAB_POWER, SCORE_TAB_ZEN, SCORE_TABS };
+enum { SCORE_TAB_MARATHON, SCORE_TAB_SPRINT, SCORE_TAB_ULTRA, SCORE_TAB_POWER, SCORE_TAB_DIG, SCORE_TAB_ZEN, SCORE_TABS };
 enum { SC_BACK = 1, SC_BOARD, SC_SCOPE, SC_PERIOD, SC_PLAY, SC_TAB0 = 10 /* .. SC_TAB0 + SCORE_TABS - 1 */ };
 
-static const char *const kTabs[SCORE_TABS] = {"Marathon", "Sprint", "Ultra", "Power", "Zen"};
-static const GameMode kTabModes[SCORE_TABS] = {MODE_MARATHON, MODE_SPRINT, MODE_ULTRA, MODE_POWER, MODE_ZEN};
+static const char *const kTabs[SCORE_TABS] = {"Marathon", "Sprint", "Ultra", "Power", "Dig", "Zen"};
+static const GameMode kTabModes[SCORE_TABS] = {MODE_MARATHON, MODE_SPRINT, MODE_ULTRA, MODE_POWER, MODE_DIG, MODE_ZEN};
 static const char *const kScopes[2] = {"This machine", "World"};
 static const char *const kPeriods[UI_PERIOD_COUNT] = {"All time", "This week", "Today"};
 
@@ -40,7 +42,7 @@ static const char *const kPeriods[UI_PERIOD_COUNT] = {"All time", "This week", "
 #define SCOPE_Y 186
 #define RULE_Y 218
 #define PLAY_RECT ((KitRect){200, 614, 220, 28})
-#define TAB_PAD 6  /* tighter than the kit's tab bar, so five 16 px tabs fit the window */
+#define TAB_PAD 4  /* tighter than the kit's tab bar, so six 16 px tabs (Dig since 3.4.0) fit the window: 596 of 620 px */
 #define TAB_GAP 4
 #define HINTS1_CY 662
 #define HINTS2_CY 688
@@ -93,10 +95,13 @@ static void BuildBoards(App *a) {
         n++;
     }
     for (int i = 0; i < n; i++) AddBoard(s, custom[i].w, custom[i].h, false);
-    if (mode == MODE_SPRINT) {
+    if (mode == MODE_SPRINT || mode == MODE_MARATHON) {
         BoardSize old[SCORES_BOARDS];
-        int m = Record_BoardsWithRows(MODE_SPRINT, true, old, SCORES_BOARDS);
+        int m = Record_BoardsWithRows(mode, true, old, SCORES_BOARDS);
         for (int i = 0; i < m; i++) AddBoard(s, old[i].w, old[i].h, true);
+        /* The classic best lives in save.dat alone when the table has no
+         * old row: the old-rules board is still there to show it. */
+        if (mode == MODE_MARATHON && a->save.highScore > 0) AddBoard(s, BOARD_W, BOARD_H, true);
     }
     if (FindBoard(s, s->boardW, s->boardH, s->old) < 0) {
         if (FindBoard(s, s->boardW, s->boardH, false) < 0) { s->boardW = s->board[0].w; s->boardH = s->board[0].h; }
@@ -112,7 +117,8 @@ static int BoardIndex(const ScoresState *s) {
 static void BoardLabel(const ScoresState *s, int i, char *out, size_t size) {
     char name[40];
     Menu_BoardName(s->board[i].w, s->board[i].h, name, sizeof(name));
-    snprintf(out, size, "%s%s", name, s->boardOld[i] ? " (old)" : "");
+    const char *old = TabMode(s) == MODE_MARATHON ? " (old rules)" : " (old)";
+    snprintf(out, size, "%s%s", name, s->boardOld[i] ? old : "");
 }
 
 static void SetBoard(ScoresState *s, int i) {
@@ -320,12 +326,13 @@ void ScrScores_Update(App *a, const Input *in, float dt) {
     s->reloadTimer += dt;
     if (changed || s->reloadTimer >= 2.0f) {
         char key[GHOSTLINK_MODE_LEN];
-        if (s->old) Record_OldSprintKey(s->boardW, s->boardH, key, sizeof(key));
+        if (s->old) Record_OldKey(TabMode(s), s->boardW, s->boardH, key, sizeof(key));
         else Record_BoardKey(TabMode(s), s->boardW, s->boardH, key, sizeof(key));
         s->count = TabMode(s) == MODE_ZEN ? 0 : Record_LoadBoard(key, s->world, s->entries, GHOSTLINK_TOP_N);
-        /* save.dat's classic best is older than the table and may be above it. */
+        /* save.dat's classic best is older than the table and may be above
+         * it: it belongs to the old-rules board (3.2.0). */
         long top = s->count > 0 ? s->entries[0].score : 0;
-        bool classic = TabMode(s) == MODE_MARATHON && s->boardW == BOARD_W && s->boardH == BOARD_H && !s->world;
+        bool classic = TabMode(s) == MODE_MARATHON && s->old && !s->world;
         s->oldBest = classic && a->save.highScore > top ? a->save.highScore : 0;
         s->reloadTimer = 0.0f;
     }
@@ -401,7 +408,8 @@ void ScrScores_Draw(App *a, float dt) {
     char board[KIT_LABEL_LEN];
     Menu_BoardName(s->boardW, s->boardH, board, sizeof(board));
     bool custom = Record_PresetOf(s->boardW, s->boardH) < 0;
-    const char *modeLabel = mode == MODE_SPRINT ? (s->old ? "Sprint (old)" : "Sprint 40") : Game_ModeName(mode);
+    const char *modeLabel = mode == MODE_SPRINT ? (s->old ? "Sprint (old)" : "Sprint 40")
+                          : (mode == MODE_MARATHON && s->old ? "Classic (old rules)" : Game_ModeName(mode));
     ScoresViewInfo info = {
         .modeLabel = modeLabel, .boardLabel = board, .world = s->world, .period = (UiScorePeriod)s->period,
         .entries = s->entries, .count = s->count, .username = a->username,
@@ -415,7 +423,8 @@ void ScrScores_Draw(App *a, float dt) {
     if (mode == MODE_ZEN) info.empty = "Zen keeps no scores: a run there never ends.";
     else if (custom && s->world) info.empty = "Custom sizes stay on this machine, off the world board.";
     if (mode == MODE_ZEN) info.footnote = "Zen is for playing on, not for scores";
-    else if (s->old) info.footnote = "Sprint before 2.1, ranked by points rather than time";
+    else if (s->old && mode == MODE_SPRINT) info.footnote = "Sprint before 2.1, ranked by points rather than time";
+    else if (s->old) info.footnote = "The classic board before 3.2, the old rules: never added to";
     else if (mode == MODE_SPRINT) info.footnote = "Sprint 40: finished runs only, the fastest first";
     else if (custom && !s->world) info.footnote = "Custom sizes stay on this machine";
     ScoresView_Draw(&info);

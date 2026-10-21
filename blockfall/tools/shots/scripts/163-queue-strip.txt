@@ -1,0 +1,21 @@
+#! env SHOTS_SETUP=0,5,24,12
+# 3.2.0: the queue on a flat board, where the panel is a strip across the
+# top: the small pieces sit in two columns beside the next piece, the Next
+# box wider, Hold moved over, the stats still fitting.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect hud place strip
+expect game w 24
+game next I
+game queue T,O,S,Z,J
+wait 2
+expect hud queue T|O|S|Z
+shot 163-queue-strip
+tap SPACE
+wait 10
+expect hud queue O|S|Z|J
+shot 163-queue-strip-advanced

@@ -1,0 +1,47 @@
+#! env SHOTS_DAILYLOG=1 SHOTS_SETUP=0,0,10,20
+# The Daily challenge (3.6.0): a Daily challenge item on the main menu above
+# Quit, its second line naming today's twist (20 October 2026 is Power
+# Ultra), your best today and the streak. It opens the Daily screen: the
+# day, the twist and what it is, your best today and its place, the runs,
+# the streak and the best streak, today's board here and in the world with
+# your rows in gold, where your best would stand in the world, and Start.
+# Esc goes back to the menu.
+wait 60
+expect screen MENU
+expect app dailysub Power Ultra, best 9 800, streak 3
+tap UP
+tap UP
+wait 2
+expect app focus Daily challenge
+shot 180-menu-daily-item
+tap ENTER
+wait 12
+expect screen DAILY
+expect app under MENU
+expect app focus Start
+expect app daily:twist Power Ultra
+expect app daily:date 20261020
+expect app daily:datewords Tuesday 20 October
+expect app daily:best 9800
+expect app daily:rank 1
+expect app daily:runs 3
+expect app daily:streak 3
+expect app daily:beststreak 3
+expect app daily:here TRG:9800|Arcade:6200
+expect app daily:world Ghost:21400|Moth:15000|TRG:9800|Pix:4000
+expect app daily:worldrank 3
+shot 180-daily-screen
+tap ESCAPE
+wait 8
+expect screen MENU
+expect app focus Daily challenge
+# the mouse: a click on the item opens it too, and Back goes back
+mouse 300 446
+wait 2
+expect app hover Daily challenge
+click 300 446
+wait 8
+expect screen DAILY
+click 60 26
+wait 8
+expect screen MENU

@@ -6,8 +6,11 @@
 #include "persist.h"
 
 /* What the keys and the pad do in a run, as Settings > Controls shows it:
- * nine actions, each with two keys and two pad buttons (config.ini's names:
+ * ten actions, each with two keys and two pad buttons (config.ini's names:
  * "LEFT", "SPACE", "A"; the pad as uiinput.h's PadButton). No raylib.
+ * Rotate 180 (3.2.0) is the optional one: it comes with no key or button,
+ * and unlike every other action it may be left with none (its only key
+ * can be cleared, or taken by a swap).
  *
  * The rules (REWORK_PLAN.md, "Settings with tabs", "More controls"):
  *  - A key (or button) another action has swaps places: that action takes
@@ -26,6 +29,8 @@
  *    (config.ini's quit). */
 enum {
     ACT_LEFT, ACT_RIGHT, ACT_SOFT, ACT_HARD, ACT_ROTATE, ACT_ROTATE_LEFT, ACT_HOLD, ACT_PAUSE, ACT_RESTART,
+    ACT_ROTATE_180, /* 3.2.0, after the nine so config.ini's pad order and the table's rows before it stay as they were */
+    ACT_UNDO,       /* 3.5.0, the Practice room's undo (U, RB as it comes): last, for the same reason */
     ACT_COUNT
 };
 _Static_assert(ACT_COUNT == CONTROL_ACTIONS, "persist.h keeps a pad pair for every action");
@@ -33,6 +38,10 @@ _Static_assert(ACT_COUNT == CONTROL_ACTIONS, "persist.h keeps a pad pair for eve
 
 /* "Move left" ... "Restart". */
 const char *Controls_ActionLabel(int action);
+/* An action that may be left with no key and no button at all (its only
+ * key can be cleared, or taken by a swap): Rotate 180 (3.2.0) and Undo
+ * (3.5.0), which only the Practice room reads. */
+bool Controls_Optional(int action);
 /* A key slot's field in Settings (NULL out of range). */
 char *Controls_Key(Settings *s, int action, int slot);
 const char *Controls_KeyConst(const Settings *s, int action, int slot);
@@ -63,7 +72,8 @@ BindResult Controls_BindKey(Settings *s, int action, int slot, const char *key);
 /* The same for a pad button. */
 BindResult Controls_BindPad(Settings *s, int action, int slot, int button);
 /* Clears a second slot (a first slot always keeps its key, and an action's
- * last key or button is never cleared). True if it changed. */
+ * last key or button is never cleared; Rotate 180 is the exception: any of
+ * its slots clears). True if it changed. */
 bool Controls_ClearKey(Settings *s, int action, int slot);
 bool Controls_ClearPad(Settings *s, int action, int slot);
 /* Every key and button back to how Blockfall came (Settings > Controls >
@@ -108,11 +118,14 @@ const char *Controls_PadWords(int button);
 typedef struct {
     /* short, for the controls card */
     char move[48], softDrop[24], rotate[24], rotateLeft[24], hardDrop[24], hold[24], pause[48], restart[24], back[52];
+    char rotateHalf[24]; /* "-" until a key is set (3.2.0) */
+    char undo[24];       /* the Practice room's undo, "-" with none (3.5.0) */
     /* full, for the hints and How to play */
     char pauseName[24], restartName[24], backName[24];
-    char moveName[52], softName[24], rotateName[24], rotateLeftName[24], hardName[24], holdName[24];
+    char moveName[52], softName[24], rotateName[24], rotateLeftName[24], hardName[24], holdName[24], rotateHalfName[24], undoName[24];
     /* the pad's caps for the card, space-separated ("Left Right", "Y LB") */
-    char padMove[24], padSoft[16], padRotate[16], padRotateLeft[16], padHard[16], padHold[16], padPause[16], padRestart[16];
+    char padMove[24], padSoft[16], padRotate[16], padRotateLeft[16], padHard[16], padHold[16], padPause[16], padRestart[16], padRotateHalf[16];
+    char padUndo[16];
 } ControlWords;
 void Controls_Words(const Settings *s, ControlWords *out);
 

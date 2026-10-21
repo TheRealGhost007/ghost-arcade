@@ -9,8 +9,10 @@
 /* The play screen's lively parts, decided without raylib so they can be
  * tested headlessly; the drawing (panel.c, effects.c) only reads them. All
  * of it is looks only: the rules never read any of it.
- *  - Callouts: up to three stacked lines over the well (QUAD, BACK-TO-BACK,
- *    COMBO 3, LEVEL 4, BOMB, NEW BEST, FRESH START), all from one moment:
+ *  - Callouts: up to three stacked lines over the well (QUAD, T-SPIN
+ *    DOUBLE, PERFECT CLEAR, BACK-TO-BACK, COMBO 3, LEVEL 4, BOMB, NEW BEST,
+ *    FRESH START, and Dig's DUG 2 for a clear that took two or more garbage
+ *    rows: 3.4.0), all from one moment:
  *    the next lock that has words replaces them. They rise 8 px in 0.12 s,
  *    hold, and are gone at 0.9 s (pixel text never fades), together, so no
  *    line ever hops up or changes size while it shows. A single gets no
@@ -24,7 +26,8 @@
  *  - Level up: the ten pips light one by one in 0.15 s and then empty, the
  *    well's frame flashes violet for 0.3 s and the grid brightens for 0.4 s.
  *  - Ultra's countdown turns gold at 30 s and red at 10 s, ticking each
- *    second from there.
+ *    second from there. Sprint's split marks (splits.h) are callouts too:
+ *    "10: -1.4 s", gold when ahead of your best pace.
  * Reduced motion (motion = false) keeps everything still: no rise, no
  * nudge, the pips light at once. */
 
@@ -42,9 +45,18 @@
 #define ULTRA_RED_SECONDS 10.0f
 #define HUD_POPUPS 4
 
-/* Least important first: of more than three at once, the later kinds show. */
-typedef enum { CALL_LEVEL, CALL_POWER, CALL_COMBO, CALL_B2B, CALL_CLEAR, CALL_NEW_BEST, CALL_FRESH } CalloutKind;
-typedef enum { TINT_LIGHT, TINT_GOLD, TINT_POWER } CalloutTint;
+/* Least important first: of more than three at once, the later kinds show.
+ * CALL_CLEAR is the clear's own word (DOUBLE, QUAD, T-SPIN DOUBLE, T-SPIN
+ * MINI); CALL_PERFECT the perfect clear's (3.2.0). */
+typedef enum {
+    CALL_FINESSE, /* the Practice room's hint, "2 extra presses" (3.5.0): the least important, dim, under everything */
+    CALL_LEVEL, CALL_POWER, CALL_DUG, CALL_COMBO, CALL_SPLIT, CALL_B2B, CALL_CLEAR, CALL_PERFECT, CALL_NEW_BEST, CALL_FRESH,
+    CALL_UNDO,    /* the Practice room's UNDO (3.5.0): it arrives alone, after a piece was taken back */
+} CalloutKind;
+/* Dig: a clear that took this many garbage rows or more gets a DUG callout
+ * (a single garbage row is the usual case and has its popup alone). */
+#define DUG_CALLOUT_MIN 2
+typedef enum { TINT_LIGHT, TINT_GOLD, TINT_POWER, TINT_DIM } CalloutTint;
 
 typedef struct {
     CalloutKind kind;
@@ -73,10 +85,17 @@ typedef struct {
     float levelAge;           /* seconds since the last level up */
     long lastScore;
     int lastSecond;           /* Ultra: the last whole second shown */
+    /* A Sprint split noted for this frame's callouts (splits.h decides it). */
+    bool splitPending, splitGold;
+    char splitText[24];
 } HudFx;
 
 /* A new run (or a restart): nothing showing, the score as it is. */
 void HudFx_Reset(HudFx *h, const Game *g);
+/* A Sprint split taken this frame ("10: -1.4 s", gold when ahead): a
+ * callout among this frame's, under the clear's word. Call it before
+ * HudFx_React; it is taken by that frame alone. */
+void HudFx_NoteSplit(HudFx *h, const char *text, bool gold);
 /* This frame's events (call it BEFORE Game_ConsumeFrameFlags). passedBest:
  * the run just passed the best it started with. */
 void HudFx_React(HudFx *h, const Game *g, bool passedBest);

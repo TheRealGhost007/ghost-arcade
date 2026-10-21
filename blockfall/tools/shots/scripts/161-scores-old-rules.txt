@@ -1,0 +1,50 @@
+#! env SHOTS_OWNER=1 SHOTS_SAVE=74372
+# 3.2.0: the owner's files today. The classic 10x20 Marathon has a fresh
+# board under the modern rules: the menu's Best says no run yet, Play setup
+# says No best yet, and the Scores browser's Classic 10x20 table is empty.
+# The old table (12 248) and save.dat's 74 372 are the last board of the
+# Marathon tab, "Classic 10x20 (old rules)", read and never written again.
+wait 10
+expect screen MENU
+expect app best:Marathon no run yet
+shot 161-menu-no-run-yet
+tap ENTER
+wait 12
+expect screen SETUP
+expect app yourbest No best yet
+shot 161-setup-no-best
+tap ESCAPE
+wait 5
+tap DOWN
+tap DOWN
+tap ENTER
+wait 5
+expect screen SCORES
+expect scores mode Marathon
+expect scores board Classic 10x20
+expect scores count 0
+expect scores oldbest 0
+expect app boards 10x20|14x20|8x26|18x30|6x14|10x20old
+shot 161-scores-fresh-classic
+tap LEFT_BRACKET
+wait 3
+expect scores mode Classic (old rules)
+expect scores board Classic 10x20
+expect scores count 1
+expect scores oldbest 74372
+shot 161-scores-old-rules
+# the world side of the old board, and back
+tap UP
+wait 3
+expect scores world 1
+expect scores oldbest 0
+shot 161-scores-old-rules-world
+tap DOWN
+wait 3
+# Play this board starts a classic Marathon under the modern rules
+tap ENTER
+wait 4
+expect screen PLAYING
+expect game mode Marathon
+expect game w 10
+expect view best 0

@@ -19,10 +19,13 @@ static void Row(Game *g, int y, const char *pattern) {
     }
 }
 
-/* A vertical I dropped into column 9 over `rows` rows that miss only that column. */
+/* A vertical I dropped into column 9 over `rows` rows that miss only that
+ * column. A block sits above them, so no clear here empties the well (a
+ * perfect clear, 3.2.0, has a word of its own: test_modern.c). */
 static void ClearWithI(Game *g, int rows) {
     Board_Init(&g->board, g->cfg.width, g->cfg.height);
     for (int y = 0; y < rows; y++) Row(g, y, "#########.");
+    Row(g, rows, "#.........");
     g->current = PIECE_I;
     g->rotation = 1;
     g->px = 7;

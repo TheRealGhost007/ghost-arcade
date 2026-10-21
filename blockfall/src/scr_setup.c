@@ -1,8 +1,8 @@
-/* Play setup: the five modes in a list (each with a word, and your pick
+/* Play setup: the six modes in a list (each with a word, and your pick
  * explained at the right), a board picker, Width and Height that always
  * work (hold to repeat, faster after a second), a preview of the board at
  * its true shape, your best and the world's on it, a button for its Scores,
- * and Start. It opens on last time's mode, so Enter, Enter replays your
+ * one for the Practice room (3.5.0, scr_practice.c) and Start. It opens on last time's mode, so Enter, Enter replays your
  * last setup; Enter on any mode row (or Width, Height) starts too. Left/
  * Right, LB/RB or [ and ] change the board from anywhere (on Width and
  * Height, Left/Right change the number). Esc, pad B or [<- Back] go back. */
@@ -16,27 +16,32 @@
 #include <stdio.h>
 #include <string.h>
 
-#define LEFT_X 24
-#define LEFT_W 286
-#define MODE_Y 136
-#define MODE_PITCH 40
-#define ROW_H 34
+/* The rows and the right column's text are layout.h's SETUP_*: six modes
+ * at a 36 px pitch (40 until 3.4.0) above Size; since 3.6.1 the Size header
+ * keeps 10 px under Dig's row and its rows share the modes' pitch, and the
+ * right column ends at 580 (596 before). */
+#define LEFT_X SETUP_LEFT_X
+#define LEFT_W SETUP_LEFT_W
+#define MODE_Y SETUP_MODE_Y
+#define MODE_PITCH SETUP_MODE_PITCH
+#define ROW_H SETUP_ROW_H
 #define NOTE_X 176
-#define SIZE_Y 366
-#define SIZE_PITCH 40
+#define SIZE_Y SETUP_SIZE_Y
+#define SIZE_PITCH SETUP_SIZE_PITCH
 #define STEP_X 156
-#define RIGHT_X 334
-#define RIGHT_W 262
+#define RIGHT_X SETUP_RIGHT_X
+#define RIGHT_W SETUP_RIGHT_W
 #define PREVIEW_Y 248
 #define PREVIEW_H 196
-#define BESTS_Y 498
+#define BESTS_Y SETUP_BESTS_Y
 #define HINTS_CY 676
 
 static KitRect ModeRect(int i) { return (KitRect){LEFT_X, (float)(MODE_Y + i * MODE_PITCH), LEFT_W, ROW_H}; }
 static KitRect SizeRowRect(int i) { return (KitRect){LEFT_X, (float)(SIZE_Y + i * SIZE_PITCH), LEFT_W, ROW_H}; }
-static const KitRect kScoresRect = {44, 452, 246, 28};
+static const KitRect kScoresRect = {44, SETUP_SCORES_Y, 246, 28};
+static const KitRect kPracticeRect = {44, 488, 246, 28}; /* the Practice room (3.5.0), under Scores */
 static const KitRect kStartRect = {40, 572, 540, 48};
-static const KitRect kBoardRect = {382, 212, 214, 24};
+static const KitRect kBoardRect = {382, 212, SETUP_RIGHT_X + SETUP_RIGHT_W - 382, 24}; /* ends at 580 */
 
 static bool IsMode(int id) { return id >= SI_MODE0 && id < SI_MODE0 + MODE_COUNT; }
 static bool IsSize(int id) { return id == SI_WIDTH || id == SI_HEIGHT; }
@@ -76,6 +81,8 @@ void ScrSetup_Layout(const App *a, KitList *l) {
     }
     it = Kit_Add(l, SI_SCORES, KIT_BUTTON, kScoresRect, "Scores for this board");
     if (it) { it->style = KIT_STYLE_SMALL; it->textSize = 8; }
+    it = Kit_Add(l, SI_PRACTICE, KIT_BUTTON, kPracticeRect, "Practice room");
+    if (it) { it->style = KIT_STYLE_SMALL; it->textSize = 8; }
     it = Kit_Add(l, SI_START, KIT_BUTTON, kStartRect, "Start");
     if (it) it->flags |= KIT_ACCENT; /* always lit */
 }
@@ -86,6 +93,7 @@ static KitRect PlateFor(int id) {
     if (id == SI_WIDTH) return SizeRowRect(0);
     if (id == SI_HEIGHT) return SizeRowRect(1);
     if (id == SI_SCORES) return kScoresRect;
+    if (id == SI_PRACTICE) return kPracticeRect;
     if (id == SI_START) return kStartRect;
     return ModeRect(0);
 }
@@ -116,7 +124,7 @@ static void LoadBests(App *a) {
     char key[GHOSTLINK_MODE_LEN];
     Record_BoardKey(mode, w, h, key, sizeof(key));
     if (Record_PresetOf(w, h) < 0) {
-        snprintf(st->worldBest, sizeof(st->worldBest), "this machine only"); /* custom sizes stay off the world board */
+        snprintf(st->worldBest, sizeof(st->worldBest), "this PC only"); /* custom sizes stay off the world board ("this machine only" until 3.6.1: too wide) */
         return;
     }
     static GhostScore rows[GHOSTLINK_TOP_N];
@@ -128,7 +136,8 @@ static void LoadBests(App *a) {
     Menu_BestText(unit, rows[0].score, "none yet", st->worldBest, sizeof(st->worldBest));
     /* The holder's name fits between the words and the value: ten
      * characters, or up to nine and a full stop when it is longer (no space
-     * before the stop: "The Real Dev Ghost" is "The Real."). */
+     * before the stop: "The Real Dev Ghost" is "The Real."). Beside a
+     * long value the drawing cuts it further (Layout_SetupMiddle, 3.6.1). */
     if (strlen(rows[0].username) > 10) {
         int keep = 9;
         while (keep > 1 && rows[0].username[keep - 1] == ' ') keep--;
@@ -267,6 +276,12 @@ void ScrSetup_Update(App *a, const Input *in, float dt) {
             return;
         }
         if (ev.id == SI_START) { Start(a); return; }
+        if (ev.id == SI_PRACTICE) {
+            Settings_Save(&a->settings); /* the room plays on the board set up here */
+            Scr_SoundConfirm();
+            App_Open(a, SCR_PRACTICE);
+            return;
+        }
     } else if (ev.type == KIT_EV_CHANGE) {
         int w, h;
         Setup_Size(&a->settings, &w, &h);
@@ -295,10 +310,17 @@ static void DrawPreview(App *a, float dt) {
     int c = (fw - 4) / w < (fh - 4) / h ? (fw - 4) / w : (fh - 4) / h;
     if (c < 1) return;
     int bx = cx - (c * w) / 2, by = cy - (c * h) / 2;
+    /* In Dig (3.4.0) the rubble is the garbage it starts with: grey rows,
+     * one gap each, as many as the run begins with. */
+    bool dig = a->settings.setupMode % MODE_COUNT == MODE_DIG;
+    int digRows = DIG_START_ROWS < h - 4 ? DIG_START_ROWS : h - 4;
     for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++)
-            if (Setup_PreviewRubble(w, h, x, y))
-                Render_BlockAt(bx + x * c, by + (h - 1 - y) * c, c, Render_PieceColor((PieceType)((x * 3 + y * 5) % PIECE_COUNT)), 0.85f);
+        for (int x = 0; x < w; x++) {
+            bool on = dig ? (y < digRows && x != (int)(Setup_PreviewGap(w, h, y))) : Setup_PreviewRubble(w, h, x, y);
+            if (!on) continue;
+            Color col = dig ? Render_PieceColor((PieceType)CELL_GARBAGE) : Render_PieceColor((PieceType)((x * 3 + y * 5) % PIECE_COUNT));
+            Render_BlockAt(bx + x * c, by + (h - 1 - y) * c, c, col, 0.85f);
+        }
     Cell cells[CELLS_PER_PIECE];
     Tetromino_GetCells(PIECE_T, 0, cells);
     int px = w / 2 - 2, py = 1;
@@ -326,13 +348,14 @@ static void DrawRight(App *a, float dt) {
     /* Each line: the word, then your place or who holds it, and the value
      * at the right edge (a word in faint when there is none). */
     const SetupState *st = &a->setup;
+    char mid[32];
     bool none = st->yourBest[0] < '0' || st->yourBest[0] > '9';
     Ui_Text("Your best", RIGHT_X, BESTS_Y, UI_T8, t->dim);
-    if (st->yourRank[0]) Ui_Text(st->yourRank, RIGHT_X + 96, BESTS_Y, UI_T8, t->gold);
+    if (Layout_SetupMiddle(st->yourRank, false, st->yourBest, Ui_Measure, mid, sizeof(mid)) > 0) Ui_Text(mid, SETUP_BEST_MID_X, BESTS_Y, UI_T8, t->gold);
     Ui_TextRight(st->yourBest, UI_T8, RIGHT_X + RIGHT_W, BESTS_Y, none ? t->faint : t->text);
     none = st->worldBest[0] < '0' || st->worldBest[0] > '9';
     Ui_Text("World best", RIGHT_X, BESTS_Y + 18, UI_T8, t->dim);
-    if (st->worldWho[0]) Ui_Text(st->worldWho, RIGHT_X + 96, BESTS_Y + 18, UI_T8, t->dim);
+    if (Layout_SetupMiddle(st->worldWho, true, st->worldBest, Ui_Measure, mid, sizeof(mid)) > 0) Ui_Text(mid, SETUP_BEST_MID_X, BESTS_Y + 18, UI_T8, t->dim);
     Ui_TextRight(st->worldBest, UI_T8, RIGHT_X + RIGHT_W, BESTS_Y + 18, none ? t->faint : t->text);
 }
 
@@ -358,8 +381,8 @@ void ScrSetup_Draw(App *a, float dt) {
 
     Scr_PlayingAs(a->username, WINDOW_WIDTH - 22, 22);
     Scr_Title("Play setup", 40, 48);
-    Ui_Text("Mode", LEFT_X + 20, MODE_Y - 18, UI_T8, t->dim);
-    Ui_Text("Size", LEFT_X + 20, SIZE_Y - 18, UI_T8, t->dim);
+    Ui_Text("Mode", LEFT_X + 20, MODE_Y - SETUP_HEAD_DY, UI_T8, t->dim);
+    Ui_Text("Size", LEFT_X + 20, SIZE_Y - SETUP_HEAD_DY, UI_T8, t->dim);
     DrawRectangle(318, MODE_Y - 18, 2, 400, t->rule);
 
     KitList l;

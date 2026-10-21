@@ -20,6 +20,12 @@
 #include "results.h"
 #include "setpage.h"
 #include "howtodemo.h"
+#include "soundplan.h"
+#include "danger.h"
+#include "splits.h"
+#include "stats.h"
+#include "practice.h"
+#include "challenge.h"
 
 /* Blockfall as a stack of screens. Each screen is a file of its own
  * (scr_*.c, see screens.h); this is what they share: the player's settings
@@ -30,10 +36,12 @@
  * with a quiet input (holds, no presses) and drawn in that same pass.
  * This part is raylib-free. */
 
-typedef enum { SCR_MENU, SCR_SETUP, SCR_PLAY, SCR_SCORES, SCR_SETTINGS, SCR_HOWTO, SCR_UPDATES, SCR_COUNT } ScreenId;
+typedef enum { SCR_MENU, SCR_SETUP, SCR_PLAY, SCR_SCORES, SCR_SETTINGS, SCR_HOWTO, SCR_UPDATES, SCR_STATS, SCR_PRACTICE, SCR_DAILY, SCR_COUNT } ScreenId;
 
-/* The main menu's six items, top to bottom. */
-enum { MI_START, MI_HOWTO, MI_SCORES, MI_SETTINGS, MI_UPDATES, MI_QUIT, MI_COUNT };
+/* The main menu's eight items, top to bottom (Stats came in 3.3.0 and the
+ * Daily challenge in 3.6.0, each above Quit, so the Down counts to the
+ * items before them still hold). */
+enum { MI_START, MI_HOWTO, MI_SCORES, MI_SETTINGS, MI_UPDATES, MI_STATS, MI_DAILY, MI_QUIT, MI_COUNT };
 
 typedef struct {
     KitState kit;
@@ -45,14 +53,15 @@ typedef struct {
     Skyline sky;
     bool bestsLoaded;
     char bestsBoard[40];
-    char bests[4][24]; /* Marathon, Sprint, Ultra, Power on the board you last set up */
+    char bests[5][24]; /* Marathon, Sprint, Ultra, Power, Dig (3.4.0) on the board you last set up */
+    char dailySub[KIT_LABEL_LEN]; /* the Daily item's second line (3.6.0): today's twist, your best today, the streak */
     char toast[64];    /* an achievement just earned */
     float toastAge;
     bool toastOn;
 } MenuState;
 
-/* Play setup's controls, by id. */
-enum { SI_BACK = 1, SI_MODE0 = 10, SI_WIDTH = 20, SI_HEIGHT, SI_BOARD, SI_SCORES, SI_START };
+/* Play setup's controls, by id (SI_PRACTICE, the Practice room's button, 3.5.0). */
+enum { SI_BACK = 1, SI_MODE0 = 10, SI_WIDTH = 20, SI_HEIGHT, SI_BOARD, SI_SCORES, SI_START, SI_PRACTICE };
 
 typedef struct {
     KitState kit;
@@ -69,6 +78,9 @@ typedef struct {
     Game game;
     RenderView view;
     PlayDriver driver; /* auto-repeat, READY-GO and the countdown after a pause (playstep.h) */
+    SoundPlan sound;   /* which sounds a frame asks for (soundplan.h) */
+    Danger danger;     /* the danger warning and the music's intensity (danger.h) */
+    Splits splits;     /* Sprint's splits against your best pace (splits.h) */
     int restartNonce;
     bool runSubmitted;
     bool prevGameOver;
@@ -81,13 +93,51 @@ typedef struct {
     bool endRecorded;
     long endValue;
     char endDate[GHOSTLINK_DATE_LEN];
+    /* The Practice room (3.5.0): the next run to open is a practice run
+     * (the Practice screen's Start sets it; the run reads it as it opens),
+     * and the pieces that can be taken back (practice.h). */
+    bool startPractice;
+    UndoStack undo;
+    /* The Daily challenge (3.6.0): the next run to open is today's daily
+     * (the Daily screen's Start sets it), and the day's seed, which a
+     * restart uses again so the pieces come as they did. */
+    bool startDaily;
+    uint64_t dailySeed;
 } PlayState;
+
+/* The Daily challenge screen (3.6.0): today's twist, your best today and
+ * the streak, today's board (this machine and the world) and Start. What
+ * it shows is read as it opens (challenge.h, the day's board). */
+enum { DI_BACK = 1, DI_START = 2 };
+typedef struct {
+    KitState kit;
+    int date;                   /* YYYYMMDD */
+    uint64_t seed;
+    DailyTwist twist;
+    char dateWords[40];         /* "Tuesday 20 October" */
+    long bestToday;             /* yours, this machine; 0 none */
+    int rankToday;              /* its place on this machine's board; 0 none */
+    int runsToday;
+    int streak, bestStreak;
+    GhostScore here[DAILY_TOP]; /* today's board: this machine, best first */
+    int hereCount;
+    GhostScore world[DAILY_TOP];
+    int worldCount;
+    int worldRank;              /* where your best today would stand on the world board; 0 none */
+} DailyState;
+
+/* The Practice room's options screen (3.5.0): six rows and Start. */
+enum { PR_BACK = 1, PR_OPT0 = 10, PR_START = 30 };
+typedef struct {
+    KitState kit;
+    KitGlide glide;
+} PracticeState;
 
 /* The Scores browser: a mode's tab, a board, this machine or the world, a
  * period. */
 #define SCORES_BOARDS 24
 typedef struct {
-    int tab;           /* SCORE_TAB_* (scr_scores.c): Marathon, Sprint, Ultra, Power, Zen */
+    int tab;           /* SCORE_TAB_* (scr_scores.c): Marathon, Sprint, Ultra, Power, Dig, Zen */
     int boardW, boardH;/* the board shown */
     bool old;          /* Sprint's old points board */
     bool world;
@@ -141,6 +191,19 @@ typedef struct {
     int contentH;      /* measured when drawn */
 } UpdatesState;
 
+/* Stats (3.3.0): the lifetime file as read when the screen opened, the
+ * row shown (All modes, or a mode: the focus bar's row), and how long the
+ * bar has been growing in. */
+#define STATS_ROWS (MODE_COUNT + 1)
+typedef struct {
+    KitState kit;
+    KitGlide glide;
+    LifeStats life;
+    bool have;         /* a stats file existed */
+    int shown;         /* 0 = All modes, then the modes in the screen's order */
+    float age;         /* seconds since the shown row was chosen (the bar grows in) */
+} StatsState;
+
 typedef struct App {
     Settings settings;
     SaveData save;
@@ -167,6 +230,9 @@ typedef struct App {
     SettingsScreenState set;
     HowToScreenState howto;
     UpdatesState updates;
+    StatsState stats;
+    PracticeState practice;
+    DailyState daily;
 } App;
 
 /* A screen on top of this one; Back comes here again. */

@@ -1,0 +1,67 @@
+#! env SHOTS_SETUP=0,0,10,20
+# The Practice room's finesse hints (3.5.0): a piece that took more presses
+# than it needed says how many as it lands, in dim words under the lock's own
+# ("1 extra press"); a clean lock says nothing. The PRACTICE tag stands where
+# the mode's name goes, and the controls card has Undo in the Volume row.
+wait 10
+tap ENTER
+wait 12
+mouse 167 502
+wait 2
+click 167 502
+wait 4
+expect screen PRACTICE
+expect app popt:Finesse_hints On
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app focus Start
+tap ENTER
+wait 3
+expect screen PLAYING
+expect app practice on
+expect hud callouts none
+shot 175-practice-tag
+# an O three taps left (one in from the wall): a held slide and a tap back would do
+game clear
+game piece O 0 3
+game next T
+wait 2
+tap LEFT
+tap LEFT
+tap LEFT
+wait 2
+expect game px 0
+expect app presses 3
+tapshot SPACE 175-finesse-hint
+expect game pieces 1
+expect hud callouts 1 extra press
+wait 12
+shot 175-finesse-hint-held
+# a clean lock: two taps for a two-tap placement, no hint
+wait 50
+game piece O 0 3
+wait 2
+tap LEFT
+tap LEFT
+wait 2
+expect app presses 2
+tapshot SPACE 175-finesse-clean
+expect game pieces 2
+expect hud callouts none
+# a double from a held slide (one press): the clear's word alone
+wait 50
+game clear
+game row 0 IIII.IIIII
+game row 1 IIII.IIIII
+game piece I 1 2
+wait 2
+expect game rotation 1
+expect app presses 0
+tapshot SPACE 175-clean-double
+expect game lines 2
+expect hud callouts DOUBLE

@@ -1,0 +1,35 @@
+#! env SHOTS_SETUP=1,0,10,20
+# Sprint with no pace to race yet: a mark shows its own time ("10: 0:23.42"),
+# the clock still starts at once (Ready, go off here), and the finish writes
+# the first pace file.
+#! after-file .local/share/blockfall/splits.dat sprint40|2342|
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Sprint
+expect view best 0
+game clear
+game row 0 #########.
+game piece I 1 7
+game lines 9
+game elapsed 23.40
+tapshot SPACE 157-split-10-f1
+expect hud split 10: 0:23.42
+expect hud splitgold 0
+expect hud callouts 10: 0:23.42|LEVEL 2
+wait 10
+shot 157-split-10-no-pace
+# the finish of a first Sprint on the board
+game clear
+game row 0 #########.
+game piece I 1 7
+game lines 39
+game elapsed 70.00
+tapshot SPACE 157-finish-f1
+expect game won 1
+wait 130
+expect app results on
+expect app card:best No best before this one
+shot 157-finish-first

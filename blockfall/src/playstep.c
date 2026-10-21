@@ -52,6 +52,8 @@ int PlayDriver_CountNumber(const StartCue *c) {
 
 /* A turn, and whether a turn that was pressed could not be made. */
 static void Turn(Game *g, int dir, PlayStepResult *out) {
+    Game_NotePress(g); /* finesse: a turn is a press, made or not; a half turn counts two */
+    if (dir == 2) Game_NotePress(g);
     if (Game_Rotate(g, dir)) out->rotated = true;
     else if (g->phase == GS_PLAYING && g->current != PIECE_O) out->rotateBlocked = true;
 }
@@ -75,6 +77,7 @@ void Play_Step(PlayDriver *d, Game *g, const PlayIntent *in, float dt, float spe
         out->waiting = true;
         if (in->rotate) KeepTurn(c, 1);
         if (in->rotateLeft) KeepTurn(c, -1);
+        if (in->rotateHalf) KeepTurn(c, 2);
         if (in->hold) c->hold = true;
         c->t += dt;
         bool count = c->stage == CUE_COUNT;
@@ -101,6 +104,10 @@ void Play_Step(PlayDriver *d, Game *g, const PlayIntent *in, float dt, float spe
 
     /* A repeat speed of 0: once the delay is over, straight to the wall. */
     bool wall = h.speed <= 0.0f;
+    /* Finesse (the Practice room's hints): a fresh Left or Right is a press,
+     * whether or not the piece can move; its repeats are the same press. */
+    if (doLeft && !leftWasHeld) Game_NotePress(g);
+    if (doRight && !rightWasHeld) Game_NotePress(g);
     if (doLeft && Game_MoveLeft(g)) {
         out->moved = true;
         if (leftWasHeld) {
@@ -119,6 +126,7 @@ void Play_Step(PlayDriver *d, Game *g, const PlayIntent *in, float dt, float spe
     if (doSoftDrop && Game_SoftDrop(g) && h.soft <= 0.0f) while (Game_SoftDrop(g)) { }
     if (in->rotate) Turn(g, 1, out);
     if (in->rotateLeft) Turn(g, -1, out);
+    if (in->rotateHalf) Turn(g, 2, out);
     if (in->hardDrop) Game_HardDrop(g);
     if (in->hold && Game_Hold(g)) out->held = true;
     Game_Update(g, dt * speed);

@@ -21,7 +21,7 @@ expect app settab Feel
 click 100 117
 wait 3
 expect app settab Controls
-mouse 470 400
+mouse 470 386
 wait 3
 mdown left
 wait 2

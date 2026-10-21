@@ -1,11 +1,16 @@
 /* The well: its frame, its grid, the stack, the ghost and the falling
  * piece, drawn the way feel.h says they move.
  *  - The frame flashes violet at a level up (hudfx.h) and gold after a quad
- *    (feel.h); with Reduced flashing it only half lights.
+ *    (feel.h); with Reduced flashing it only half lights. In danger
+ *    (danger.h) it eases to red and pulses (steady with Reduced flashing),
+ *    faint red stripes hatch the top three rows, and the next piece's
+ *    outline shows in red where it would come in when it would not fit.
  *  - While a line clear replays, the stack is the board as the piece was
  *    stamped: the full rows flash (white, or a soft tint of the piece's
  *    colour with Reduced flashing) and their cells zip out; then the live
- *    board's rows fall into place from where they were.
+ *    board's rows fall into place from where they were. A Sweep's bottom
+ *    rows go as its green bar crosses them (effects.c draws the bar), or
+ *    flash green and cut with Reduced motion.
  *  - The landed piece: a hard drop's smear, two-frame squash and landing
  *    flash; a natural lock's 1 px settle and brighter bevel.
  *  - The ghost: an outline and a light fill, with marks on the frame at
@@ -17,6 +22,9 @@
  *    grid on, faint or off (Settings > Look; the pause menu turns the ghost
  *    off and on). With Block patterns on, every block carries its piece's
  *    mark (look.h).
+ *  - Dig's garbage (3.4.0) is grey with no pattern (the cell value past the
+ *    pieces'); after a row pushes up the stack is drawn a cell low and
+ *    eases up into place (feel.h; a cut with Reduced motion).
  *  - The end show (results.h): a top-out's blocked piece blinks red (steady
  *    with Reduced flashing) and the rows go grey from the bottom up; a Sprint
  *    clear's rows go from the bottom up (effects.c bursts them); at Ultra's
@@ -24,6 +32,7 @@
 #include "renderpriv.h"
 #include "blockdraw.h"
 #include "comfort.h"
+#include "danger.h"
 #include "feel.h"
 #include <math.h>
 
@@ -52,7 +61,7 @@ static bool IsClearedRow(const ClearReplay *r, int row) {
     return false;
 }
 
-void Well_DrawFrame(const Game *g, const PlayLayout *l, const HudFx *hud, const Feel *f, int ghost, int grid) {
+void Well_DrawFrame(const Game *g, const PlayLayout *l, const HudFx *hud, const Feel *f, int ghost, int grid, const Danger *d) {
     int bx = l->boardX, by = l->boardY, bw = l->boardW, bh = l->boardH, cell = l->cell;
     float level = HudFx_FrameFlash(hud), quad = Feel_QuadFrame(f);
     if (Comfort_Calm()) {
@@ -60,8 +69,12 @@ void Well_DrawFrame(const Game *g, const PlayLayout *l, const HudFx *hud, const 
         quad *= 0.5f;
     }
     Color frame = kRule;
-    if (quad > 0.0f) frame = Ui_Lerp(kRule, kGold, quad); /* a quad outshines the level up it brings */
-    else if (level > 0.0f) frame = Ui_Lerp(kRule, kLight, level);
+    /* Danger first: the frame eased to red, pulsing (steady with Reduced
+     * flashing); a quad's gold or a level up's violet still flash over it. */
+    float red = d ? Danger_Frame(d, Comfort_Calm()) : 0.0f;
+    if (red > 0.0f) frame = Ui_Lerp(kRule, kDanger, red);
+    if (quad > 0.0f) frame = Ui_Lerp(frame, kGold, quad); /* a quad outshines the level up it brings */
+    else if (level > 0.0f) frame = Ui_Lerp(frame, kLight, level);
     DrawRectangle(bx - LAYOUT_FRAME, by - LAYOUT_FRAME, bw + 2 * LAYOUT_FRAME, bh + 2 * LAYOUT_FRAME, frame);
     DrawRectangle(bx, by, bw, bh, kBoardBg);
     /* The grid: On, Faint or Off (Settings > Look); a level up still
@@ -91,20 +104,28 @@ void Well_DrawFrame(const Game *g, const PlayLayout *l, const HudFx *hud, const 
 
 /* ------------------------------------------------------------ the stack */
 
-/* The board as the piece was stamped: the full rows flash, then zip out. */
+/* The board as the piece was stamped: the full rows flash, then zip out;
+ * a Sweep's rows go under its bar (or flash green with Reduced motion). */
 static void DrawBefore(const PlayLayout *l, const Feel *f, ClearStage stage, bool calm) {
     const ClearReplay *r = &f->clear;
     const Board *b = &r->before;
-    Color clearColor = Render_PieceColor(r->lockType);
+    Color clearColor = Render_PieceColor(r->lockType), sweepColor = Rp_PowerColor(PU_SWEEP);
     float zipK = r->times.zip > 0.0f ? (r->t - r->times.flash) / r->times.zip : 1.0f;
+    bool sweepCut = r->sweepCount > 0 && r->times.sweep <= 0.0f; /* Reduced motion: the rows flash, then cut */
     for (int row = BOARD_HIDDEN; row < Board_TotalH(b); row++) {
-        bool cleared = IsClearedRow(r, row);
+        bool cleared = IsClearedRow(r, row), swept = Feel_IsSweepRow(r, row);
         for (int col = 0; col < b->w; col++) {
             int8_t v = b->cells[row][col];
             if (v == CELL_EMPTY) continue;
-            if (cleared && stage == CLEAR_ZIP && Feel_ClearCellGone(r, col, r->t)) continue;
+            if (cleared && stage != CLEAR_FLASH && Feel_ClearCellGone(r, col, r->t)) continue;
+            if (swept && stage == CLEAR_SWEEP && Feel_SweepCellGone(r, col, r->t)) continue;
             int x = Rp_CellX(l, col), y = Rp_CellY(l, row);
             Render_PieceBlock(x, y, l->cell, (PieceType)v, Render_PieceColor((PieceType)v), 1.0f);
+            if (swept && (stage == CLEAR_SWEEP || (sweepCut && stage == CLEAR_FLASH))) {
+                /* Lit green ahead of the bar (a soft tint with Reduced flashing). */
+                Overlay(l, x, y, Fade(sweepColor, calm ? 0.30f : 0.50f));
+                continue;
+            }
             if (!cleared) continue;
             /* The flash, then the cells still waiting their turn stay lit. */
             float k = stage == CLEAR_FLASH ? 1.0f : 0.6f * (1.0f - zipK);
@@ -139,8 +160,9 @@ static void DrawLive(const Game *g, const PlayLayout *l, const Feel *f, bool fal
     bool squash = Feel_Squash(f);
     int settle = Feel_Settle(f);
     bool moving = squash || settle > 0; /* the landed piece is drawn on its own */
+    int rise = Feel_RiseDrop(f, l->cell); /* Dig: the stack easing up after a rise */
     for (int row = BOARD_HIDDEN; row < Board_TotalH(&g->board); row++) {
-        int lift = falling ? Feel_RowLift(f, row, l->cell) : 0;
+        int lift = (falling ? Feel_RowLift(f, row, l->cell) : 0) - rise;
         for (int col = 0; col < g->board.w; col++) {
             int8_t v = g->board.cells[row][col];
             if (v == CELL_EMPTY) continue;
@@ -189,7 +211,7 @@ static void DrawLanding(const Game *g, const PlayLayout *l, const Feel *f, Clear
     const LandFeel *land = &f->land;
     float impact = Feel_Impact(f), bevel = Feel_Bevel(f);
     if (impact <= 0.0f && bevel <= 0.0f) return;
-    bool onBefore = stage == CLEAR_FLASH || stage == CLEAR_ZIP;
+    bool onBefore = stage == CLEAR_FLASH || stage == CLEAR_ZIP || stage == CLEAR_SWEEP;
     if (stage == CLEAR_DROP || (land->replayed && !onBefore)) return;
     Cell cells[CELLS_PER_PIECE];
     Tetromino_GetCells(land->type, land->rot, cells);
@@ -204,6 +226,7 @@ static void DrawLanding(const Game *g, const PlayLayout *l, const Feel *f, Clear
         if (row < BOARD_HIDDEN || row >= BOARD_HIDDEN + g->board.h || col < 0 || col >= g->board.w) continue;
         if (onBefore) {
             if (IsClearedRow(&f->clear, row)) continue; /* those rows flash on their own */
+            if (Feel_IsSweepRow(&f->clear, row) && (stage == CLEAR_SWEEP || f->clear.times.sweep <= 0.0f)) continue; /* lit green, or gone */
         } else if (g->board.cells[row][col] == CELL_EMPTY) {
             continue; /* a Bomb or a Laser took it */
         }
@@ -273,11 +296,54 @@ static void DrawPiece(const Game *g, const PlayLayout *l, const Feel *f, const C
     }
 }
 
-void Well_DrawInside(const Game *g, const PlayLayout *l, const Feel *f, int ghost) {
+/* ------------------------------------------------------------ danger */
+
+/* Faint red hatching over the top rows while the stack is near the top,
+ * the top row strongest: 2 px bands stepping 2 px across every 2 px down
+ * (a 45-degree hatch), under the stack, so a block on those rows hides
+ * it. Still, in both Motion settings. */
+static void DrawDangerStripes(const Game *g, const PlayLayout *l, const Danger *d) {
+    float k = d ? Danger_Stripes(d) : 0.0f;
+    if (k <= 0.0f) return;
+    int rows = DANGER_STRIPE_ROWS < g->board.h ? DANGER_STRIPE_ROWS : g->board.h;
+    for (int i = 0; i < rows; i++) {
+        int y = Rp_CellY(l, BOARD_HIDDEN + i);
+        float a = k * (0.22f - 0.06f * (float)i);
+        DrawRectangle(l->boardX, y, l->boardW, l->cell, Fade(kDanger, a * 0.35f));
+        for (int sy = 0; sy < l->cell; sy += 2) {
+            int phase = ((i * l->cell + sy) / 2 * 2) % 8;
+            for (int x = phase; x < l->boardW; x += 8) {
+                int w = x + 2 <= l->boardW ? 2 : l->boardW - x;
+                DrawRectangle(l->boardX + x, y + sy, w, 2, Fade(kDanger, a));
+            }
+        }
+    }
+}
+
+/* The next piece, unturned, where pieces come in, in red: it would not fit
+ * there now. Pulses with the frame (steady with Reduced flashing). */
+static void DrawNextOutline(const Game *g, const PlayLayout *l, const Danger *d) {
+    if (!d || !d->nextBlocked) return;
+    float k = Danger_Frame(d, Comfort_Calm());
+    if (k <= 0.0f) return;
+    Cell cells[CELLS_PER_PIECE];
+    Tetromino_GetCells(g->next, 0, cells);
+    int px = (g->board.w - 4) / 2;
+    for (int i = 0; i < CELLS_PER_PIECE; i++) {
+        int row = BOARD_HIDDEN + cells[i].y, col = px + cells[i].x;
+        if (col < 0 || col >= g->board.w || row >= BOARD_HIDDEN + g->board.h) continue;
+        int x = Rp_CellX(l, col), y = Rp_CellY(l, row);
+        DrawRectangle(x + 2, y + 2, l->cell - 4, l->cell - 4, Fade(kDanger, 0.12f * k));
+        DrawRectangleLinesEx((Rectangle){(float)x + 2, (float)y + 2, (float)l->cell - 4, (float)l->cell - 4}, 2, Fade(kDanger, 0.45f + 0.5f * k));
+    }
+}
+
+void Well_DrawInside(const Game *g, const PlayLayout *l, const Feel *f, int ghost, const Danger *d) {
     bool calm = Comfort_Calm();
     ClearStage stage = Feel_ClearStage(f);
+    DrawDangerStripes(g, l, d);
     DrawSmear(l, f);
-    if (stage == CLEAR_FLASH || stage == CLEAR_ZIP) DrawBefore(l, f, stage, calm);
+    if (stage == CLEAR_FLASH || stage == CLEAR_ZIP || stage == CLEAR_SWEEP) DrawBefore(l, f, stage, calm);
     else DrawLive(g, l, f, stage == CLEAR_DROP);
     DrawLanding(g, l, f, stage, calm);
 
@@ -287,6 +353,7 @@ void Well_DrawInside(const Game *g, const PlayLayout *l, const Feel *f, int ghos
     Tetromino_GetCells(g->current, g->rotation, cells);
     if (ghost != GHOST_OFF && Feel_ShowGhost(f)) DrawGhost(g, l, cells, pieceColor, ghost);
     DrawPiece(g, l, f, cells, pieceColor);
+    DrawNextOutline(g, l, d);
 }
 
 /* ------------------------------------------------------------- the end */

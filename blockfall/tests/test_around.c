@@ -470,7 +470,7 @@ static void test_results_card(void) {
     CHECK(strcmp(c.statLabel[4], "Points") == 0 && strcmp(c.statValue[4], "9 000") == 0, "results: a Sprint's points in the numbers");
     g.elapsed = 70.0f;
     Results_Build(&c, &g, &f);
-    CHECK(c.newBest && strcmp(c.bestLine, "Old best 1:12.40") == 0, "results: a faster Sprint is a new best");
+    CHECK(c.newBest && strcmp(c.bestLine, "New best by 2.4 s (was 1:12.40)") == 0, "results: a faster Sprint is a new best, by so many tenths (3.1.0)");
     g.won = false;
     g.linesCleared = 31;
     Results_Build(&c, &g, &f);
@@ -799,11 +799,15 @@ static void test_board_list(void) {
     GameMode m;
     bool old;
     int w, h;
-    CHECK(Record_ParseKey("marathon", &m, &old, &w, &h) && m == MODE_MARATHON && !old && w == 10 && h == 20, "boards: marathon is the classic 10x20");
+    CHECK(Record_ParseKey("marathon", &m, &old, &w, &h) && m == MODE_MARATHON && old && w == 10 && h == 20,
+          "boards: marathon is the classic 10x20 under the old rules (3.2.0)");
+    CHECK(Record_ParseKey("marathon-10x20", &m, &old, &w, &h) && m == MODE_MARATHON && !old && w == 10 && h == 20,
+          "boards: marathon-10x20 is the classic 10x20 Marathon's board");
+    CHECK(Record_ParseKey("ultra", &m, &old, &w, &h) && m == MODE_ULTRA && !old && w == 10 && h == 20, "boards: ultra is still the classic board");
     CHECK(Record_ParseKey("sprint40-14x20", &m, &old, &w, &h) && m == MODE_SPRINT && !old && w == 14 && h == 20, "boards: sprint40-14x20");
     CHECK(Record_ParseKey("sprint", &m, &old, &w, &h) && m == MODE_SPRINT && old && w == 10 && h == 20, "boards: sprint is Sprint's old board");
     CHECK(Record_ParseKey("power-24x36", &m, &old, &w, &h) && m == MODE_POWER && w == 24 && h == 36, "boards: power-24x36");
-    CHECK(!Record_ParseKey("marathon-10x20", NULL, NULL, NULL, NULL) && !Record_ParseKey("ultra-5x20", NULL, NULL, NULL, NULL) &&
+    CHECK(!Record_ParseKey("ultra-10x20", NULL, NULL, NULL, NULL) && !Record_ParseKey("ultra-5x20", NULL, NULL, NULL, NULL) &&
               !Record_ParseKey("ultra-12x", NULL, NULL, NULL, NULL) && !Record_ParseKey("daily-20261014", NULL, NULL, NULL, NULL) &&
               !Record_ParseKey("sprint4", NULL, NULL, NULL, NULL) && !Record_ParseKey("ultra-12x20x", NULL, NULL, NULL, NULL),
           "boards: other keys are not boards");
@@ -819,7 +823,7 @@ static void test_board_list(void) {
     snprintf(shared, sizeof(shared), "%s/ghost-launcher/scores/blockfall.txt", data);
     snprintf(world, sizeof(world), "%s/ghost-launcher/scores/global/blockfall.txt", data);
     Persist_DataFile(LOCALTABLE_FILE, local, sizeof(local));
-    WriteText(shared, "# scores\nmarathon|TRG|100|2026-10-01\nmarathon-18x30|TRG|90|2026-10-01\nsprint|TRG|7620|2026-10-01\n"
+    WriteText(shared, "# scores\nmarathon|TRG|100|2026-10-01\nmarathon-10x20|TRG|110|2026-10-01\nmarathon-18x30|TRG|90|2026-10-01\nsprint|TRG|7620|2026-10-01\n"
                       "sprint40-8x26|TRG|9990000|2026-10-01\npower-14x20|TRG|50|2026-10-01\n");
     WriteText(local, "marathon-12x22|TRG|80|2026-10-01\nmarathon-7x30|TRG|70|2026-10-01\nmarathon-12x13|TRG|60|2026-10-01\nbad line\n");
     WriteText(world, "sprint-14x20|Moth|5000|2026-10-01\nmarathon-6x14|Ghost|10|2026-10-01\n");
@@ -830,6 +834,8 @@ static void test_board_list(void) {
           "boards: Marathon's boards: presets first in their order, then the custom sizes by width and height");
     n = Record_BoardsWithRows(MODE_SPRINT, true, b, 16);
     CHECK(n == 2 && b[0].w == 10 && b[1].w == 14, "boards: Sprint's old boards, this machine's and the world's");
+    n = Record_BoardsWithRows(MODE_MARATHON, true, b, 16);
+    CHECK(n == 1 && b[0].w == 10 && b[0].h == 20, "boards: the Marathon's old board is the classic one alone (the bare marathon rows)");
     n = Record_BoardsWithRows(MODE_SPRINT, false, b, 16);
     CHECK(n == 1 && b[0].w == 8 && b[0].h == 26, "boards: Sprint 40's boards");
     n = Record_BoardsWithRows(MODE_ULTRA, false, b, 16);

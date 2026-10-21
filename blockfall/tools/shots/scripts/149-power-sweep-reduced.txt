@@ -1,0 +1,27 @@
+#! env SHOTS_SETUP=4,0,10,20 SHOTS_FLASH=1 SHOTS_MOTION=reduced SHOTS_SHAKE=0
+# Sweep with Reduced motion and flashing: the three rows take a soft green
+# tint for 0.08 s, then cut to the lowered stack. No bar.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game row 3 #.##.####.
+game row 4 .##..##...
+game piece S 0 3
+game power Sweep 2
+wait 2
+tapshot SPACE 149-sweep-calm-f1
+expect feel stage flash
+expect feel sweepbar -1.0
+expect pixels 40 56 300 600 nowhite 200
+wait 1
+shot 149-sweep-calm-f3
+expect feel stage flash
+wait 3
+shot 149-sweep-calm-f7
+expect feel stage none

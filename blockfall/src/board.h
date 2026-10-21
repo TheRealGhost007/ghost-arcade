@@ -21,6 +21,9 @@
 #define BOARD_MAX_TOTAL_H (BOARD_MAX_H + BOARD_HIDDEN)
 
 #define CELL_EMPTY (-1)
+/* A grey garbage block (Dig mode, 3.4.0): a cell value past the pieces'.
+ * It clears like any block; the drawing gives it one grey, no pattern. */
+#define CELL_GARBAGE ((int8_t)PIECE_COUNT)
 
 typedef struct {
     int w, h; /* visible width and height; the grid also has BOARD_HIDDEN rows above */
@@ -55,5 +58,9 @@ int Board_ClearColumn(Board *b, int x);
 int Board_RemoveBottomRows(Board *b, int count);
 
 int Board_CountFilled(const Board *b);
+/* Every cell of a row (counted with the hidden rows) holds a block. */
+bool Board_RowFull(const Board *b, int row);
+/* A row holds at least one garbage block (Dig mode). */
+bool Board_RowHasGarbage(const Board *b, int row);
 
 #endif

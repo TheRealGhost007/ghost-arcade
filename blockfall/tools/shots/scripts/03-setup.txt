@@ -1,5 +1,6 @@
-# Play setup (2.2.0): the five modes in a list (Up/Down picks), the board
-# picker (Left/Right), Width and Height that always work, and Start.
+# Play setup (2.2.0): the modes in a list (Up/Down picks; six since 3.4.0,
+# Dig last), the board picker (Left/Right), Width and Height that always
+# work, and Start.
 wait 10
 tap ENTER
 wait 12
@@ -40,6 +41,11 @@ wait 12
 expect app board Custom 10x20
 shot 03-setup-board-custom
 tap DOWN
+wait 10
+expect app mode Dig
+expect app focus Dig
+shot 03-setup-dig
+tap DOWN
 expect app focus Width
 tap LEFT
 tap LEFT
@@ -61,6 +67,7 @@ tap LEFT
 wait 12
 expect app board Custom 6x12
 shot 03-setup-custom-height-12
+tap DOWN
 tap DOWN
 tap DOWN
 wait 10

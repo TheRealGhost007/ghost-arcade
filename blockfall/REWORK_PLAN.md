@@ -1,6 +1,6 @@
 # Blockfall rework plan
 
-Status: CORE BUILT. Phases 1 to 6 (Blockfall 3.0.0) were built, verified and installed on 2026-10-20; phases 7, 8 and the extras wait for the owner. Written 2026-10-14 from a code map with hidden-window screenshots, a verified bug audit, and three design proposals (menus and UI, animations and feel, gameplay and modes) merged by a planner. Decisions below are the owner's to make.
+Status: BUILT. Phases 1 to 8 and the chosen extras (Daily challenge, Stats, Dig, Practice) were built, verified and installed on 2026-10-21 as Blockfall 3.6.1; the Power rework, new trophies, attract demo, milestone and faster danger music were not built. Written 2026-10-14 from a code map with hidden-window screenshots, a verified bug audit, and three design proposals (menus and UI, animations and feel, gameplay and modes) merged by a planner. Decisions below are the owner's to make.
 
 ## Decided by the owner (2026-10-14)
 

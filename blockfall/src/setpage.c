@@ -105,6 +105,8 @@ static const char *const kActionHelp[CONTROL_ACTIONS] = {
     "Puts the piece aside for later, once per piece.",
     "Opens the pause menu. Its second key and button also go back a step there.",
     "Starts the run again, asking first when it has points (see Game).",
+    "Turns the piece half way round in one press. It has no key until you set one.",
+    "In the Practice room, takes the last piece back, up to 50 times. It does nothing in any other run.",
 };
 
 static const char *const kColumnNames[SET_CAP_COLUMNS] = {"key", "key 2", "pad", "pad 2"};
@@ -296,6 +298,11 @@ static void LayoutGame(SetPage *p, const SetView *v) {
                  s->showHowTo ? "It is set to open next time: How to play, its first page, when Blockfall next starts."
                               : "Opens How to play, its first page, the next time Blockfall starts.");
     if (row) Button(p, row, SID_HOWTO, SET_CONTROL_X, 120, "Next launch");
+    /* The Next queue (3.2.0): looks only, the pieces are the same. */
+    char words[16];
+    snprintf(words, sizeof(words), s->nextQueue == 1 ? "%d piece" : "%d pieces", s->nextQueue);
+    row = AddRow(p, RowY(5), SET_ROW_H, "Next queue", "How many pieces Next shows: the next one large, up to five more small. The pieces come the same whatever it shows.");
+    if (row) Number(p, row, SID_QUEUE, s->nextQueue, QUEUE_SHOWN_MIN, QUEUE_SHOWN_LIMIT, words);
 }
 
 static void AddTabs(SetPage *p, int tab) {
@@ -506,6 +513,7 @@ SetEffect SetPage_Apply(Settings *s, ArcadePrefs *pr, const KitEvent *ev) {
         case SID_QUICKR: s->quickRestart = v != 0; return Changed(ev->id, true);
         case SID_READY: s->readyGo = v != 0; return Changed(ev->id, true);
         case SID_COUNTDOWN: s->resumeCountdown = v != 0; return Changed(ev->id, true);
+        case SID_QUEUE: s->nextQueue = v < QUEUE_SHOWN_MIN ? QUEUE_SHOWN_MIN : (v > QUEUE_SHOWN_LIMIT ? QUEUE_SHOWN_LIMIT : v); return Changed(ev->id, true);
         default: return e;
     }
 }

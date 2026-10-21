@@ -188,7 +188,8 @@ PauseAction PauseMenu_Update(PauseMenu *m, const QuickValues *q, const RunKeys *
 
 /* ---------------------------------------------------------------- words */
 
-bool PauseMenu_ShouldAsk(const Game *g) { return g->score > 0; }
+/* A practice run (3.5.0) has nothing to lose: it never asks. */
+bool PauseMenu_ShouldAsk(const Game *g) { return g->score > 0 && !g->practice.on; }
 
 void PauseMenu_AskWords(PauseAsk what, const Game *g, bool tuned, const char *board, char *title, size_t titleSize,
                         char *body, size_t bodySize, char *act, size_t actSize) {
@@ -197,9 +198,11 @@ void PauseMenu_AskWords(PauseAsk what, const Game *g, bool tuned, const char *bo
     RunRecord r = Record_Classify(g, tuned);
     char points[24];
     Menu_Group(g->score, points, sizeof(points));
-    if (tuned) snprintf(body, bodySize, "A tuned run is never recorded.");
+    if (g->practice.on) snprintf(body, bodySize, "Practice: nothing is recorded.");
+    else if (tuned) snprintf(body, bodySize, "A tuned run is never recorded.");
     else if (g->cfg.mode == MODE_ZEN) snprintf(body, bodySize, "Zen keeps no scores. It counts as a run played.");
     else if (g->cfg.mode == MODE_SPRINT && !g->won) snprintf(body, bodySize, "A Sprint left before %d lines is not ranked.", SPRINT_LINES);
+    else if (r.toBoard && g->daily.on) snprintf(body, bodySize, "It counts for %s on today's daily board.", points);
     else if (r.toBoard) snprintf(body, bodySize, "It counts for %s on %s.", points, board && board[0] ? board : "this board");
     else snprintf(body, bodySize, "It counts for %s.", points);
 }

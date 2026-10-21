@@ -1,5 +1,7 @@
 #include "results.h"
+#include "challenge.h"
 #include "layout.h"
+#include "splits.h"
 #include "menumodel.h"
 #include "uikeymap.h"
 #include <stdio.h>
@@ -40,8 +42,14 @@ static void BestLine(ResultsCard *c, const Game *g, const RunFacts *f, const Run
     char best[24], gap[24];
     Value(unit, f->best, best, sizeof(best));
     if (c->newBest) {
-        if (f->best > 0) snprintf(c->bestLine, sizeof(c->bestLine), "Old best %s", best);
+        if (f->best > 0 && unit == UNIT_TIME) {
+            /* A Sprint's finish says by how much (splits.h's tenths). */
+            Splits_FormatGap(Record_ValueCentis(f->best) - Record_ValueCentis(r->value), gap, sizeof(gap));
+            snprintf(c->bestLine, sizeof(c->bestLine), "New best by %.15s (was %.15s)", gap, best);
+        } else if (f->best > 0) snprintf(c->bestLine, sizeof(c->bestLine), "Old best %s", best);
         else snprintf(c->bestLine, sizeof(c->bestLine), "No best before this one");
+    } else if (g->practice.on) {
+        snprintf(c->bestLine, sizeof(c->bestLine), "Practice: nothing is recorded");
     } else if (g->cfg.mode == MODE_ZEN) {
         snprintf(c->bestLine, sizeof(c->bestLine), "Zen keeps no scores");
     } else if (f->tuned) {
@@ -54,7 +62,7 @@ static void BestLine(ResultsCard *c, const Game *g, const RunFacts *f, const Run
         snprintf(c->bestLine, sizeof(c->bestLine), "%s", g->piecesLocked > 0 ? "No points, so nothing is recorded"
                                                                               : "Nothing landed, so nothing is recorded");
     } else if (f->best <= 0) {
-        snprintf(c->bestLine, sizeof(c->bestLine), "No best yet");
+        snprintf(c->bestLine, sizeof(c->bestLine), g->daily.on ? "No best yet today" : "No best yet");
     } else if (r->value == f->best) {
         snprintf(c->bestLine, sizeof(c->bestLine), "Best %s, matched", best);
     } else if (unit == UNIT_TIME) {
@@ -73,7 +81,9 @@ void Results_Build(ResultsCard *c, const Game *g, const RunFacts *f) {
     c->kind = Results_KindOf(g);
     static const char *const kTitles[3] = {"GAME OVER", "SPRINT CLEAR", "TIME UP"};
     snprintf(c->title, sizeof(c->title), "%s", kTitles[c->kind]);
-    snprintf(c->sub, sizeof(c->sub), "%s on %s", Game_ModeName(mode), f->board && f->board[0] ? f->board : "this board");
+    if (g->daily.on) Daily_CardSub((DailyTwist)g->daily.twist, c->sub, sizeof(c->sub)); /* "Daily: Ultra on Wide 14x20" (3.6.0) */
+    else snprintf(c->sub, sizeof(c->sub), "%s on %s", g->practice.on ? "Practice" : Game_ModeName(mode), f->board && f->board[0] ? f->board : "this board");
+    c->daily = g->daily.on;
     c->timeValue = c->kind == END_SPRINT_CLEAR;
     c->bigValue = c->timeValue ? Record_ValueCentis(Record_SprintValue(g->elapsed)) : g->score;
     c->newBest = r.toBoard && Record_Beats(r.value, f->best);
@@ -111,9 +121,11 @@ void Results_Build(ResultsCard *c, const Game *g, const RunFacts *f) {
     StatNumber(c, 5, "Quads", g->stats.clears[4]);
     StatNumber(c, 6, "Best combo", g->stats.bestCombo);
     StatNumber(c, 7, "Back-to-back", g->stats.backToBacks);
-    StatNumber(c, 8, "Holds", g->stats.holds);
-    if (mode == MODE_POWER) StatNumber(c, 9, "Power-ups", g->stats.powers);
+    StatNumber(c, 8, "T-spins", g->stats.tspins); /* 3.2.0: in Holds' place (every mode has T-spins now) */
+    if (g->practice.on) StatNumber(c, 9, "Holds", g->stats.holds); /* 3.5.0: a practice run has no best or board, so its holds */
+    else if (mode == MODE_POWER) StatNumber(c, 9, "Power-ups", g->stats.powers);
     else if (mode == MODE_ZEN) StatNumber(c, 9, "Fresh starts", g->zenResets);
+    else if (mode == MODE_DIG) StatNumber(c, 9, "Dug", g->dug); /* 3.4.0: the garbage rows cleared */
     else if (mode == MODE_SPRINT && !g->won) StatNumber(c, 9, "Lines left", g->linesCleared < SPRINT_LINES ? SPRINT_LINES - g->linesCleared : 0);
     else {
         double perMin = g->elapsed > 0.0f ? (double)g->linesCleared * 60.0 / (double)g->elapsed : 0.0;
@@ -221,7 +233,6 @@ KitRect Results_StatRect(int i) {
 }
 
 void Results_Layout(const Results *r, KitList *l) {
-    (void)r;
     KitRect c = Results_CardRect();
     Kit_Clear(l, KIT_NAV_X | KIT_NAV_Y);
     KitItem *it = Kit_Add(l, RI_AGAIN, KIT_BUTTON, (KitRect){c.x + 16.0f, c.y + 396.0f, c.w - 32.0f, 44.0f}, "Play again");
@@ -229,7 +240,9 @@ void Results_Layout(const Results *r, KitList *l) {
     static const char *const kSmall[3] = {"Change setup", "Scores", "Menu"};
     float w = (c.w - 32.0f - 16.0f) / 3.0f;
     for (int i = 0; i < 3; i++) {
-        it = Kit_Add(l, RI_SETUP + i, KIT_BUTTON, (KitRect){c.x + 16.0f + (float)i * (w + 8.0f), c.y + 452.0f, w, 36.0f}, kSmall[i]);
+        /* A daily's first small button goes to the Daily screen (3.6.0). */
+        const char *label = (i == 0 && r->card.daily) ? "Daily" : kSmall[i];
+        it = Kit_Add(l, RI_SETUP + i, KIT_BUTTON, (KitRect){c.x + 16.0f + (float)i * (w + 8.0f), c.y + 452.0f, w, 36.0f}, label);
         if (!it) continue;
         it->style = KIT_STYLE_SMALL;
         it->textSize = 8;

@@ -1,18 +1,21 @@
 #! env SHOTS_OWNER=1 SHOTS_SAVE=74372
 #! after-file .local/share/blockfall/save.dat high_score=74372
-# The owner's files today: save.dat holds 74 372 and the table's classic top
-# is 12 248. The menu and play show one Best, 74 372, and a 13 000 run is not
-# "a new best" (it said so, with the new-best jingle, while the menu said
-# 74 372).
+#! after-file .local/share/ghost-launcher/scores/blockfall.txt marathon-10x20|TRG|13000|
+#! after-file .local/share/ghost-launcher/scores/blockfall.txt marathon|TRG|12248|
+# The owner's files today: save.dat holds 74 372 and the old table's classic
+# top is 12 248. Since 3.2.0 those are the classic board under the old
+# rules: the menu and play show the fresh board's Best (none yet), a 13 000
+# run is its first best, goes on marathon-10x20, and leaves save.dat and
+# the old marathon rows exactly as they were.
 wait 10
 expect screen MENU
-expect app best:Marathon 74 372
+expect app best:Marathon no run yet
 shot 30-menu-best
 tap ENTER
 wait 2
 tap ENTER
 wait 3
-expect view best 74372
+expect view best 0
 game clear
 game row 0 #########.
 game row 1 ####.#####
@@ -39,11 +42,15 @@ mark sounds
 tap SPACE
 wait 3
 expect game phase GAMEOVER
-expect view newbest 0
+expect view newbest 1
 expect sounds sfx:6
-shot 30-gameover-not-new-best
+wait 70
+expect app card:best No best before this one
+expect app card:rank #1 on this machine    World: waits for a sync
+shot 30-gameover-first-best
 expect file .local/share/blockfall/save.dat high_score=74372
-expect file .local/share/ghost-launcher/scores/blockfall.txt marathon|TRG|13
+expect file .local/share/ghost-launcher/scores/blockfall.txt marathon-10x20|TRG|13000
+expect file .local/share/ghost-launcher/scores/blockfall.txt marathon|TRG|12248
 tap ESCAPE
 wait 5
-expect app best:Marathon 74 372
+expect app best:Marathon 13 000

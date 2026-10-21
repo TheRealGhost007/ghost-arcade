@@ -1,0 +1,96 @@
+#! env SHOTS_STATS=1
+# Stats (3.3.0) from the menu with the keyboard: a stats file with runs in
+# every mode but Zen. All modes comes first, its records naming the mode that
+# set them; the lines-by-clear bar grows in from the left over 0.35 s (a
+# frame in the middle, then whole); Down moves the bar to Marathon and the
+# records and the bar follow it (and grow in again); Zen, with no run, shows
+# dashes; Down past Zen comes round to All modes; the pointer over a row
+# moves the bar too; [<- Back] and Esc go back to the menu, on Stats.
+wait 60
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 8
+expect app focus Stats
+shot 164-menu-stats
+tap ENTER
+wait 1
+expect screen STATS
+expect app focus All modes
+expect app stats:row All modes
+expect app stats:have 1
+expect app stats:since 2026-10-11
+expect app stats:runs 33
+expect app stats:lines 1252
+expect app stats:time 57m 50s
+expect app stats:pps 2.34
+expect app stats:who:pps Sprint
+expect app stats:combo 6
+expect app stats:who:combo Marathon
+expect app stats:quads 9
+expect app stats:who:quads Marathon
+expect app stats:bar 312|380|222|320|18
+shot 164-bar-growing
+wait 30
+expect app stats:grow 1.00
+shot 164-all-modes
+tap DOWN
+wait 1
+expect app focus Marathon
+expect app stats:row Marathon
+expect app stats:runs 14
+expect app stats:lines 596
+expect app stats:time 30m 50s
+expect app stats:pps 1.87
+expect app stats:combo 6
+expect app stats:quads 9
+expect app stats:bar 154|162|102|164|14
+wait 30
+expect app stats:grow 1.00
+shot 164-marathon
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 12
+expect app focus Zen
+expect app stats:row Zen
+expect app stats:runs 0
+expect app stats:time 0s
+expect app stats:pps -
+expect app stats:quads -
+expect app stats:bar 0|0|0|0|0
+wait 20
+shot 164-zen-empty
+tap DOWN
+wait 8
+expect app focus All modes
+# the pointer: a hover moves the bar to Power (silently), the rest follows
+mouse 300 300
+wait 3
+expect app device mouse
+expect app focus Power
+expect app stats:row Power
+expect app stats:runs 5
+expect app stats:pps 1.50
+expect app stats:bar 50|40|18|20|0
+wait 30
+shot 164-hover-power
+# [<- Back] goes back to the menu, on Stats; so does Esc
+mouse 60 26
+wait 2
+expect app look:Back hover
+click 60 26
+wait 3
+expect screen MENU
+expect app focus Stats
+tap ENTER
+wait 3
+expect screen STATS
+tap ESCAPE
+wait 3
+expect screen MENU
+expect app focus Stats

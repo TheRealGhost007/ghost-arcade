@@ -280,17 +280,18 @@ void ScrSettings_Update(App *a, const Input *in, float dt) {
         if (st->capture.on || st->dialog.open || e.kind == SE_TAB) return;
         Layout(a, &page);
     }
-    /* Delete, Backspace or pad Y: a second key or button cleared. */
+    /* Delete, Backspace or pad Y: a second key or button cleared (Rotate
+     * 180 and Undo, the optional actions, clear their first too). */
     int f = st->kit.focus;
-    if (Keymap_Pressed(BA_CLEAR, in) && SetPage_IsCap(f) && SetPage_CapColumn(f) % 2 == 1) {
+    if (Keymap_Pressed(BA_CLEAR, in) && SetPage_IsCap(f) && (SetPage_CapColumn(f) % 2 == 1 || Controls_Optional(SetPage_CapAction(f)))) {
         int act = SetPage_CapAction(f), col = SetPage_CapColumn(f);
-        bool done = col == 1 ? Controls_ClearKey(&a->settings, act, 1) : Controls_ClearPad(&a->settings, act, 1);
+        bool done = col < 2 ? Controls_ClearKey(&a->settings, act, col) : Controls_ClearPad(&a->settings, act, col - 2);
         if (done) {
             Settings_Save(&a->settings);
             Rebuild(a);
             Scr_SoundBack();
             char text[96];
-            snprintf(text, sizeof(text), "%s's second %s is cleared.", Controls_ActionLabel(act), col == 1 ? "key" : "button");
+            snprintf(text, sizeof(text), "%s's %s%s is cleared.", Controls_ActionLabel(act), col % 2 == 1 ? "second " : "", col < 2 ? "key" : "button");
             Note(a, text, TONE_DIM);
         }
     }
@@ -458,7 +459,7 @@ static void DrawHints(const App *a, const SetPage *p) {
     if (side) h[n++] = (KitHint){2, {KA_UI_LEFT, KA_UI_RIGHT}, side};
     if (cap) h[n++] = (KitHint){1, {KA_UI_PRESS}, "set"};
     else if (it && !value && f != SID_STRIP && f != SID_TABS) h[n++] = (KitHint){1, {KA_UI_PRESS}, "press"};
-    if (cap && SetPage_CapColumn(f) % 2 == 1) h[n++] = (KitHint){1, {BA_CLEAR}, "clear"};
+    if (cap && (SetPage_CapColumn(f) % 2 == 1 || Controls_Optional(SetPage_CapAction(f)))) h[n++] = (KitHint){1, {BA_CLEAR}, "clear"};
     else if (d == DEV_PAD) h[n++] = (KitHint){2, {KA_UI_PREV_TAB, KA_UI_NEXT_TAB}, "tabs"};
     else if (f != SID_TABS) h[n++] = (KitHint){1, {KA_UI_NEXT_TAB}, "tabs"};
     h[n++] = (KitHint){1, {KA_BACK}, "back"};

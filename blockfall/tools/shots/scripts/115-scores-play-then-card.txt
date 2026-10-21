@@ -66,11 +66,11 @@ tap ENTER
 wait 4
 expect screen SETUP
 expect app focus Marathon
-tap DOWN
-tap DOWN
-tap DOWN
-tap DOWN
-tap DOWN
+# (the pointer onto Width keeps the mode; Down from the list would reach Dig
+# since 3.4.0)
+mouse 150 388
+wait 2
+expect app focus Width
 tap DOWN
 tap DOWN
 wait 4

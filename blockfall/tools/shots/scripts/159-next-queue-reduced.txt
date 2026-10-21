@@ -1,0 +1,23 @@
+#! env SHOTS_SETUP=0,1,14,20 SHOTS_MOTION=reduced SHOTS_CONFIG=next_queue-3
+# 3.2.0: the queue set to three (Settings > Game) with Motion: Reduced: the
+# next piece and two small ones, and no slide as a piece comes in (a cut).
+# The pieces are the same whatever the setting shows.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect app nextqueue 3
+game next J
+game queue L,I,T,S,O
+wait 2
+expect game queue L|I|T|S|O
+expect hud queue L|I
+shot 159-queue-three
+tap SPACE
+wait 1
+expect game next L
+expect feel slide 0
+expect hud queue I|T
+shot 159-queue-cut

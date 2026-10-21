@@ -43,8 +43,8 @@ static void test_classify(void) {
 
     g = Played(MODE_MARATHON, 10, 20, 12000, 40);
     r = Record_Classify(&g, false);
-    CHECK(r.counts && r.toBoard && r.toSave && !r.local && r.unit == UNIT_POINTS && r.value == 12000 && strcmp(r.key, "marathon") == 0,
-          "run: a classic Marathon counts, goes on the shared classic board and into save.dat");
+    CHECK(r.counts && r.toBoard && !r.toSave && !r.local && r.unit == UNIT_POINTS && r.value == 12000 && strcmp(r.key, "marathon-10x20") == 0,
+          "run: a classic Marathon counts and goes on the shared marathon-10x20 board (3.2.0: its fresh board under modern rules), never into save.dat");
     r = Record_Classify(&g, true);
     CHECK(!r.counts && !r.toBoard && !r.toSave, "run: a tuned (F2) playtest records nothing, save.dat included");
 
@@ -106,7 +106,7 @@ static void test_sprint_time(void) {
 static void test_keys(void) {
     char key[GHOSTLINK_MODE_LEN];
     static const struct { GameMode m; int w, h; const char *want; } kKeys[] = {
-        {MODE_MARATHON, 10, 20, "marathon"}, {MODE_SPRINT, 10, 20, "sprint40"}, {MODE_ULTRA, 10, 20, "ultra"},
+        {MODE_MARATHON, 10, 20, "marathon-10x20"}, {MODE_SPRINT, 10, 20, "sprint40"}, {MODE_ULTRA, 10, 20, "ultra"},
         {MODE_POWER, 14, 20, "power-14x20"}, {MODE_SPRINT, 24, 36, "sprint40-24x36"}, {MODE_ZEN, 6, 12, "zen-6x12"},
     };
     for (size_t i = 0; i < sizeof(kKeys) / sizeof(kKeys[0]); i++) {
@@ -123,6 +123,24 @@ static void test_keys(void) {
     CHECK(strcmp(key, "sprint") == 0, "keys: the old Sprint board keeps its key");
     Record_OldSprintKey(14, 20, key, sizeof(key));
     CHECK(strcmp(key, "sprint-14x20") == 0, "keys: on every board");
+    Record_OldClassicKey(key, sizeof(key));
+    CHECK(strcmp(key, "marathon") == 0, "keys: the classic Marathon's old-rules board keeps the bare key (3.2.0)");
+    bool never = true;
+    for (int w = BOARD_MIN_W; w <= BOARD_MAX_W; w++)
+        for (int h = BOARD_MIN_H; h <= BOARD_MAX_H; h++)
+            for (int m = 0; m < MODE_COUNT; m++) {
+                char k2[GHOSTLINK_MODE_LEN];
+                Record_BoardKey((GameMode)m, w, h, k2, sizeof(k2));
+                if (strcmp(k2, "marathon") == 0) never = false;
+            }
+    CHECK(never, "keys: no run on any board is ever written to the old-rules marathon key again");
+    CHECK(Record_HasOldBoard(MODE_MARATHON, 10, 20) && Record_HasOldBoard(MODE_SPRINT, 14, 20) && !Record_HasOldBoard(MODE_MARATHON, 14, 20) &&
+              !Record_HasOldBoard(MODE_ULTRA, 10, 20),
+          "keys: old boards: the classic Marathon's and every Sprint's");
+    Record_OldKey(MODE_MARATHON, 10, 20, key, sizeof(key));
+    CHECK(strcmp(key, "marathon") == 0, "keys: Record_OldKey gives the Marathon's");
+    Record_OldKey(MODE_SPRINT, 14, 20, key, sizeof(key));
+    CHECK(strcmp(key, "sprint-14x20") == 0, "keys: and Sprint's");
     Record_LogKey(MODE_SPRINT, 10, 20, key, sizeof(key));
     CHECK(strcmp(key, "sprint") == 0, "keys: runs.log keeps the key it always had");
     CHECK(Record_PresetOf(10, 20) == 0 && Record_PresetOf(6, 14) == 4 && Record_PresetOf(12, 22) == -1, "keys: presets are found by size");
@@ -222,7 +240,11 @@ static void test_shared_and_bests(void) {
     WriteFile(save, "high_score=74372\nhigh_level=11\nhigh_lines=101\n");
     SaveData sd;
     CHECK(SaveData_Load(&sd) && sd.highScore == 74372 && sd.highLevel == 11 && sd.highLines == 101, "save.dat: reads the classic best as it is");
-    CHECK(Record_LoadBest(MODE_MARATHON, 10, 20, sd.highScore) == 74372, "best: the classic Best is 74 372, in the menu and in play alike");
+    CHECK(Record_LoadBest(MODE_MARATHON, 10, 20, sd.highScore) == 0,
+          "best: the classic Marathon's board is fresh under modern rules (3.2.0): neither save.dat's 74 372 nor the old marathon rows are its best");
+    GhostScore oldTop;
+    CHECK(Record_LoadBoard("marathon", false, &oldTop, 1) == 1 && oldTop.score == 12248 && Record_ClassicBest(sd.highScore, oldTop.score) == 74372,
+          "best: the old-rules board still reads its rows, and the Classic best to show there is save.dat's 74 372");
     CHECK(Record_LoadBest(MODE_MARATHON, 14, 20, sd.highScore) == 9000, "best: other boards use their own table, not save.dat");
     CHECK(Record_LoadBest(MODE_SPRINT, 10, 20, sd.highScore) == 0, "best: Sprint 40 starts fresh (the old points rows are not times)");
     CHECK(Record_LoadBest(MODE_ZEN, 10, 20, sd.highScore) == 0, "best: Zen has none");
@@ -256,18 +278,17 @@ static void test_shared_and_bests(void) {
     /* "Your best" is the player's own (Play setup, the menu's Your bests):
      * the board's best can be another profile's. */
     WriteFile(shared, "# Ghost Arcade scores for blockfall: mode|username|score|date\n"
-                      "marathon|Arcade|30000|2026-10-10\nmarathon|TRG|24680|2026-10-11\nmarathon|TRG|900|2026-10-12\n"
-                      "ultra|Arcade|5000|2026-10-10\n");
+                      "marathon-10x20|Arcade|30000|2026-10-10\nmarathon-10x20|TRG|24680|2026-10-11\nmarathon-10x20|TRG|900|2026-10-12\n"
+                      "marathon|TRG|70000|2026-09-01\nultra|Arcade|5000|2026-10-10\n");
     int place = -1;
     CHECK(Record_LoadYourBest(MODE_MARATHON, 14, 20, "TRG", 0, &place) == 9500 && place == 1, "yours: your row on a board, and its place");
     CHECK(Record_LoadYourBest(MODE_ULTRA, 10, 20, "TRG", 0, &place) == 0 && place == 0, "yours: another player's row is not yours");
     CHECK(Record_LoadBest(MODE_ULTRA, 10, 20, 0) == 5000, "yours: ...although it is that board's best");
     CHECK(Record_LoadYourBest(MODE_MARATHON, 10, 20, "TRG", 0, &place) == 24680 && place == 2, "yours: second behind another player");
-    CHECK(Record_LoadYourBest(MODE_MARATHON, 10, 20, "TRG", 74372, &place) == 74372 && place == 1,
-          "yours: save.dat's classic best above every row takes first place");
-    CHECK(Record_LoadYourBest(MODE_MARATHON, 10, 20, "TRG", 26000, &place) == 26000 && place == 2,
-          "yours: ...and one between the rows takes its place among them");
-    CHECK(Record_LoadYourBest(MODE_MARATHON, 10, 20, "Nobody", 0, &place) == 0 && place == 0, "yours: no row, no save: none");
+    CHECK(Record_LoadYourBest(MODE_MARATHON, 10, 20, "TRG", 74372, &place) == 24680 && place == 2,
+          "yours: save.dat's classic best is the old rules' and never counts on the fresh board (3.2.0), nor does an old marathon row");
+    CHECK(Record_LoadBest(MODE_MARATHON, 10, 20, 74372) == 30000, "yours: the fresh board's best is its own top row");
+    CHECK(Record_LoadYourBest(MODE_MARATHON, 10, 20, "Nobody", 0, &place) == 0 && place == 0, "yours: no row: none");
     CHECK(Record_LoadYourBest(MODE_ZEN, 10, 20, "TRG", 74372, &place) == 0 && place == 0, "yours: Zen keeps none");
 
     /* The shared table at ghostlink's row cap: Blockfall does not add to it

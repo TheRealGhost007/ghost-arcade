@@ -2,7 +2,9 @@
 # Callouts from one lock show together and go together: a DOUBLE half a
 # second after a QUAD replaces it (it used to shrink the QUAD to 16 px under
 # itself, then jump up into the QUAD's place when its 0.9 s ran out), and a
-# single in between (no word) leaves the QUAD where it is.
+# single in between (no word) leaves the QUAD where it is. (A block above
+# the four rows: a quad that empties the well is a perfect clear since
+# 3.2.0, with a word of its own.)
 wait 10
 tap ENTER
 wait 2
@@ -14,6 +16,7 @@ game row 0 #############.
 game row 1 #############.
 game row 2 #############.
 game row 3 #############.
+game row 4 #.............
 game piece I 1 11
 wait 2
 tap SPACE

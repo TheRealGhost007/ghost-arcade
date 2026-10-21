@@ -1,0 +1,97 @@
+#! env SHOTS_DAILYLOG=1 SHOTS_SETUP=0,0,10,20 SHOTS_WIPE=1
+#! after-file .local/share/ghost-launcher/scores/blockfall.txt daily-20261020|TRG|12000|
+#! after-file .local/share/blockfall/runs.log |daily-20261020|12000|
+#! after-file .local/share/blockfall/daily.dat 20261020|12000|5
+#! after-nofile .local/share/ghost-launcher/scores/blockfall.txt power|TRG|12000
+#! after-nofile .local/share/ghost-launcher/scores/blockfall.txt ultra|TRG|12000
+# A daily run (3.6.0): Start on the Daily screen opens today's twist, Power
+# Ultra on 20 October 2026, with the day's seed: a gold DAILY tag over the
+# well, the clock first in the panel as Ultra's, Best the day's board's
+# (9 800), power-ups on the pieces. The clock runs out: TIME UP, the card
+# says Daily: Power Ultra on Classic 10x20, NEW BEST, #1 on this machine
+# and where it would stand in the world; its first small button reads
+# Daily and goes to the Daily screen, where the best, the runs and the
+# board have moved. The run went on the day's board and nowhere else, and
+# into runs.log and daily.dat (the restart below makes it five runs). Play
+# again gives the same first pieces, and so does a restart.
+wait 60
+tap UP
+tap UP
+tap ENTER
+wait 12
+expect screen DAILY
+tap ENTER
+wait 40
+expect screen PLAYING
+expect app daily on
+expect game mode Power
+expect game w 10
+expect game h 20
+expect view best 9800
+expect view unit points
+expect game current S
+expect game next J
+expect game queue T|I|L|Z|O
+shot 181-daily-run-start
+# the pieces come as the day gives them
+tap SPACE
+wait 2
+expect game pieces 1
+expect game current J
+game score 12000
+game timeleft 1.5
+wait 100
+expect game phase GAMEOVER
+expect game won 1
+expect app results on
+expect app card:title TIME UP
+expect app card:sub Daily: Power Ultra on Classic 10x20
+expect app card:big 12000
+expect app card:newbest 1
+expect app card:best Old best 9 800
+expect app card:rank #1 on this machine    World: would be #3
+expect file .local/share/ghost-launcher/scores/blockfall.txt daily-20261020|TRG|12000|
+expect file .local/share/blockfall/daily.dat 20261020|12000|4
+wait 100
+expect app resultsdone 1
+expect app look:Daily normal
+shot 181-daily-results
+tap DOWN
+tap LEFT
+wait 2
+expect app focus Daily
+tap ENTER
+wait 30
+expect screen DAILY
+expect app daily:best 12000
+expect app daily:rank 1
+expect app daily:runs 4
+expect app daily:streak 3
+expect app daily:here TRG:12000|TRG:9800|Arcade:6200
+expect app daily:worldrank 3
+shot 181-daily-after-run
+# again: the same day, the same pieces
+tap ENTER
+wait 40
+expect screen PLAYING
+expect app daily on
+expect view best 12000
+expect game current S
+expect game queue T|I|L|Z|O
+# a restart from the pause menu keeps the day's pieces too
+tap SPACE
+wait 2
+tap ESCAPE
+wait 4
+expect app pause open
+tap DOWN
+tap ENTER
+wait 3
+expect app dialog Restart this run?
+tap RIGHT
+tap ENTER
+wait 30
+expect game phase PLAYING
+expect game pieces 0
+expect game current S
+expect game queue T|I|L|Z|O

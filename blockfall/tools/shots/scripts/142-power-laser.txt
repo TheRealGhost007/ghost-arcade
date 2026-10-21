@@ -1,0 +1,37 @@
+#! env SHOTS_SETUP=4,0,10,20
+# Laser (3.1.0): a charge line runs down the column for 0.12 s, then the
+# beam, and the column's cells pop out from the power cell. Its sound and the
+# coin.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game row 3 .##..##...
+game piece I 1 2
+game power Laser 1
+wait 2
+mark sounds
+tapshot SPACE 142-laser-f1
+expect sounds jingle:COIN,sfx:10
+expect hud callouts LASER
+expect feel power laser-charge
+wait 3
+shot 142-laser-f5
+expect feel power laser-charge
+wait 4
+shot 142-laser-f10
+expect feel power laser-beam
+# the beam's bright core at the top of the column
+expect pixels 160 60 30 60 white 180
+wait 3
+shot 142-laser-f14
+expect feel power laser-beam
+expect feel bits >0
+wait 14
+shot 142-laser-f29
+expect feel power none

@@ -6,6 +6,8 @@
 #include "game.h"
 #include "persist.h"
 #include "runrecord.h"
+#include "controls.h"
+#include "stats.h"
 
 /* What the menus decide, kept apart from their drawing so it can be tested
  * without a window: the title's letter drop, the screens' slide, a stepper's
@@ -18,6 +20,13 @@
 void Menu_Group(long value, char *out, size_t size);
 /* A best in its unit: "74 372", or a Sprint time "1:12.40"; 0 gives `none`. */
 void Menu_BestText(RecordUnit unit, long value, const char *none, char *out, size_t size);
+/* A Stats record tile's words (3.3.0; two lines since 3.6.1): the value as
+ * drawn ("2.34", "6", "-" for none) and the lines under it. Under All
+ * modes (`all`, with the mode that set it in `who`) the mode, then the day
+ * on its own line ("Marathon" / "2026-10-18"); on a mode's row the day
+ * alone and line2 empty; with no record "none yet" (or "no run yet" when
+ * the row has no run at all). kind: 0 pieces per second, 1 combo, 2 quads. */
+void Menu_RecordWords(const StatRecord *r, int kind, int who, bool all, bool anyRun, char *value, size_t vn, char *line1, size_t n1, char *line2, size_t n2);
 
 /* -------------------------------------------------------- the title drop */
 
@@ -107,6 +116,47 @@ PreviewFit Setup_PreviewFit(int w, int h, int boxW, int boxH);
 /* The preview's rubble: a few rows at the bottom with gaps, the same for a
  * given size every time. y = 0 is the bottom row. */
 bool Setup_PreviewRubble(int w, int h, int x, int y);
+/* The gap column of garbage row y in Dig's preview (3.4.0): the same for a
+ * size every time, and never the column of the row under it. */
+int Setup_PreviewGap(int w, int h, int y);
+
+/* ------------------------------------------------- the Practice room */
+
+/* The Practice room's options (3.5.0, REWORK_PLAN.md "Practice room"), a
+ * screen of its own off Play setup, kept in config.ini: its rows, their
+ * words and what a change does, raylib-free; scr_practice.c draws them.
+ * A practice run is a Marathon on the board Play setup has, with these
+ * rules bent, and nothing it does is recorded. */
+typedef enum { PRO_LEVEL, PRO_GRAVITY, PRO_LOCK, PRO_HOLD, PRO_GARBAGE, PRO_HINTS, PRO_COUNT } PracticeOption;
+typedef enum { PRO_KIND_NUMBER, PRO_KIND_TOGGLE, PRO_KIND_CHOICE } PracticeOptionKind;
+/* "Start level", "Gravity", "Lock delay", "Hold", "Starting garbage", "Finesse hints". */
+const char *Practice_OptionLabel(PracticeOption o);
+/* The sentence under the rows while the option is chosen. */
+const char *Practice_OptionHelp(PracticeOption o);
+PracticeOptionKind Practice_OptionKind(PracticeOption o);
+/* The control's value (a number, 0/1 for a toggle, the index of a choice)
+ * and its range. */
+int Practice_OptionValue(const Settings *s, PracticeOption o);
+void Practice_OptionRange(PracticeOption o, int *min, int *max);
+/* A choice's words by index ("Once", "Infinite"); NULL past them. */
+const char *Practice_ChoiceWord(PracticeOption o, int index);
+/* The value as the row shows it: "1", "On", "Infinite", "4 rows", "none". */
+void Practice_OptionWords(const Settings *s, PracticeOption o, char *out, size_t size);
+/* Sets an option from its control (clamped to its range). True if it changed. */
+bool Practice_SetOption(Settings *s, PracticeOption o, int value);
+/* A hand-edited config.ini: back inside the ranges. */
+void Practice_Sanitize(Settings *s);
+/* The rules a practice run plays by, from the options. */
+PracticeRules Practice_Rules(const Settings *s);
+/* The config a practice run plays on: a Marathon on the board you set up,
+ * whatever mode Play setup had (Game_InitPractice takes it with the rules). */
+GameConfig Practice_Config(const Settings *s);
+/* "Practice on Classic 10x20". */
+void Practice_Summary(const Settings *s, char *out, size_t size);
+/* The undo line: "U or RB takes the last piece back, up to 50 times." (your
+ * keys; "Undo has no key or button: set one in Settings > Controls." when
+ * it has none). */
+void Practice_UndoWords(const ControlWords *w, char *out, size_t size);
 
 /* ----------------------------------------------------------- the menu */
 

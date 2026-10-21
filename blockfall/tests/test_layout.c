@@ -10,6 +10,8 @@
 #include "check.h"
 #include "../src/board.h"
 #include "../src/layout.h"
+#include "../src/backdrop.h"
+#include "../src/menumodel.h"
 #include "uikit.h"
 
 static int Measure(const char *text, int size) {
@@ -30,6 +32,7 @@ static int Rects(const PlayLayout *l, LRect *out, const char **names) {
     out[n] = l->b2b; names[n++] = "b2b";
     out[n] = l->freeze; names[n++] = "freeze";
     out[n] = l->slow; names[n++] = "slow";
+    out[n] = l->rise; names[n++] = "rise";
     out[n] = l->card; names[n++] = "card";
     return n;
 }
@@ -144,6 +147,8 @@ static void test_every_board(void) {
                         if (!LRect_Empty(l.combo) && Measure("Combo x99", 8) + 6 + 3 * 6 + 4 > l.combo.w) badStat++; /* four 4 px dots, 6 apart */
                         if (!LRect_Empty(l.freeze) && Measure("Freeze", 8) + 8 + 24 > l.freeze.w) badStat++;
                         if (spec.chips != !LRect_Empty(l.combo) || spec.bars != !LRect_Empty(l.slow)) badStat++;
+                        if (spec.rise != !LRect_Empty(l.rise) || spec.rise != (mode == MODE_DIG)) badStat++;
+                        if (!LRect_Empty(l.rise) && Measure("Next row", 8) + 8 + 24 > l.rise.w) badStat++;
                         if (mode != 0 || modern || !card) continue; /* the text checks need each board once */
 
                         for (size_t k = 0; k < sizeof(kCallouts) / sizeof(kCallouts[0]); k++)
@@ -210,7 +215,7 @@ static void test_classic_look_kept(void) {
     l = Layout_Play(10, 20, &spec);
     CHECK(spec.stat[0] == STAT_TIME_LEFT && l.statSize[0] == 32, "layout: Ultra's countdown is 32 px");
     spec = Layout_Spec(MODE_SPRINT, true, true);
-    CHECK(spec.stat[0] == STAT_LINES_LEFT && spec.stat[1] == STAT_TIME, "layout: Sprint shows lines left and the clock");
+    CHECK(spec.stat[0] == STAT_TIME && spec.stat[1] == STAT_LINES_LEFT, "layout: Sprint shows the clock big and the lines left under it (3.1.0)");
     spec = Layout_Spec(MODE_ZEN, true, true);
     CHECK(spec.stat[0] == STAT_FRESH && spec.pipsStat < 0, "layout: Zen shows its fresh starts first, and no pips");
 
@@ -274,10 +279,174 @@ static void test_fit_text(void) {
     CHECK(f.size == 16, "fit: never above the size asked for");
 }
 
+/* ------------------------------------------- the menus' lines that must fit
+ * (3.6.1): four screens whose words ran into each other or past the 40..580
+ * margin. Every word each line can show, measured as the font measures. */
+
+#define FIT_LEFT LAYOUT_MARGIN
+#define FIT_RIGHT (LAYOUT_WINDOW_W - LAYOUT_MARGIN)
+
+static void test_menu_bests_fit(void) {
+    static const char *const kLabels[MENU_BESTS_MODES] = {"Marathon", "Sprint", "Ultra", "Power", "Dig"};
+    static const char *const kValues[] = {"no run yet", "9 999 999", "12:34.56", "74 372", "1:40.00"};
+    int bad = 0, badCols = 0, badEdge = 0;
+    for (int i = 0; i < MENU_BESTS_MODES; i++) {
+        int x, right, y;
+        Layout_MenuBest(i, &x, &right, &y);
+        if (x < FIT_LEFT || right > FIT_RIGHT) badEdge++;
+        for (size_t v = 0; v < sizeof(kValues) / sizeof(kValues[0]); v++)
+            if (x + Measure(kLabels[i], 8) + 8 > right - Measure(kValues[v], 8)) bad++;
+        for (int j = 0; j < MENU_BESTS_MODES; j++) {
+            int xj, rj, yj;
+            Layout_MenuBest(j, &xj, &rj, &yj);
+            if (j == i || yj != y || xj < x) continue;
+            if (right + 16 > xj) badCols++; /* a column ends well clear of the next one's label */
+        }
+        if (y < MENU_BESTS_Y + 8 + 6 || y + 8 > MENU_SKYLINE_TOP) badEdge++;
+    }
+    CHECK(bad == 0, "menu bests: every label keeps 8 px clear of its value, \"no run yet\", 9 999 999 and a Sprint time included");
+    CHECK(badCols == 0, "menu bests: the columns stay well apart");
+    CHECK(badEdge == 0, "menu bests: inside the margin, under the header and above the skyline");
+    int x0, r0, y0, x1, r1, y1;
+    Layout_MenuBest(0, &x0, &r0, &y0);
+    Layout_MenuBest(1, &x1, &r1, &y1);
+    CHECK(y0 == y1 && x1 > r0, "menu bests: Marathon and Sprint share a line, side by side");
+    CHECK(MENU_BESTS_Y >= MENU_ROWS_BOTTOM + 8 && MENU_SKYLINE_TOP == SKY_BOTTOM - SKY_ROWS * SKY_CELL,
+          "menu bests: the header sits 8 px under Quit; the skyline's tallest top is where layout.h says");
+}
+
+static void test_stats_tiles_fit(void) {
+    static const char *const kLabels[3] = {"Pieces per second", "Biggest combo", "Most quads in a run"};
+    /* The widest values a tile shows: 9.99 pieces a second, a 99 combo, 999 quads in a run. */
+    static const long kBig[3] = {9990, 99, 999};
+    int badLine = 0, badValue = 0, missing = 0;
+    for (int who = 0; who < MODE_COUNT; who++) {
+        for (int k = 0; k < 3; k++) {
+            StatRecord r = {kBig[k], "2026-10-18"};
+            char value[24], l1[40], l2[24];
+            Menu_RecordWords(&r, k, who, true, true, value, sizeof(value), l1, sizeof(l1), l2, sizeof(l2));
+            if (strcmp(l1, Game_ModeName((GameMode)who)) != 0 || strcmp(l2, "2026-10-18") != 0) missing++;
+            if (Measure(l1, 8) > STATS_TILE_W || Measure(l2, 8) > STATS_TILE_W || Measure(kLabels[k], 8) > STATS_TILE_W) badLine++;
+            if (Measure(value, 32) > STATS_TILE_W) badValue++;
+        }
+    }
+    CHECK(missing == 0, "stats tiles: under All modes the mode on one line and the day on the next");
+    CHECK(badLine == 0, "stats tiles: every mode's name, the day and the labels fit a tile");
+    CHECK(badValue == 0, "stats tiles: 9.99, 99 and 999 fit at 32 px");
+    CHECK(Layout_StatsTileX(0) >= FIT_LEFT && Layout_StatsTileX(2) + STATS_TILE_W <= FIT_RIGHT && STATS_TILE_W + 8 <= STATS_TILE_PITCH,
+          "stats tiles: 8 px between tiles, the third ends by 580");
+    CHECK(STATS_TILE_VALUE_Y + 32 + 8 <= STATS_TILE_SUB_Y && STATS_TILE_SUB_Y + STATS_TILE_SUB_PITCH + 8 + 8 <= STATS_RULE2_Y,
+          "stats tiles: the two lines sit under the value, 8 px clear of the rule");
+    StatRecord r = {1870, "2026-10-15"};
+    char value[24], l1[40], l2[24];
+    Menu_RecordWords(&r, 0, MODE_MARATHON, false, true, value, sizeof(value), l1, sizeof(l1), l2, sizeof(l2));
+    CHECK(strcmp(value, "1.87") == 0 && strcmp(l1, "2026-10-15") == 0 && l2[0] == '\0', "stats tiles: on a mode's row the day alone");
+    StatRecord none = {0, ""};
+    Menu_RecordWords(&none, 1, -1, true, false, value, sizeof(value), l1, sizeof(l1), l2, sizeof(l2));
+    CHECK(strcmp(value, "-") == 0 && strcmp(l1, "no run yet") == 0 && l2[0] == '\0', "stats tiles: no record, no run: a dash and no run yet");
+}
+
+static void test_practice_fits(void) {
+    int badLabel = 0, badValue = 0, steppers = 0;
+    int stepperEnd = PRACTICE_STEPPER_X + PRACTICE_STEPPER_W, toggleEnd = PRACTICE_TOGGLE_X + PRACTICE_TOGGLE_W, rowEnd = PRACTICE_ROW_X + PRACTICE_ROW_W;
+    for (int o = 0; o < PRO_COUNT; o++) {
+        PracticeOptionKind kind = Practice_OptionKind((PracticeOption)o);
+        int controlX = kind == PRO_KIND_TOGGLE ? PRACTICE_TOGGLE_X : PRACTICE_STEPPER_X;
+        if (PRACTICE_LABEL_X + Measure(Practice_OptionLabel((PracticeOption)o), 16) + 8 > controlX) badLabel++;
+        if (kind == PRO_KIND_TOGGLE) continue;
+        steppers++;
+        int lo, hi;
+        Practice_OptionRange((PracticeOption)o, &lo, &hi);
+        Settings s;
+        Settings_Default(&s);
+        for (int v = lo; v <= hi; v++) {
+            Practice_SetOption(&s, (PracticeOption)o, v);
+            char words[32];
+            Practice_OptionWords(&s, (PracticeOption)o, words, sizeof(words));
+            if (Measure(words, 16) > PRACTICE_STEPPER_W - 2 * KIT_ARROW_W) badValue++;
+        }
+    }
+    CHECK(steppers == 3 && badValue == 0, "practice: every level, garbage count and Hold word fits between the stepper's arrows");
+    CHECK(badLabel == 0, "practice: every label keeps 8 px clear of its control");
+    CHECK(PRACTICE_ROW_X >= FIT_LEFT && rowEnd <= FIT_RIGHT && PRACTICE_LABEL_X >= PRACTICE_ROW_X + 8,
+          "practice: the row plates lie inside 40..580");
+    CHECK(stepperEnd + 8 <= rowEnd && toggleEnd + 8 <= rowEnd && PRACTICE_STEPPER_X > PRACTICE_ROW_X, "practice: the controls sit inside their plates");
+    CHECK(strcmp(Practice_ChoiceWord(PRO_HOLD, 0), "Once") == 0 && strstr(Practice_OptionHelp(PRO_HOLD), "Once:") != NULL &&
+              strstr(Practice_OptionHelp(PRO_HOLD), "Infinite:") != NULL,
+          "practice: Hold's help names both its words");
+}
+
+/* Play setup's text wraps as Scr_Wrap does: whole words, greedily. */
+static int WrapLines(const char *text, int maxW) {
+    int lines = 0;
+    char cur[512] = "";
+    const char *p = text;
+    while (*p) {
+        while (*p == ' ') p++;
+        const char *w0 = p;
+        while (*p && *p != ' ') p++;
+        int wl = (int)(p - w0);
+        if (wl <= 0) break;
+        char trial[1100];
+        snprintf(trial, sizeof(trial), "%s%s%.*s", cur, cur[0] ? " " : "", wl, w0);
+        if (!cur[0] || Measure(trial, 8) <= maxW) snprintf(cur, sizeof(cur), "%.*s", (int)sizeof(cur) - 1, trial);
+        else { lines++; snprintf(cur, sizeof(cur), "%.*s", wl, w0); }
+    }
+    return lines + (cur[0] ? 1 : 0);
+}
+
+static void test_setup_fits(void) {
+    int digBottom = SETUP_MODE_Y + (MODE_COUNT - 1) * SETUP_MODE_PITCH + SETUP_ROW_H;
+    int sizeHead = SETUP_SIZE_Y - SETUP_HEAD_DY;
+    CHECK(sizeHead >= digBottom + 8 && sizeHead + 8 + 8 <= SETUP_SIZE_Y, "setup: the Size header keeps 8 px from Dig's row and from Width");
+    CHECK(SETUP_SIZE_Y + SETUP_SIZE_PITCH + SETUP_ROW_H + 8 <= SETUP_SCORES_Y, "setup: Height's row ends 8 px above the Scores button");
+    int right = SETUP_RIGHT_X + SETUP_RIGHT_W;
+    CHECK(right <= FIT_RIGHT, "setup: the right column ends by 580");
+    int longAbout = 0;
+    for (int m = 0; m < MODE_COUNT; m++)
+        if (WrapLines(Setup_ModeAbout((GameMode)m), SETUP_RIGHT_W) > 4) longAbout++;
+    CHECK(longAbout == 0, "setup: every mode's words wrap in four lines in the right column");
+
+    static const char *const kValues[] = {"9 999 999", "1 234 567", "74 372", "12:34.56", "No best yet", "none yet", "none in Zen", "this PC only"};
+    static const char *const kRanks[] = {"", "#1 here", "#10 here"};
+    static const char *const kNames[] = {"", "Ghost", "The Real.", "ABCDEFGHIJ", "Moth"};
+    int badValue = 0, badMid = 0;
+    for (size_t v = 0; v < sizeof(kValues) / sizeof(kValues[0]); v++) {
+        int left = right - Measure(kValues[v], 8);
+        if (SETUP_RIGHT_X + Measure("World best", 8) + 8 > left || SETUP_RIGHT_X + Measure("Your best", 8) + 8 > left) badValue++;
+        for (int which = 0; which < 2; which++) {
+            const char *const *list = which ? kNames : kRanks;
+            size_t count = which ? sizeof(kNames) / sizeof(kNames[0]) : sizeof(kRanks) / sizeof(kRanks[0]);
+            for (size_t k = 0; k < count; k++) {
+                char out[32];
+                int w = Layout_SetupMiddle(list[k], which == 1, kValues[v], Measure, out, sizeof(out));
+                if (w != Measure(out, 8)) badMid++;
+                if (w > 0 && SETUP_BEST_MID_X + w + 8 > left) badMid++;
+            }
+        }
+    }
+    CHECK(badValue == 0, "setup: every best value ends by 580, 8 px clear of its word");
+    CHECK(SETUP_BEST_MID_X >= SETUP_RIGHT_X + Measure("World best", 8) + 8, "setup: the place or name starts 8 px after World best");
+    CHECK(badMid == 0, "setup: a place or a name never reaches the value");
+    char out[32];
+    Layout_SetupMiddle("#2 here", false, "24 680", Measure, out, sizeof(out));
+    CHECK(strcmp(out, "#2 here") == 0, "setup: #2 here whole beside 24 680");
+    Layout_SetupMiddle("#10 here", false, "9 999 999", Measure, out, sizeof(out));
+    CHECK(strcmp(out, "#10") == 0, "setup: beside 9 999 999 the place drops its here");
+    Layout_SetupMiddle("The Real.", true, "88 120", Measure, out, sizeof(out));
+    CHECK(strcmp(out, "The Real.") == 0, "setup: The Real. whole beside 88 120");
+    Layout_SetupMiddle("ABCDEFGHIJ", true, "9 999 999", Measure, out, sizeof(out));
+    CHECK(strcmp(out, "ABCDE.") == 0, "setup: a long name beside a long score keeps what fits and a full stop");
+}
+
 void test_layout_all(void) {
     test_every_board();
     test_bigger_cells();
     test_classic_look_kept();
     test_callout_details();
     test_fit_text();
+    test_menu_bests_fit();
+    test_stats_tiles_fit();
+    test_practice_fits();
+    test_setup_fits();
 }

@@ -1,0 +1,114 @@
+#! env SHOTS_SETUP=0,0,10,20
+# Danger (3.1.0): with the stack within four rows of the top the well's frame
+# eases to red and pulses, faint red stripes hatch the top three rows, the
+# warning plays once, and the next piece's outline shows in red where it would
+# come in when it would not fit. Digging to six clear rows keeps it on (no
+# flicker); seven let it go. Back within 8 s it is red again but silent; after
+# 8 s it warns again. The music follows: 0.32 on the empty well at level 1,
+# 0.74 with the stack up and danger on.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Marathon
+expect hud danger 0
+expect hud free 20
+expect view intensity 0.32
+# a stack sixteen rows high: four rows clear
+game clear
+game row 0 #########.
+game row 1 ####.####.
+game row 2 #########.
+game row 3 ##.######.
+game row 4 #########.
+game row 5 #####.###.
+game row 6 #########.
+game row 7 #.#######.
+game row 8 #########.
+game row 9 ######.##.
+game row 10 #########.
+game row 11 ###.#####.
+game row 12 ########..
+game row 13 ##.####.#.
+game row 14 #####.#...
+game row 15 .##.##....
+game piece I 1 7 4
+game next T
+mark sounds
+wait 2
+expect hud danger 1
+expect hud free 4
+expect sounds jingle:WARNING
+expect view intensity 0.74
+wait 28
+shot 152-danger-on
+expect pixels 36 200 4 40 above 130
+wait 20
+shot 152-danger-on-later
+# the next piece would not fit: the row under its cells fills (the I keeps
+# falling down the open column)
+game row 16 ####.####.
+game row 17 #.#######.
+game row 18 ####.###..
+game piece I 1 7 4
+wait 2
+expect hud free 1
+expect hud nextblocked 1
+shot 152-danger-next-blocked
+# digging out: six rows clear keeps it on, seven let it go
+game row 18 ..........
+game row 17 ..........
+game row 16 ..........
+game row 15 ..........
+game row 14 ..........
+game piece I 1 7 4
+wait 2
+expect hud danger 1
+expect hud free 6
+expect hud nextblocked 0
+game row 13 ..........
+wait 2
+expect hud danger 0
+expect hud free 7
+wait 30
+shot 152-danger-off
+expect hud dangerframe 0.00
+# back within 8 s: red again, but silent
+game row 13 ##.####.#.
+game row 14 #####.#...
+game row 15 .##.##....
+game piece I 1 7 4
+mark sounds
+wait 30
+expect hud danger 1
+expect sounds none
+# out for 8 s, then back: the warning again
+game clear
+game piece I 1 7 4
+wait 2
+expect hud danger 0
+wait 500
+expect hud danger 0
+expect hud free 20
+game row 0 #########.
+game row 1 ####.####.
+game row 2 #########.
+game row 3 ##.######.
+game row 4 #########.
+game row 5 #####.###.
+game row 6 #########.
+game row 7 #.#######.
+game row 8 #########.
+game row 9 ######.##.
+game row 10 #########.
+game row 11 ###.#####.
+game row 12 ########..
+game row 13 ##.####.#.
+game row 14 #####.#...
+game row 15 .##.##....
+game piece I 1 7 4
+mark sounds
+wait 2
+expect hud danger 1
+expect sounds jingle:WARNING

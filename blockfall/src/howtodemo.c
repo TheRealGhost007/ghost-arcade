@@ -58,6 +58,14 @@ static const Step kModes[] = {
     {S_PRESS, DOP_HARD, 1.8f}, {S_END, 0, 0.0f},
 };
 
+/* Modes, Dig (3.4.0): an I turned upright drops down the gaps of four
+ * garbage rows: a quad, all of it dug. */
+static const Step kDig[] = {
+    {S_PIECE, PIECE_I, 0.0f}, {S_NEXT, PIECE_O, 0.55f},
+    {S_PRESS, DOP_TURN, 0.6f},
+    {S_PRESS, DOP_HARD, 1.8f}, {S_END, 0, 0.0f},
+};
+
 /* Power-ups: an O carrying the power-up drops onto the stack; then the T
  * after it shows what it did (Freeze holds it up, Slow lets it drift). */
 static const Step kPower[] = {
@@ -66,11 +74,11 @@ static const Step kPower[] = {
     {S_PRESS, DOP_HARD, 1.2f}, {S_END, 0, 0.0f},
 };
 
-static const Step *ScriptOf(int page) {
+static const Step *ScriptOf(int page, int variant) {
     switch (page) {
         case HOWTO_HOLD: return kHold;
         case HOWTO_SCORING: return kScoring;
-        case HOWTO_MODES: return kModes;
+        case HOWTO_MODES: return variant == MODE_DIG ? kDig : kModes;
         case HOWTO_POWER: return kPower;
         default: return kBasics;
     }
@@ -78,22 +86,36 @@ static const Step *ScriptOf(int page) {
 
 /* ------------------------------------------------------------ boards */
 
-/* Row y from the bottom: '#' a block (each a piece's colour), '.' none. */
+/* Row y from the bottom: '#' a block (each a piece's colour), 'G' garbage
+ * (Dig), '.' none. */
 static void Row(Game *g, int y, const char *pattern) {
     int row = BOARD_HIDDEN + g->board.h - 1 - y;
     for (int x = 0; x < g->board.w; x++) {
         char c = x < (int)strlen(pattern) ? pattern[x] : '.';
-        g->board.cells[row][x] = (int8_t)(c == '#' ? (x * 3 + y * 5) % PIECE_COUNT : CELL_EMPTY);
+        g->board.cells[row][x] = (int8_t)(c == '#' ? (x * 3 + y * 5) % PIECE_COUNT : (c == 'G' ? CELL_GARBAGE : CELL_EMPTY));
     }
 }
 
-static void SetUpBoard(Game *g, int page) {
+static void SetUpBoard(Game *g, int page, int variant) {
     for (int y = 0; y < BOARD_MAX_TOTAL_H; y++)
         for (int x = 0; x < BOARD_MAX_W; x++) g->board.cells[y][x] = CELL_EMPTY;
+    if (page == HOWTO_MODES && variant == MODE_DIG) {
+        /* four garbage rows, their gaps in the I's column (4), so what the
+         * page says (a quad, all dug) is what it does; a block above them,
+         * so the quad never empties the well (a perfect clear's bonus would
+         * change the number the page names) */
+        for (int y = 0; y < 4; y++) Row(g, y, "GGGG.GGG");
+        Row(g, 4, "G.......");
+        return;
+    }
     switch (page) {
-        case HOWTO_HOLD: Row(g, 0, "....####"); break;
+        /* A block above the rows that clear, so the clear never empties the
+         * well: the page teaches the hold and the quad, not the perfect
+         * clear (3.2.0), whose bonus would change the numbers it names. */
+        case HOWTO_HOLD: Row(g, 0, "....####"); Row(g, 1, ".......#"); break;
         case HOWTO_SCORING:
             for (int y = 0; y < 8; y++) Row(g, y, "#######.");
+            Row(g, 8, "##......");
             break;
         case HOWTO_POWER:
             Row(g, 0, "#.######");
@@ -133,7 +155,7 @@ void HowToDemo_Start(HowToDemo *d, int page, int variant) {
     Game_InitConfig(&d->game, cfg, 0x5EEDu + (uint64_t)page, 0, 1, 0);
     d->game.hold = (PieceType)-1;
     d->game.nextPower = PU_NONE;
-    SetUpBoard(&d->game, d->page);
+    SetUpBoard(&d->game, d->page, variant);
     d->press = DOP_NONE;
     d->pressAge = 99.0f;
     d->calloutAge = 99.0f;
@@ -249,7 +271,7 @@ void HowToDemo_Tick(HowToDemo *d, float dt) {
         }
         return;
     }
-    const Step *script = ScriptOf(d->page);
+    const Step *script = ScriptOf(d->page, d->variant);
     bool pressLocked = false;
     d->wait -= dt;
     while (d->wait <= 0.0f && !d->ended) {
@@ -283,9 +305,14 @@ void HowToDemo_Tick(HowToDemo *d, float dt) {
 }
 
 DemoClaim HowToDemo_Claim(int page, int variant) {
-    (void)variant;
     DemoClaim c;
     memset(&c, 0, sizeof(c));
+    if (page == HOWTO_MODES && variant == MODE_DIG) {
+        c.clears[0] = 4;
+        c.gained[0] = 800 + 4 * DIG_ROW_BONUS; /* the quad, and the four rows dug */
+        c.count = 1;
+        return c;
+    }
     switch (page) {
         case HOWTO_BASICS:
         case HOWTO_HOLD:

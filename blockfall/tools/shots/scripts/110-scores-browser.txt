@@ -12,7 +12,7 @@ tap ENTER
 wait 5
 expect screen SCORES
 expect scores mode Marathon
-expect app boards 10x20|14x20|8x26|18x30|6x14|12x22
+expect app boards 10x20|14x20|8x26|18x30|6x14|12x22|10x20old
 # Ultra by a click on its tab
 mouse 350 120
 wait 2

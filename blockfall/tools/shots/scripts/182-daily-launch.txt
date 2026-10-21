@@ -1,0 +1,20 @@
+#! env SHOTS_DAILYLAUNCH=1 SHOTS_SETUP=0,0,10,20
+# --daily (Ghost Launcher's D key, 3.6.0): the game opens on the Daily
+# screen over the menu, with no run yet today and no streak; Esc goes to
+# the menu as usual, whose Daily item says "no run yet".
+wait 10
+expect screen DAILY
+expect app under MENU
+expect app depth 2
+expect app daily:twist Power Ultra
+expect app daily:best 0
+expect app daily:runs 0
+expect app daily:streak 0
+expect app daily:here none
+expect app daily:world none
+expect app daily:worldrank 0
+shot 182-daily-launch
+tap ESCAPE
+wait 8
+expect screen MENU
+expect app dailysub Power Ultra, no run yet

@@ -14,7 +14,7 @@ static float Tick(float t, float dt) { return t < NEVER ? t + dt : t; }
 
 void Feel_Reset(Feel *f, const Game *g, bool glide) {
     memset(f, 0, sizeof(*f));
-    f->quadFrameT = f->flightT = f->holdReadyT = f->slideT = f->land.t = NEVER;
+    f->quadFrameT = f->flightT = f->holdReadyT = f->slideT = f->land.t = f->riseT = NEVER;
     PieceFeel *p = &f->piece;
     p->glideT = p->popT = p->streakT = NEVER;
     if (g) {
@@ -39,13 +39,23 @@ ClearTimes Feel_ClearTimes(int count, int level, bool motion) {
     /* Shorter at high levels, so the picture never trails the stack long:
      * 0.24 s, then 0.18 s at levels 10-14 and 0.12 s from 15. */
     float s = level >= 15 ? 0.5f : (level >= 10 ? 0.75f : 1.0f);
-    if (!motion) return (ClearTimes){CLEAR_CUT_FLASH_SECONDS * s, 0.0f, 0.0f};
-    if (count >= 4) return (ClearTimes){QUAD_FLASH_SECONDS * s, QUAD_GAP_SECONDS * s, CLEAR_DROP_SECONDS * s};
-    if (count <= 0) return (ClearTimes){0.0f, 0.0f, CLEAR_DROP_SECONDS * s}; /* only a fall (a Sweep, phase 7) */
-    return (ClearTimes){CLEAR_FLASH_SECONDS * s, CLEAR_ZIP_SECONDS * s, CLEAR_DROP_SECONDS * s};
+    if (!motion) return (ClearTimes){CLEAR_CUT_FLASH_SECONDS * s, 0.0f, 0.0f, 0.0f};
+    if (count >= 4) return (ClearTimes){QUAD_FLASH_SECONDS * s, QUAD_GAP_SECONDS * s, 0.0f, CLEAR_DROP_SECONDS * s};
+    if (count <= 0) return (ClearTimes){0.0f, 0.0f, 0.0f, CLEAR_DROP_SECONDS * s}; /* only a fall */
+    return (ClearTimes){CLEAR_FLASH_SECONDS * s, CLEAR_ZIP_SECONDS * s, 0.0f, CLEAR_DROP_SECONDS * s};
 }
 
-float Feel_ClearTotal(ClearTimes t) { return t.flash + t.zip + t.drop; }
+ClearTimes Feel_SweepTimes(int count, int level, bool motion) {
+    /* The clear's stages, then the bar: a Sweep alone is the clear's beat
+     * (0.14 s bar, 0.10 s fall); with Reduced motion the rows flash, then
+     * cut, as a clear does. */
+    float s = level >= 15 ? 0.5f : (level >= 10 ? 0.75f : 1.0f);
+    ClearTimes t = Feel_ClearTimes(count, level, motion);
+    if (motion) t.sweep = SWEEP_BAR_SECONDS * s;
+    return t;
+}
+
+float Feel_ClearTotal(ClearTimes t) { return t.flash + t.zip + t.sweep + t.drop; }
 
 void Feel_RowSources(const int *rows, int count, int shift, int totalH, int *out) {
     /* The compaction Board_ClearLines does, bottom up, then a Sweep's move
@@ -71,6 +81,15 @@ static void StartClear(Feel *f, const Game *g, const FeelFrame *in, int count, i
     for (int i = 0; i < 4; i++) r->rows[i] = i < count ? g->lastClearRows[i] : -1;
     r->shift = shift;
     Feel_RowSources(r->rows, count, shift, Board_TotalH(&g->board), r->from);
+    /* The rows the Sweep takes: the lowest `shift` rows of `before` that the
+     * clear did not (the bar crosses those). */
+    r->sweepCount = 0;
+    for (int row = Board_TotalH(&g->board) - 1; row >= 0 && r->sweepCount < shift && r->sweepCount < SWEEP_ROWS; row--) {
+        bool cleared = false;
+        for (int i = 0; i < count && i < 4; i++)
+            if (r->rows[i] == row) cleared = true;
+        if (!cleared) r->sweepRows[r->sweepCount++] = row;
+    }
     /* The zip starts from the middle of the piece that landed. */
     Cell cells[CELLS_PER_PIECE];
     Tetromino_GetCells(g->lastLockType, g->lastLockRotation, cells);
@@ -81,7 +100,7 @@ static void StartClear(Feel *f, const Game *g, const FeelFrame *in, int count, i
     r->lockType = g->lastLockType;
     r->quad = count >= 4;
     r->b2b = g->lastWasB2B;
-    r->times = Feel_ClearTimes(count, g->level, in->motion);
+    r->times = shift > 0 ? Feel_SweepTimes(count, g->level, in->motion) : Feel_ClearTimes(count, g->level, in->motion);
     r->t = r->prevT = 0.0f;
     if (r->quad) f->quadFrameT = 0.0f;
 }
@@ -91,8 +110,32 @@ ClearStage Feel_ClearStage(const Feel *f) {
     if (!r->on) return CLEAR_NONE;
     if (r->t < r->times.flash) return CLEAR_FLASH;
     if (r->t < r->times.flash + r->times.zip) return CLEAR_ZIP;
+    if (r->t < r->times.flash + r->times.zip + r->times.sweep) return CLEAR_SWEEP;
     if (r->t < Feel_ClearTotal(r->times)) return CLEAR_DROP;
     return CLEAR_NONE;
+}
+
+float Feel_SweepBar(const ClearReplay *r, float t) {
+    if (r->sweepCount <= 0 || r->times.sweep <= 0.0f) return -1.0f;
+    float start = r->times.flash + r->times.zip;
+    if (t < start || t >= start + r->times.sweep) return -1.0f;
+    return (t - start) / r->times.sweep * (float)r->before.w;
+}
+
+bool Feel_IsSweepRow(const ClearReplay *r, int row) {
+    for (int i = 0; i < r->sweepCount; i++)
+        if (r->sweepRows[i] == row) return true;
+    return false;
+}
+
+bool Feel_SweepCellGone(const ClearReplay *r, int col, float t) {
+    if (r->sweepCount <= 0) return false;
+    float start = r->times.flash + r->times.zip;
+    if (t < start) return false;
+    if (r->times.sweep <= 0.0f) return true; /* Reduced motion: the cut */
+    float bar = Feel_SweepBar(r, t);
+    if (bar < 0.0f) return true; /* the bar is past */
+    return (float)col + 0.5f <= bar;
 }
 
 bool Feel_ClearCellGone(const ClearReplay *r, int col, float t) {
@@ -110,7 +153,7 @@ int Feel_RowLift(const Feel *f, int liveRow, int cell) {
     if (Feel_ClearStage(f) != CLEAR_DROP || liveRow < 0 || liveRow >= BOARD_MAX_TOTAL_H) return 0;
     int src = r->from[liveRow];
     if (src < 0 || liveRow - src <= 0) return 0;
-    float p = Clamp01((r->t - r->times.flash - r->times.zip) / r->times.drop);
+    float p = Clamp01((r->t - r->times.flash - r->times.zip - r->times.sweep) / r->times.drop);
     if (p < CLEAR_FALL_PART) {
         float k = p / CLEAR_FALL_PART; /* falls faster and faster, like a real drop */
         return (int)floorf((float)((liveRow - src) * cell) * (1.0f - k * k) + 0.5f);
@@ -266,12 +309,11 @@ void Feel_React(Feel *f, const Game *g, const FeelFrame *in) {
         l->motion = in->motion;
         l->t = 0.0f;
         /* A new lock ends the replay before it at once. A Zen fresh start
-         * swept the board, so there is nothing to replay. A Sweep with no
-         * clear only drops the stack: phase 7 gives it its own look (the
-         * replay can already fall without a clear: count 0, shift 3). */
+         * swept the board, so there is nothing to replay. A Sweep replays
+         * too, with or without a clear: its bar, then the stack's drop. */
         f->clear.on = false;
         int count = g->lastClearCount < 0 ? 0 : (g->lastClearCount > 4 ? 4 : g->lastClearCount);
-        if (count > 0 && !g->justZenReset) StartClear(f, g, in, count, sweep);
+        if ((count > 0 || sweep > 0) && !g->justZenReset) StartClear(f, g, in, count, sweep);
         l->replayed = f->clear.on;
     }
     /* A Zen fresh start swept the board (a lock above the well, or a Hold
@@ -280,6 +322,14 @@ void Feel_React(Feel *f, const Game *g, const FeelFrame *in) {
     if (g->justZenReset) {
         f->clear.on = false;
         f->land.on = false;
+    }
+    /* Dig: a garbage row pushed up. The stack eases up into its new place;
+     * a clear still replaying and the landed piece are a row off now, so
+     * they end. */
+    if (g->justRose) {
+        f->clear.on = false;
+        f->land.on = false;
+        if (in->motion) f->riseT = 0.0f;
     }
 
     bool newPiece = g->justLocked || g->justHeld || g->justZenReset;
@@ -349,4 +399,11 @@ void Feel_Tick(Feel *f, float dt) {
     f->holdReadyT = Tick(f->holdReadyT, dt);
     f->slideT = Tick(f->slideT, dt);
     if (f->slideT >= NEXT_SLIDE_SECONDS) f->slideOn = false;
+    f->riseT = Tick(f->riseT, dt);
+}
+
+int Feel_RiseDrop(const Feel *f, int cell) {
+    if (f->riseT >= RISE_SECONDS) return 0;
+    float k = EaseOut(Clamp01(f->riseT / RISE_SECONDS));
+    return (int)((float)cell * (1.0f - k) + 0.5f);
 }

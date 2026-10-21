@@ -1,0 +1,77 @@
+#! env SHOTS_SETUP=4,0,10,20
+# The sound pass (3.1.0): a natural lock ticks, a hard drop thuds, Hold has
+# its own swoosh, a clear is the thud and the clear, the next clear in the
+# chain rings a semitone up, the level up waits 0.15 s, and a power-up that
+# clears rows plays the power-up's sound alone (with the coin): never two big
+# sounds on one lock.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+# a natural lock: the O sits on the floor and locks after its half second
+game clear
+game piece O 0 4 22
+mark sounds
+wait 33
+expect game pieces 1
+expect sounds sfx:7
+shot 150-natural-lock
+# a hard drop into nothing: the thud alone
+game piece O 0 0
+mark sounds
+tapshot SPACE 150-hard-drop
+expect sounds sfx:2
+# Hold: its own swoosh
+mark sounds
+tap C
+expect sounds sfx:8
+# a single: the thud, then the clear as it always sounded
+game clear
+game row 0 #########.
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 150-single
+expect sounds sfx:2,sfx:3
+wait 20
+# the next clear in the chain: a semitone up
+game clear
+game row 0 #########.
+game piece I 1 7
+wait 2
+mark sounds
+tapshot SPACE 150-single-combo
+expect sounds sfx:2,pitched:3
+wait 20
+# a lock that clears nothing ends the chain
+game clear
+game piece O 0 0
+wait 2
+tap SPACE
+wait 2
+# a level up waits 0.15 s after its clear
+game clear
+game row 0 #########.
+game piece I 1 7
+game lines 9
+wait 2
+mark sounds
+tapshot SPACE 150-level-up-f1
+expect game level 2
+expect sounds sfx:2,sfx:3
+wait 12
+expect sounds sfx:2,sfx:3,sfx:5
+shot 150-level-up-f13
+wait 20
+# a Bomb that clears a row: the coin and the bomb, no clear sound, no thud
+game clear
+game row 0 #########.
+game row 1 #####.###.
+game piece I 1 7
+game power Bomb 1
+wait 2
+mark sounds
+tapshot SPACE 150-bomb-and-clear
+expect game lines 11
+expect sounds jingle:COIN,sfx:9

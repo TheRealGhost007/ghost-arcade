@@ -1,0 +1,61 @@
+#! env SHOTS_SETUP=0,0,10,20
+# 3.2.0: the Next queue on the classic board. Next shows the next piece
+# large and four more small under it (five as Blockfall comes). As a piece
+# comes in the queue moves up with the slide. The pieces are the rules' own
+# six-ahead queue, so what is shown is what comes.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game mode Marathon
+game next T
+game queue O,S,Z,J,L
+wait 2
+expect game queue O|S|Z|J|L
+expect hud queue O|S|Z|J
+shot 158-queue-classic
+# the slide: the T comes in, the O becomes Next and the small ones move up
+tap SPACE
+wait 1
+expect game current T
+expect game next O
+expect feel slide 1
+shot 158-queue-sliding
+wait 8
+expect feel slide 0
+expect hud queue S|Z|J|L
+shot 158-queue-advanced
+# Power: a queued piece's power-up shows as a coloured block
+tap ESCAPE
+wait 3
+tap UP
+tap ENTER
+wait 2
+expect app dialog Leave this run?
+tap RIGHT
+tap ENTER
+wait 5
+expect screen MENU
+tap ENTER
+wait 3
+expect screen SETUP
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app mode Power
+tap ENTER
+wait 3
+expect screen PLAYING
+expect game mode Power
+game next L
+game nextpower Bomb 1
+game queue T,I,O,S,Z
+game queuepower 1 Laser 2
+game queuepower 3 Freeze 0
+wait 2
+expect hud queue T|I|O|S
+shot 158-queue-power

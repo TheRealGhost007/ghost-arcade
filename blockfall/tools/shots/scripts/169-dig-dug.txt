@@ -1,0 +1,50 @@
+#! env SHOTS_SETUP=5,0,10,20
+# Digging: an I dropped down a column whose two bottom rows open on it
+# clears them both: DOUBLE and DUG 2 over the well, the popup with the
+# double's 300, the two rows' 200 and the drop's 32, Dug 2 in the panel; a
+# garbage row with a piece block in it is still garbage.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Dig
+game freeze 100
+game clear
+game row 0 GGGG.GGGGG
+game row 1 GGGG.GGGGG
+game row 2 GGGG..GGGG
+game row 3 GGGG..GGGG
+game row 4 GGGG.GGGGG
+game row 5 GGGG.G.GGG
+game piece I 1 2 4
+game score 0
+wait 2
+shot 169-before
+tapshot SPACE 169-double-f1
+expect game lines 2
+expect game dug 2
+expect game score 532
+expect game garbage 4
+expect hud callouts DOUBLE|DUG 2
+expect hud popup +532
+wait 14
+shot 169-double-callout
+wait 30
+shot 169-after
+# one row at a time is the usual dig (only the top garbage row's gap is
+# open from above): a popup and the Dug count, no word
+wait 30
+expect hud callouts none
+game clear
+game row 0 GGGGGGG.GG
+game row 1 GGGGGGGGG.
+game piece I 1 7 4
+game combo -1
+wait 1
+tapshot SPACE 169-single-f1
+expect game lines 3
+expect game dug 3
+expect game garbage 1
+expect hud callouts none
+expect hud popup +230

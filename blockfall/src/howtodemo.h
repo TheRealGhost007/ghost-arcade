@@ -17,7 +17,9 @@
  *   Scoring        a quad (800), then a back-to-back quad (1 200 and a
  *                  combo's 50).
  *   Modes          the Basics single in the mode picked (its own number
- *                  shown under the well: lines left, time left...).
+ *                  shown under the well: lines left, time left...); Dig
+ *                  (3.4.0) instead stands an I in the gaps of four garbage
+ *                  rows: a quad, 800 and 400 for the rows dug.
  *   Power-ups      the power-up picked fires on the stack. */
 
 typedef enum { HOWTO_BASICS, HOWTO_HOLD, HOWTO_SCORING, HOWTO_MODES, HOWTO_POWER, HOWTO_PAGES } HowToPage;

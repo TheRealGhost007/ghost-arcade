@@ -1,0 +1,36 @@
+#! env SHOTS_SETUP=4,0,10,20
+# Slow (3.1.0): the orange frame, two faint afterimages trailing the piece
+# as it moves, the draining bar, and a wind-up sound as it ends.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game piece L 0 0
+game power Slow 1
+wait 2
+mark sounds
+tapshot SPACE 146-slow-f1
+expect sounds jingle:COIN,sfx:13
+expect hud callouts SLOW
+wait 8
+# the next piece moves: an afterimage three and six frames behind it
+tap RIGHT
+wait 1
+tap RIGHT
+wait 1
+tap RIGHT
+shot 146-slow-afterimages
+expect feel afterimages 2
+wait 10
+shot 146-slow-still
+expect feel afterimages 0
+# the end: the wind-up
+game slow 0.03
+mark sounds
+wait 3
+expect sounds sfx:14
+shot 146-slow-over

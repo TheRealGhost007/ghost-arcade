@@ -1,0 +1,118 @@
+# Stats (3.3.0) before any run has counted (no stats.dat: the empty state),
+# then a Marathon that scores a quad and tops out. As the run ends it is
+# folded into Blockfall's own stats.dat (runs.log is written as before), and
+# Stats shows it: one run, four lines, the quad as the most quads in a run,
+# and the bar all quad.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen STATS
+expect app stats:have 0
+expect app stats:since none
+expect app stats:runs 0
+expect app stats:lines 0
+expect app stats:pps -
+expect app stats:quads -
+expect app stats:bar 0|0|0|0|0
+wait 20
+shot 166-empty
+tap ESCAPE
+wait 3
+expect screen MENU
+expect app focus Stats
+# Up five times: Start game. A Marathon on the classic board.
+tap UP
+tap UP
+tap UP
+tap UP
+tap UP
+wait 2
+expect app focus Start game
+tap ENTER
+wait 3
+expect screen SETUP
+tap ENTER
+wait 3
+expect screen PLAYING
+expect game mode Marathon
+# a scripted quad: four rows full but the right column, a vertical I dropped into it
+game clear
+game row 0 #########.
+game row 1 #########.
+game row 2 #########.
+game row 3 #########.
+game piece I 1 7 0
+wait 1
+tap SPACE
+wait 3
+expect game lines 4
+# then a top-out
+game row 0 #########.
+game row 1 ####.#####
+game row 2 #.########
+game row 3 ######.###
+game row 4 ##.#######
+game row 5 ########.#
+game row 6 ###.######
+game row 7 #######.##
+game row 8 .#########
+game row 9 #####.####
+game row 10 ##.#######
+game row 11 ########.#
+game row 12 ####.#####
+game row 13 #.########
+game row 14 ######.###
+game row 15 ###.######
+game row 16 #######.##
+game row 17 #.###.####
+game piece O 0 3
+wait 2
+tap SPACE
+wait 3
+expect app results on
+expect file .local/share/blockfall/stats.dat [marathon]
+expect file .local/share/blockfall/stats.dat runs=1
+expect file .local/share/blockfall/stats.dat lines=4
+expect file .local/share/blockfall/stats.dat clears=0|0|0|1
+expect file .local/share/blockfall/stats.dat most_quads=1|
+expect nofile .local/share/blockfall/stats.dat best_pps=
+expect file .local/share/blockfall/runs.log |marathon|
+wait 120
+expect app resultsdone 1
+# Menu from the card, then Stats again: it reads the file as it opens
+tap ESCAPE
+wait 5
+expect screen MENU
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 30
+expect screen STATS
+expect app stats:have 1
+expect app stats:row All modes
+expect app stats:runs 1
+expect app stats:lines 4
+expect app stats:quads 1
+expect app stats:who:quads Marathon
+expect app stats:combo -
+expect app stats:pps -
+expect app stats:bar 0|0|0|4|0
+shot 166-after-run
+tap DOWN
+wait 30
+expect app stats:row Marathon
+expect app stats:runs 1
+expect app stats:quads 1
+shot 166-marathon-row
+tap DOWN
+wait 3
+expect app stats:row Sprint
+expect app stats:runs 0

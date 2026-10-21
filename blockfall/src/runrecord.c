@@ -1,4 +1,5 @@
 #include "runrecord.h"
+#include "challenge.h"
 #include "localtable.h"
 #include "persist.h"
 #include <stdio.h>
@@ -61,15 +62,40 @@ static void Key(const char *name, int w, int h, char *out, size_t size) {
 }
 
 void Record_BoardKey(GameMode mode, int w, int h, char *out, size_t size) {
-    static const char *const kNames[MODE_COUNT] = {"marathon", "sprint40", "ultra", "zen", "power"};
-    Key(kNames[(int)mode >= 0 && mode < MODE_COUNT ? mode : MODE_MARATHON], w, h, out, size);
+    static const char *const kNames[MODE_COUNT] = {"marathon", "sprint40", "ultra", "zen", "power", "dig"};
+    if ((int)mode < 0 || mode >= MODE_COUNT) mode = MODE_MARATHON;
+    /* The Marathon always carries its size (3.2.0): the bare "marathon" is
+     * the classic board under the old rules, never written again. */
+    if (mode == MODE_MARATHON) snprintf(out, size, "%s-%dx%d", kNames[mode], w, h);
+    else Key(kNames[mode], w, h, out, size);
 }
 
 void Record_OldSprintKey(int w, int h, char *out, size_t size) { Key("sprint", w, h, out, size); }
 
+void Record_OldClassicKey(char *out, size_t size) { snprintf(out, size, "marathon"); }
+
+bool Record_HasOldBoard(GameMode mode, int w, int h) {
+    return mode == MODE_SPRINT || (mode == MODE_MARATHON && w == BOARD_W && h == BOARD_H);
+}
+
+void Record_OldKey(GameMode mode, int w, int h, char *out, size_t size) {
+    if (mode == MODE_SPRINT) Record_OldSprintKey(w, h, out, size);
+    else Record_OldClassicKey(out, size);
+}
+
 void Record_LogKey(GameMode mode, int w, int h, char *out, size_t size) {
-    static const char *const kNames[MODE_COUNT] = {"marathon", "sprint", "ultra", "zen", "power"};
+    static const char *const kNames[MODE_COUNT] = {"marathon", "sprint", "ultra", "zen", "power", "dig"};
     Key(kNames[(int)mode >= 0 && mode < MODE_COUNT ? mode : MODE_MARATHON], w, h, out, size);
+}
+
+void Record_KeyOf(const Game *g, char *out, size_t size) {
+    if (g->daily.on) Daily_BoardKey(g->daily.date, out, size);
+    else Record_BoardKey(g->cfg.mode, g->cfg.width, g->cfg.height, out, size);
+}
+
+void Record_LogKeyOf(const Game *g, char *out, size_t size) {
+    if (g->daily.on) Daily_BoardKey(g->daily.date, out, size);
+    else Record_LogKey(g->cfg.mode, g->cfg.width, g->cfg.height, out, size);
 }
 
 /* ---------------------------------------------------------------- a run */
@@ -80,14 +106,25 @@ RunRecord Record_Classify(const Game *g, bool tuned) {
     GameMode mode = g->cfg.mode;
     int w = g->cfg.width, h = g->cfg.height;
     r.unit = Record_UnitOf(mode);
-    Record_BoardKey(mode, w, h, r.key, sizeof(r.key));
+    Record_KeyOf(g, r.key, sizeof(r.key));
 
     /* A restart before anything landed, or a run that never scored, is not a
-     * run (R used to farm the run-count trophies); a playtest never counts. */
-    r.counts = !tuned && g->piecesLocked > 0 && g->score > 0;
+     * run (R used to farm the run-count trophies); a playtest never counts,
+     * and nor does the Practice room (3.5.0): no log, no stats, no trophy,
+     * no board, no best. */
+    r.counts = !tuned && !g->practice.on && g->piecesLocked > 0 && g->score > 0;
     if (!r.counts) return r;
 
-    r.toSave = mode == MODE_MARATHON && w == BOARD_W && h == BOARD_H;
+    r.toSave = false;                         /* 3.2.0: save.dat is the old rules' best, read and never changed */
+    if (g->daily.on) {
+        /* The Daily challenge (3.6.0): points on the day's shared board,
+         * whatever the twist's mode and board (the five presets only). */
+        r.unit = UNIT_POINTS;
+        r.value = g->score;
+        r.toBoard = r.value > 0;
+        r.local = false;
+        return r;
+    }
     if (mode == MODE_ZEN) return r;           /* Zen keeps no scores */
     if (mode == MODE_SPRINT) {
         if (!g->won) return r;                /* only a finished Sprint has a time */
@@ -154,23 +191,36 @@ int Record_SharedRows(void) {
 
 bool Record_SharedHasRoom(void) { return Record_SharedRows() < GHOSTLINK_MAX_ENTRIES; }
 
-long Record_LoadBest(GameMode mode, int w, int h, long saveDatBest) {
-    if (mode == MODE_ZEN) return 0;
-    char key[GHOSTLINK_MODE_LEN], path[700];
-    Record_BoardKey(mode, w, h, key, sizeof(key));
+long Record_LoadBestKey(const char *key) {
+    char path[700];
     long best = 0;
     GhostScore top;
+    if (!key || !key[0]) return 0;
     if (GhostLink_LoadScores(RECORD_SLUG, key, &top, 1) > 0) best = top.score;
     if (LocalPath(path, sizeof(path)) && LocalTable_Load(path, key, &top, 1) > 0 && top.score > best) best = top.score;
-    if (mode == MODE_MARATHON && w == BOARD_W && h == BOARD_H) best = Record_ClassicBest(saveDatBest, best);
     return best;
 }
 
+long Record_LoadBest(GameMode mode, int w, int h, long saveDatBest) {
+    (void)saveDatBest; /* the old rules' best: on its own board since 3.2.0 */
+    if (mode == MODE_ZEN) return 0;
+    char key[GHOSTLINK_MODE_LEN];
+    Record_BoardKey(mode, w, h, key, sizeof(key));
+    return Record_LoadBestKey(key);
+}
+
 long Record_LoadYourBest(GameMode mode, int w, int h, const char *username, long saveDatBest, int *rank) {
+    (void)saveDatBest;
     if (rank) *rank = 0;
     if (mode == MODE_ZEN) return 0;
     char key[GHOSTLINK_MODE_LEN];
     Record_BoardKey(mode, w, h, key, sizeof(key));
+    return Record_LoadYourBestKey(key, username, rank);
+}
+
+long Record_LoadYourBestKey(const char *key, const char *username, int *rank) {
+    if (rank) *rank = 0;
+    if (!key || !key[0]) return 0;
     GhostScore rows[GHOSTLINK_TOP_N];
     int n = Record_LoadBoard(key, false, rows, GHOSTLINK_TOP_N);
     long best = 0;
@@ -180,11 +230,6 @@ long Record_LoadYourBest(GameMode mode, int w, int h, const char *username, long
         best = rows[i].score;
         place = i + 1;
         break;
-    }
-    if (mode == MODE_MARATHON && w == BOARD_W && h == BOARD_H && saveDatBest > best) {
-        best = saveDatBest;
-        place = 1;
-        for (int i = 0; i < n; i++) if (rows[i].score > best) place++;
     }
     if (rank) *rank = place;
     return best;
@@ -230,10 +275,10 @@ int Record_FindRow(const GhostScore *rows, int count, const char *username, long
 
 /* ------------------------------------------------------- boards listed */
 
-bool Record_ParseKey(const char *key, GameMode *mode, bool *oldSprint, int *w, int *h) {
+bool Record_ParseKey(const char *key, GameMode *mode, bool *old, int *w, int *h) {
     static const struct { const char *name; GameMode mode; bool old; } kNames[] = {
         {"marathon", MODE_MARATHON, false}, {"sprint40", MODE_SPRINT, false}, {"sprint", MODE_SPRINT, true},
-        {"ultra", MODE_ULTRA, false}, {"zen", MODE_ZEN, false}, {"power", MODE_POWER, false},
+        {"ultra", MODE_ULTRA, false}, {"zen", MODE_ZEN, false}, {"power", MODE_POWER, false}, {"dig", MODE_DIG, false},
     };
     if (!key || !key[0]) return false;
     const char *dash = strchr(key, '-');
@@ -242,15 +287,17 @@ bool Record_ParseKey(const char *key, GameMode *mode, bool *oldSprint, int *w, i
     for (int i = 0; i < (int)(sizeof(kNames) / sizeof(kNames[0])); i++)
         if (strlen(kNames[i].name) == n && strncmp(key, kNames[i].name, n) == 0) found = i;
     if (found < 0) return false;
+    bool marathon = kNames[found].mode == MODE_MARATHON;
     int bw = BOARD_W, bh = BOARD_H;
     if (dash) {
         char tail;
         if (sscanf(dash + 1, "%dx%d%c", &bw, &bh, &tail) != 2) return false;
         if (bw < BOARD_MIN_W || bw > BOARD_MAX_W || bh < BOARD_MIN_H || bh > BOARD_MAX_H) return false;
-        if (bw == BOARD_W && bh == BOARD_H) return false; /* the classic board never has a size suffix */
+        if (bw == BOARD_W && bh == BOARD_H && !marathon) return false; /* only the Marathon carries the classic size (3.2.0) */
     }
     if (mode) *mode = kNames[found].mode;
-    if (oldSprint) *oldSprint = kNames[found].old;
+    /* the bare "marathon" is the classic board under the old rules */
+    if (old) *old = kNames[found].old || (marathon && !dash);
     if (w) *w = bw;
     if (h) *h = bh;
     return true;
@@ -262,7 +309,7 @@ static void AddSize(BoardSize *out, int *n, int max, int w, int h) {
 }
 
 /* Every board key in one score file (row format mode|username|score|date). */
-static void ScanFile(const char *path, GameMode mode, bool oldSprint, BoardSize *out, int *n, int max) {
+static void ScanFile(const char *path, GameMode mode, bool oldBoard, BoardSize *out, int *n, int max) {
     FILE *f = fopen(path, "r");
     if (!f) return;
     char line[512];
@@ -276,7 +323,7 @@ static void ScanFile(const char *path, GameMode mode, bool oldSprint, BoardSize 
         GameMode m;
         bool old;
         int w, h;
-        if (Record_ParseKey(line, &m, &old, &w, &h) && m == mode && old == oldSprint) AddSize(out, n, max, w, h);
+        if (Record_ParseKey(line, &m, &old, &w, &h) && m == mode && old == oldBoard) AddSize(out, n, max, w, h);
     }
     fclose(f);
 }
@@ -286,12 +333,12 @@ static int SizeOrder(const BoardSize *s) {
     return p >= 0 ? p : BOARD_PRESET_COUNT;
 }
 
-int Record_BoardsWithRows(GameMode mode, bool oldSprint, BoardSize *out, int max) {
+int Record_BoardsWithRows(GameMode mode, bool old, BoardSize *out, int max) {
     int n = 0;
     char path[700];
-    if (ScoresPath(false, path, sizeof(path))) ScanFile(path, mode, oldSprint, out, &n, max);
-    if (LocalPath(path, sizeof(path))) ScanFile(path, mode, oldSprint, out, &n, max);
-    if (ScoresPath(true, path, sizeof(path))) ScanFile(path, mode, oldSprint, out, &n, max);
+    if (ScoresPath(false, path, sizeof(path))) ScanFile(path, mode, old, out, &n, max);
+    if (LocalPath(path, sizeof(path))) ScanFile(path, mode, old, out, &n, max);
+    if (ScoresPath(true, path, sizeof(path))) ScanFile(path, mode, old, out, &n, max);
     /* Presets in their order, then by width and height (a short list: an
      * insertion sort). */
     for (int i = 1; i < n; i++) {

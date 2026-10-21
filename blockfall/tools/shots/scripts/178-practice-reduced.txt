@@ -1,0 +1,43 @@
+#! env SHOTS_SETUP=0,0,10,20 SHOTS_MOTION=reduced SHOTS_FLASH=1
+# The Practice room with Motion: Reduced and Reduced flashing (3.5.0): the
+# options screen (no glide: the focus plate is just there), the UNDO word
+# and the finesse hint sit still over the well (no rise), and nothing
+# flashes white as the piece is taken back or lands.
+wait 10
+tap ENTER
+wait 12
+mouse 167 502
+wait 2
+click 167 502
+wait 4
+expect screen PRACTICE
+expect app motion reduced
+tap DOWN
+tap DOWN
+wait 1
+expect app pfocus Lock delay
+shot 178-options-reduced
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect app practice on
+game clear
+game piece O 0 3
+wait 2
+tap LEFT
+tap LEFT
+tap LEFT
+wait 2
+tapshot SPACE 178-hint-reduced
+expect hud callouts 1 extra press
+expect pixels 40 56 300 600 nowhite 200
+wait 20
+tapshot U 178-undo-reduced
+expect hud callouts UNDO
+expect game pieces 0
+expect pixels 40 56 300 600 nowhite 200

@@ -11,15 +11,19 @@
 #include "blockdraw.h"
 #include "comfort.h"
 #include "look.h"
+#include "challenge.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 
 static PlayLayout sLayout;
+static const Game *sQueueGame = NULL; /* the game of the last frame, for the harness's view of the queue */
 static HudFx sHud;
 static Feel sFeel;
 static unsigned sRun = 0;
 static bool sHaveRun = false;
+static Danger sDanger;       /* a copy of the last frame's, for Render_Inspect */
+static bool sHaveDanger = false;
 
 /* ---------------------------------------------------------------- blocks */
 
@@ -94,9 +98,11 @@ const char *Rp_PowerGlyph(PowerUp p) {
     }
 }
 
-/* Power-up blocks: a light core and a coloured edge, pulsing, so you can
- * see at a glance which block of the piece carries what; its letter on any
- * block of 14 px and up (every well, and the 16 px previews). */
+/* Power-up blocks: a light core and a coloured edge, pulsing, with a glow
+ * of the power's colour round the block (3.1.0), so you can see at a glance
+ * which block of the piece carries what; its letter on any block of 14 px
+ * and up (every well, and the 16 px previews). Steady with Reduced
+ * flashing, and on a spent Hold. */
 void Rp_PowerMark(int x, int y, int size, PowerUp p, bool grey) {
     if (p == PU_NONE) return;
     float pulse = (Comfort_Calm() || grey) ? 0.5f : 0.5f + 0.5f * sinf((float)GetTime() * 8.0f); /* steady with Reduced flashing */
@@ -104,6 +110,12 @@ void Rp_PowerMark(int x, int y, int size, PowerUp p, bool grey) {
     if (grey) {
         c = Ui_Lerp(c, kRule, 0.6f);
         core = kTextDim;
+    }
+    if (!grey) {
+        /* The glow: two soft rings outside the block (it reaches 4 px into
+         * the neighbours, which is the point). */
+        DrawRectangleLinesEx((Rectangle){(float)x - 2, (float)y - 2, (float)size + 4, (float)size + 4}, 2.0f, Fade(c, 0.22f + 0.18f * pulse));
+        DrawRectangleLinesEx((Rectangle){(float)x - 4, (float)y - 4, (float)size + 8, (float)size + 8}, 2.0f, Fade(c, 0.08f + 0.10f * pulse));
     }
     DrawRectangle(x + 3, y + 3, size - 6, size - 6, Fade(core, 0.55f + 0.3f * pulse));
     DrawRectangleLinesEx((Rectangle){(float)x + 1, (float)y + 1, (float)size - 2, (float)size - 2}, 2.0f, Fade(c, 0.65f + 0.35f * pulse));
@@ -148,8 +160,10 @@ static void DrawVolumeChip(const RenderView *v) {
 
 void Render_Frame(const Game *g, const RenderView *v) {
     float dt = GetFrameTime();
-    HudSpec spec = Layout_Spec(g->cfg.mode, g->cfg.modernScoring, v->showControls);
+    HudSpec spec = Layout_SpecFor(g, v->showControls);
+    spec.queue = v->queue > QUEUE_MAX ? QUEUE_MAX - 1 : (v->queue > 1 ? v->queue - 1 : 0); /* the small pieces after Next (3.2.0) */
     sLayout = Layout_Play(g->board.w, g->board.h, &spec);
+    sQueueGame = g;
     FeelFrame feel = {Comfort_Motion(), Comfort_PieceGlide(), v->moveRepeat};
     if (!sHaveRun || v->run != sRun) {
         /* A new run or a restart: nothing left over from the last one. */
@@ -159,8 +173,23 @@ void Render_Frame(const Game *g, const RenderView *v) {
         sRun = v->run;
         sHaveRun = true;
     }
+    if (g->justUndid) {
+        /* The Practice room took a piece back (3.5.0): whatever the last
+         * lock was still showing (its smear, its dust, a clear replaying)
+         * is gone with it. Looks only. */
+        Feel_Reset(&sFeel, g, feel.glide);
+        Effects_Reset();
+    }
     Feel_React(&sFeel, g, &feel);
+    /* A Sprint split taken this frame joins the frame's callouts. */
+    if (v->splits && v->splits->just) {
+        char text[SPLIT_TEXT_LEN];
+        bool gold;
+        if (Splits_Text(v->splits, text, sizeof(text), &gold)) HudFx_NoteSplit(&sHud, text, gold);
+    }
     HudFx_React(&sHud, g, v->justPassedBest);
+    sHaveDanger = v->danger != NULL;
+    if (v->danger) sDanger = *v->danger;
     Effects_React(g, &sLayout, &sFeel);
     Effects_EndShow(g, &sLayout, v->end);
     HudFx_Tick(&sHud, dt, g->phase == GS_PLAYING);
@@ -172,10 +201,14 @@ void Render_Frame(const Game *g, const RenderView *v) {
 
     Ui_Text("BLOCKFALL", LAYOUT_MARGIN, LAYOUT_HEADER_Y, UI_T16, kLight);
     {
+        /* The mode and the board; in the Practice room (3.5.0) a gold
+         * PRACTICE tag stands where the mode's name goes. */
         char label[48];
-        if (g->cfg.width == 10 && g->cfg.height == 20) snprintf(label, sizeof(label), "%s", Game_ModeName(g->cfg.mode));
-        else snprintf(label, sizeof(label), "%s  %dx%d", Game_ModeName(g->cfg.mode), g->cfg.width, g->cfg.height);
-        Ui_Text(label, LAYOUT_MARGIN + Ui_Measure("BLOCKFALL", UI_T16) + 20, LAYOUT_HEADER_Y + 4, UI_T8, kTextDim);
+        const char *name = g->practice.on ? "PRACTICE" : Game_ModeName(g->cfg.mode);
+        if (g->daily.on) Daily_PlayTag(g, label, sizeof(label)); /* a gold DAILY tag with the twist (3.6.0) */
+        else if (g->cfg.width == 10 && g->cfg.height == 20) snprintf(label, sizeof(label), "%s", name);
+        else snprintf(label, sizeof(label), "%s  %dx%d", name, g->cfg.width, g->cfg.height);
+        Ui_Text(label, LAYOUT_MARGIN + Ui_Measure("BLOCKFALL", UI_T16) + 20, LAYOUT_HEADER_Y + 4, UI_T8, (g->practice.on || g->daily.on) ? kGold : kTextDim);
     }
 
     /* The well and everything in it shake together; effects stay inside it
@@ -184,11 +217,11 @@ void Render_Frame(const Game *g, const RenderView *v) {
     cam.zoom = 1.0f;
     cam.offset.y = (float)Effects_ShakeY();
     BeginMode2D(cam);
-    Well_DrawFrame(g, &sLayout, &sHud, &sFeel, v->ghost, v->grid);
+    Well_DrawFrame(g, &sLayout, &sHud, &sFeel, v->ghost, v->grid, v->danger);
     BeginScissorMode(sLayout.boardX + (int)cam.offset.x, sLayout.boardY + (int)cam.offset.y, sLayout.boardW, sLayout.boardH);
-    Well_DrawInside(g, &sLayout, &sFeel, v->ghost);
+    Well_DrawInside(g, &sLayout, &sFeel, v->ghost, v->danger);
     Well_DrawEnd(g, &sLayout, v->end);
-    Effects_DrawInWell(g, &sLayout, dt);
+    Effects_DrawInWell(g, &sLayout, &sFeel, dt);
     if (g->phase == GS_PLAYING) {
         Effects_DrawCallouts(&sLayout, &sHud);
         Effects_DrawCue(&sLayout, &v->cue, &sHud);
@@ -211,6 +244,11 @@ void Render_Frame(const Game *g, const RenderView *v) {
 void Render_Inspect(RenderInspect *out) {
     memset(out, 0, sizeof(*out));
     out->layout = sLayout;
+    out->queue = sLayout.queueSlots;
+    for (int i = 0; sQueueGame && i < sLayout.queueSlots && i + 1 < QUEUE_MAX; i++) {
+        size_t used = strlen(out->queuePieces);
+        snprintf(out->queuePieces + used, sizeof(out->queuePieces) - used, "%s%s", i ? "|" : "", Tetromino_Name(sQueueGame->queue[i + 1]));
+    }
     out->shownScore = sHud.shown;
     const Callout *cs[CALLOUT_MAX];
     out->callouts = HudFx_Callouts(&sHud, cs);
@@ -238,6 +276,17 @@ void Render_Inspect(RenderInspect *out) {
     out->streak = Feel_Streak(&sFeel) > 0.0f;
     out->quadFrame = Feel_QuadFrame(&sFeel) > 0.0f;
     out->bits = Effects_Bits();
+    Effects_Inspect(out->power, sizeof(out->power), &out->frost, &out->afterimages);
+    out->sweepBar = sFeel.clear.on ? Feel_SweepBar(&sFeel.clear, sFeel.clear.t) : -1.0f;
+    if (sHaveDanger) {
+        out->dangerOn = sDanger.on;
+        out->dangerFrame = Danger_Frame(&sDanger, Comfort_Calm());
+        out->freeRows = sDanger.freeRows;
+        out->nextBlocked = sDanger.nextBlocked;
+    }
+    Panel_Inspect(out->timer, sizeof(out->timer), out->split, sizeof(out->split), &out->splitGold, &out->linesGold);
+    Panel_InspectRise(&out->riseFill, &out->riseWarn);
+    out->riseDrop = Feel_RiseDrop(&sFeel, sLayout.cell);
     int lift = 0;
     /* The board's own rows only: the row map past them is never filled. */
     for (int r = 0; r < Board_TotalH(&sFeel.clear.before); r++) {

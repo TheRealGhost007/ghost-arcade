@@ -34,6 +34,7 @@ wait 60
 mark sounds
 tap SPACE
 wait 2
-expect sounds sfx:2,sfx:3
+# the second clear of the chain rings a semitone up (3.1.0), and no second coin
+expect sounds sfx:2,pitched:3
 expect hud callouts none
 shot 82-best-gold-tracking

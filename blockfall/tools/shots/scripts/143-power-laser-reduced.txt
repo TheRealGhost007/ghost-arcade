@@ -1,0 +1,25 @@
+#! env SHOTS_SETUP=4,0,10,20 SHOTS_FLASH=1 SHOTS_MOTION=reduced SHOTS_SHAKE=0
+# Laser with Reduced flashing and motion: the charge line is there at once,
+# in the laser's colour, and the beam has no white core.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game row 3 .##..##...
+game piece I 1 2
+game power Laser 1
+wait 2
+tapshot SPACE 143-laser-calm-f1
+expect feel power laser-charge
+# the line reaches the bottom of the well at once
+expect pixels 160 600 30 50 above 150
+expect pixels 40 56 300 600 nowhite 200
+wait 7
+shot 143-laser-calm-f9
+expect feel power laser-beam
+expect pixels 40 56 300 600 nowhite 200

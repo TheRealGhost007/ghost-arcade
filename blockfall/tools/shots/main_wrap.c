@@ -12,7 +12,7 @@
 #include <string.h>
 
 /* In the order of app.h's ScreenId: the names the scripts use. */
-static const char *const kScreenNames[] = {"MENU", "SETUP", "PLAYING", "SCORES", "SETTINGS", "HOWTO", "UPDATES"};
+static const char *const kScreenNames[] = {"MENU", "SETUP", "PLAYING", "SCORES", "SETTINGS", "HOWTO", "UPDATES", "STATS", "PRACTICE", "DAILY"};
 _Static_assert(sizeof(kScreenNames) / sizeof(kScreenNames[0]) == SCR_COUNT, "kScreenNames must name every screen");
 
 bool drv_is_demo(const Game *g) { return g == &sApp.howto.demo.game; }
@@ -78,13 +78,14 @@ void drv_app(const char *key, char *out, size_t n) {
     else if (strcmp(key, "readygo") == 0) snprintf(out, n, "%s", a->settings.readyGo ? "on" : "off");
     else if (strcmp(key, "bestsboard") == 0) snprintf(out, n, "%s", a->menu.bestsBoard);
     else if (strncmp(key, "best:", 5) == 0) {
-        static const char *const kNames[4] = {"Marathon", "Sprint", "Ultra", "Power"};
+        static const char *const kNames[5] = {"Marathon", "Sprint", "Ultra", "Power", "Dig"};
         snprintf(out, n, "?");
-        for (int i = 0; i < 4; i++) if (strcmp(key + 5, kNames[i]) == 0) snprintf(out, n, "%s", a->menu.bests[i]);
+        for (int i = 0; i < 5; i++) if (strcmp(key + 5, kNames[i]) == 0) snprintf(out, n, "%s", a->menu.bests[i]);
     } else if (strcmp(key, "yourbest") == 0) snprintf(out, n, "%s", a->setup.yourBest);
     else if (strcmp(key, "yourrank") == 0) snprintf(out, n, "%s", a->setup.yourRank);
     else if (strcmp(key, "worldbest") == 0) snprintf(out, n, "%s %s", a->setup.worldBest, a->setup.worldWho);
     else if (strcmp(key, "scroll") == 0) snprintf(out, n, "%d", (int)a->updates.scroll);
+    else if (strncmp(key, "stats:", 6) == 0) ScrStats_Value(a, key + 6, out, n); /* the Stats screen (3.3.0), see screens.h */
     else if (strcmp(key, "settab") == 0) snprintf(out, n, "%s", SetPage_TabLabel(a->set.tab));
     else if (strcmp(key, "setrow") == 0) {
         /* the label of the row the focus is on ("Tabs" on the tab bar) */
@@ -122,6 +123,7 @@ void drv_app(const char *key, char *out, size_t n) {
     else if (strcmp(key, "patterns") == 0) snprintf(out, n, "%d", (int)a->settings.blockPatterns);
     else if (strcmp(key, "autopause") == 0) snprintf(out, n, "%d", (int)a->settings.autoPause);
     else if (strcmp(key, "showhowto") == 0) snprintf(out, n, "%d", (int)a->settings.showHowTo);
+    else if (strcmp(key, "nextqueue") == 0) snprintf(out, n, "%d", a->settings.nextQueue);
     else if (strcmp(key, "strip") == 0) snprintf(out, n, "%d", a->set.strip.x);
     else if (strcmp(key, "howtopage") == 0) snprintf(out, n, "%s", HowTo_PageName(a->howto.page));
     else if (strcmp(key, "howtofirst") == 0) snprintf(out, n, "%d", (int)a->howto.firstLaunch);
@@ -167,6 +169,31 @@ void drv_app(const char *key, char *out, size_t n) {
             snprintf(out, n, "%s=%s", c->statLabel[k[4] - '0'], c->statValue[k[4] - '0']);
         else snprintf(out, n, "?unknown %.40s", key);
     }
+    /* The Practice room (3.5.0): the run is a practice run, the pieces that
+     * can be taken back, the undos made, the presses on the piece now, and
+     * an option's words by its label (popt:Start_level). */
+    else if (strcmp(key, "practice") == 0) snprintf(out, n, "%s", a->play.game.practice.on ? "on" : "off");
+    else if (strcmp(key, "undoleft") == 0) snprintf(out, n, "%d", Undo_Left(&a->play.undo));
+    else if (strcmp(key, "undone") == 0) snprintf(out, n, "%d", a->play.undo.undone);
+    else if (strcmp(key, "presses") == 0) snprintf(out, n, "%d", a->play.game.presses);
+    else if (strcmp(key, "pfocus") == 0) { /* the Practice screen's row with the focus, by its option's label (a stepper's label is its value) */
+        int f = a->practice.kit.focus;
+        if (f >= PR_OPT0 && f < PR_OPT0 + PRO_COUNT) snprintf(out, n, "%s", Practice_OptionLabel((PracticeOption)(f - PR_OPT0)));
+        else snprintf(out, n, "%s", f == PR_START ? "Start" : "?");
+    }
+    else if (strncmp(key, "popt:", 5) == 0) {
+        char label[40];
+        snprintf(label, sizeof(label), "%s", key + 5);
+        for (char *c = label; *c; c++) if (*c == '_') *c = ' ';
+        snprintf(out, n, "?");
+        for (int o = 0; o < PRO_COUNT; o++)
+            if (strcmp(Practice_OptionLabel((PracticeOption)o), label) == 0) Practice_OptionWords(&a->settings, (PracticeOption)o, out, n);
+    }
+    /* The Daily challenge (3.6.0): the run is a daily, the menu item's
+     * second line, and the Daily screen's values (daily:twist, see screens.h). */
+    else if (strcmp(key, "daily") == 0) snprintf(out, n, "%s", a->play.game.daily.on ? "on" : "off");
+    else if (strcmp(key, "dailysub") == 0) snprintf(out, n, "%s", a->menu.dailySub);
+    else if (strncmp(key, "daily:", 6) == 0) ScrDaily_Value(a, key + 6, out, n);
     else if (strcmp(key, "wipe") == 0) snprintf(out, n, "%d", (int)Wipe_Active(&a->wipe));
     else if (strcmp(key, "ghost") == 0) snprintf(out, n, "%d", a->settings.ghostPiece);
     else if (strcmp(key, "quickrestart") == 0) snprintf(out, n, "%d", (int)a->settings.quickRestart);

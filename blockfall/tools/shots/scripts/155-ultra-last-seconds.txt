@@ -1,0 +1,29 @@
+#! env SHOTS_SETUP=2,0,10,20
+# Ultra's last seconds (3.1.0): the countdown is red and the music full; the
+# warning plays (it was already under 0:10 here) and each of the last five
+# seconds ticks, a little higher each time; then TIME UP.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Ultra
+game timeleft 6.3
+mark sounds
+wait 2
+expect sounds jingle:WARNING
+expect view intensity 1.00
+wait 18
+shot 155-ultra-0-05
+expect sounds jingle:WARNING,pitched:0
+wait 60
+expect sounds jingle:WARNING,pitched:0,pitched:0
+wait 120
+shot 155-ultra-0-02
+expect sounds jingle:WARNING,pitched:0,pitched:0,pitched:0,pitched:0
+wait 60
+expect sounds jingle:WARNING,pitched:0,pitched:0,pitched:0,pitched:0,pitched:0
+shot 155-ultra-0-01
+wait 130
+expect game phase GAMEOVER
+expect app results on

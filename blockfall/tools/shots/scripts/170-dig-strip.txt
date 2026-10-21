@@ -1,0 +1,21 @@
+#! env SHOTS_SETUP=5,5,24,12
+# Dig on a flat board (the panel in a strip across the top): a 12-row well
+# keeps four rows clear, so it starts with eight garbage rows; the Next row
+# bar takes the slot after the combo chips in the strip's status row.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Dig
+expect game w 24
+expect game garbage 8
+expect hud place strip
+game rise 1.0
+wait 2
+expect hud risewarn 1
+shot 170-strip-warning
+wait 60
+expect game rises 1
+expect game garbage 9
+shot 170-strip-risen

@@ -37,12 +37,12 @@ expect app focus Change setup
 tap ENTER
 wait 5
 expect screen SETUP
-tap DOWN
-tap DOWN
-tap DOWN
-tap DOWN
-tap DOWN
+# (the pointer moves the bar onto Width without picking a mode: since 3.4.0
+# Down from the list would reach Dig first)
+mouse 150 388
+wait 2
 expect app focus Width
+expect app mode Marathon
 hold RIGHT 110
 wait 3
 tap DOWN

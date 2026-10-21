@@ -1,0 +1,29 @@
+#! env SHOTS_SETUP=5,0,10,20
+# 3.6.1: Play setup on Dig, the sixth mode row: the Size header keeps a
+# 10 px gap under it, and the right column ends at x 580 (596 before). The
+# best lines keep the place and the holder's name 8 px clear of a long
+# value: beside 1 234 567 "#2 here" is just "#2", and beside 9 999 999
+# "The Real." is cut to "The R."; the app still reports them whole. A
+# custom size says "this PC only".
+write .local/share/ghost-launcher/scores/blockfall.txt dig|Arcade|2000000|2026-10-10\ndig|TRG|1234567|2026-10-11\n
+write .local/share/ghost-launcher/scores/global/blockfall.txt dig|The Real Dev Ghost|9999999|2026-10-10\n
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+expect app mode Dig
+expect app yourbest 1 234 567
+expect app yourrank #2 here
+expect app worldbest 9 999 999 The Real.
+shot 189-setup-dig
+expect pixels 581 100 39 440 below 120
+# the Size header's gap under Dig's row
+expect pixels 24 350 286 6 below 120
+tap DOWN
+wait 3
+expect app focus Width
+tap RIGHT
+wait 8
+expect app worldbest this PC only 
+shot 189-setup-dig-custom
+expect pixels 581 100 39 440 below 120

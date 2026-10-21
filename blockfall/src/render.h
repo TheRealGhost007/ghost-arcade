@@ -9,6 +9,8 @@
 #include "playstep.h"
 #include "results.h"
 #include "wipe.h"
+#include "danger.h"
+#include "splits.h"
 
 #define CELL_SIZE 30
 /* Same window as every Ghost Arcade game. The extra width/height beyond the
@@ -37,7 +39,12 @@ typedef struct {
     StartCue cue;       /* READY, GO or the countdown over the well (playstep.h) */
     int ghost;          /* GHOST_OFF, GHOST_OUTLINE or GHOST_SOLID (Settings > Look, the pause menu's quick panel) */
     int grid;           /* GRID_ON, GRID_FAINT or GRID_OFF (Settings > Look) */
+    int queue;          /* pieces the Next box shows, 1 to QUEUE_MAX (Settings > Game, 3.2.0); 0 or 1: the one large piece alone */
+    int undoLeft;       /* the Practice room (3.5.0): pieces that can still be taken back (the panel's Undos left) */
     const Results *end; /* the run has ended: the end show on the board (results.h); NULL while it is on */
+    const Danger *danger; /* the danger warning: the red frame, the stripes, the next piece's outline (danger.h); NULL: none */
+    const Splits *splits; /* Sprint's splits against your best pace (splits.h); NULL: none */
+    float intensity;    /* the music's intensity this frame (danger.h), kept for the harness */
     /* Drawn over the play screen inside its frame, under the volume chip:
      * the pause menu or the results card (scr_play.c). */
     void (*overlay)(void *ctx);
@@ -72,6 +79,25 @@ typedef struct {
     bool ghost, flight, slide, holdReady, squash, smear, impact, bevel, streak, quadFrame;
     int settle;         /* px */
     int bits;           /* the well's pixels in flight */
+    /* The power-ups' shows (powerfx.h, effects.c) */
+    char power[32];     /* none, bomb-blink, bomb-shock, laser-charge, laser-beam, thaw */
+    float frost;        /* the Freeze's frost, 0 to 1 */
+    int afterimages;    /* the Slow's afterimages drawn */
+    float sweepBar;     /* the Sweep's bar, in cells from the left wall (-1: none) */
+    /* Danger and Sprint's race (danger.h, splits.h) */
+    bool dangerOn;
+    float dangerFrame;  /* the frame's redness as drawn, 0 to 1 */
+    int freeRows;
+    bool nextBlocked;
+    int queue;          /* small pieces drawn after Next (3.2.0) */
+    char queuePieces[32]; /* them by name, '|'-joined ("T|O|S|Z"), "" for none */
+    char timer[16];     /* Sprint's clock as drawn ("1:12.40") */
+    char split[24];     /* the split line as drawn ("10: -1.4 s"), or "" */
+    bool splitGold, linesGold;
+    /* Dig (3.4.0) */
+    float riseFill;     /* the "Next row" bar's fill as drawn, 0 to 1 */
+    bool riseWarn;      /* ...and it was red (the wait's last quarter) */
+    int riseDrop;       /* px the stack was drawn below its place, easing up after a rise */
 } RenderInspect;
 void Render_Inspect(RenderInspect *out);
 

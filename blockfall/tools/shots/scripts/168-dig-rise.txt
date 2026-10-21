@@ -1,0 +1,47 @@
+#! env SHOTS_SETUP=5,0,10,20
+# The Next row bar fills over the 8 s wait and turns red, pulsing, in its
+# last quarter; then the row pushes up with a low thud: the stack eases up a
+# cell (drawn a cell low on the rise's frame, home by 0.12 s), a piece
+# resting on the stack goes up with it, a piece in the air stays. The next
+# wait is a little shorter than the last. (The rise's frame already ticked
+# once by the time it is drawn: 22 of the 30 px, then 3, then home.)
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Dig
+game rise 1.5
+wait 2
+expect hud risewarn 1
+expect hud risefill 0.82
+shot 168-warning
+wait 20
+shot 168-warning-later
+# an O put down on the garbage just before the row comes
+game rise 0.3
+game piece O 0 4 14
+mark sounds
+wait 17
+expect game rises 0
+wait 1
+expect game rises 1
+expect game garbage 9
+expect game py 13
+expect sounds pitched:2
+expect hud risedrop 22
+shot 168-rise-f1
+wait 3
+expect hud risedrop 3
+shot 168-rise-f4
+wait 6
+expect hud risedrop 0
+expect hud risefill 0.02
+shot 168-rise-done
+# a piece in the air is left where it is
+game piece T 0 3 6
+game rise 0.1
+wait 8
+expect game rises 2
+expect game py 6
+expect game garbage 10

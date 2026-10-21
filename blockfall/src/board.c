@@ -48,6 +48,18 @@ static bool RowFull(const Board *b, int row) {
     return true;
 }
 
+bool Board_RowFull(const Board *b, int row) {
+    if (row < 0 || row >= Board_TotalH(b)) return false;
+    return RowFull(b, row);
+}
+
+bool Board_RowHasGarbage(const Board *b, int row) {
+    if (row < 0 || row >= Board_TotalH(b)) return false;
+    for (int x = 0; x < b->w; x++)
+        if (b->cells[row][x] == CELL_GARBAGE) return true;
+    return false;
+}
+
 int Board_ClearLines(Board *b, int outRows[4]) {
     /* Single-pass bottom-up compaction: walk rows bottom to top, skip full
      * ones (they vanish), and pack the rest down onto a write cursor. O(n)

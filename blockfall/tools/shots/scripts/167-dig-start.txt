@@ -1,0 +1,33 @@
+#! env SHOTS_SETUP=5,0,10,20
+# Dig (3.4.0), the sixth mode on Play setup ("rising rows", its preview the
+# grey rows it starts with), and the start of a run: eight grey garbage rows
+# with one gap each (never the column of the row below's), the Next row bar
+# empty, Dug 0 in the panel, no level pips. The seed's pieces are the ones a
+# Marathon on this seed gets.
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+expect app focus Dig
+expect app mode Dig
+expect app summary Dig on Classic 10x20
+shot 167-setup-dig
+tap ENTER
+wait 2
+expect screen PLAYING
+expect game mode Dig
+expect game garbage 8
+expect game rises 0
+expect game dug 0
+expect game level 1
+expect game filled 72
+expect hud risefill 0.01
+expect hud risewarn 0
+expect hud place side
+shot 167-dig-start
+# half way to the first row (4 s): the bar half full, still dim
+wait 238
+expect hud risefill 0.50
+expect hud risewarn 0
+expect game rises 0
+shot 167-dig-halfway

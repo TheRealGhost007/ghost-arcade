@@ -1,13 +1,16 @@
 /* The main menu: a living title screen. The letters of BLOCKFALL drop in on
- * launch, faint pieces land on a skyline along the bottom, the six items
- * are buttons with a gliding focus bar, Start game carries your last setup,
- * and "Your bests" names the board you last set up. Esc or pad B first moves
- * the bar to Quit; a second press quits. */
+ * launch, faint pieces land on a skyline along the bottom, the eight items
+ * (Stats since 3.3.0, Daily challenge since 3.6.0, each above Quit) are
+ * buttons with a gliding focus bar, Start game carries your last setup, the
+ * Daily item says today's twist, your best today and the streak, and "Your
+ * bests" names the board you last set up. Esc or pad B first moves the bar
+ * to Quit; a second press quits. */
 #include "screens.h"
 #include "achievements.h"
 #include "blockdraw.h"
 #include "comfort.h"
 #include "ghostlink.h"
+#include "layout.h"
 #include "sfx.h"
 #include "ui.h"
 #include "version.h"
@@ -16,26 +19,36 @@
 
 #define ROW_X 140
 #define ROW_W 340
-#define START_Y 196
-#define START_H 52
-#define ROW_H 40
-#define ROW_PITCH 44
+/* 3.6.0: eight rows. The title and tagline moved up 16 px, the two rows
+ * with a second line (Start game, Daily challenge) are 48 tall and the
+ * rest 36 at a 38 px pitch, so Quit ends at 508 and Your bests still stays
+ * above the skyline (y 568 at its tallest, MENU_ROWS_BOTTOM and
+ * MENU_SKYLINE_TOP in layout.h). Until 3.3.0 the rows were 40
+ * tall at 44; until 3.6.0 at 42. */
+#define START_Y 176
+#define START_H 48     /* a row with a second line: Start game, Daily challenge */
+#define ROWS_Y 232     /* How to play, the first plain row */
+#define ROW_H 36
+#define ROW_PITCH 38
 #define TITLE_X 70     /* (620 - 480) / 2: BLOCKFALL at 48 px is 480 wide */
-#define TITLE_Y 96
+#define TITLE_Y 80
 #define TITLE_ADVANCE 54
-#define TAGLINE_Y 164
-#define BESTS_Y 498
+#define TAGLINE_Y 148
+/* Your bests sits under Quit (layout.h's MENU_BESTS_*: four lines from 516 to 568) */
 #define HINTS_CY 676
 #define TOAST_IN 0.25f
 #define TOAST_HOLD 4.0f
 #define PLAYING_AS_RIGHT (WINDOW_WIDTH - 22) /* "Playing as NAME" ends here */
 
-static const char *const kItems[MI_COUNT] = {"Start game", "How to play", "Scores", "Settings", "Updates", "Quit"};
-static const GameMode kBestModes[4] = {MODE_MARATHON, MODE_SPRINT, MODE_ULTRA, MODE_POWER};
+static const char *const kItems[MI_COUNT] = {"Start game", "How to play", "Scores", "Settings", "Updates", "Stats", "Daily challenge", "Quit"};
+#define BEST_MODES MENU_BESTS_MODES
+static const GameMode kBestModes[BEST_MODES] = {MODE_MARATHON, MODE_SPRINT, MODE_ULTRA, MODE_POWER, MODE_DIG};
 
 static KitRect ItemRect(int i) {
     if (i == MI_START) return (KitRect){ROW_X, START_Y, ROW_W, START_H};
-    return (KitRect){ROW_X, (float)(START_Y + START_H + 8 + (i - 1) * ROW_PITCH), ROW_W, ROW_H};
+    if (i == MI_DAILY) return (KitRect){ROW_X, (float)(ROWS_Y + (MI_DAILY - 1) * ROW_PITCH), ROW_W, START_H};
+    if (i == MI_QUIT) return (KitRect){ROW_X, (float)(ROWS_Y + (MI_DAILY - 1) * ROW_PITCH + START_H + 2), ROW_W, ROW_H};
+    return (KitRect){ROW_X, (float)(ROWS_Y + (i - 1) * ROW_PITCH), ROW_W, ROW_H};
 }
 
 void ScrMenu_Layout(const App *a, KitList *l) {
@@ -43,7 +56,24 @@ void ScrMenu_Layout(const App *a, KitList *l) {
     for (int i = 0; i < MI_COUNT; i++) {
         KitItem *it = Kit_Add(l, i, KIT_ROW, ItemRect(i), kItems[i]);
         if (it && i == MI_START) Setup_Summary(&a->settings, it->sub, sizeof(it->sub));
+        if (it && i == MI_DAILY) snprintf(it->sub, sizeof(it->sub), "%s", a->menu.dailySub);
     }
+}
+
+/* The Daily item's second line (3.6.0): today's twist, your best today on
+ * this machine and the streak (challenge.h), read as the menu opens. */
+static void LoadDaily(App *a) {
+    MenuState *m = &a->menu;
+    int date;
+    uint64_t seed;
+    DailyTwist twist;
+    ScrDaily_Today(&date, &seed, &twist);
+    char key[GHOSTLINK_MODE_LEN];
+    Daily_BoardKey(date, key, sizeof(key));
+    long best = Record_LoadYourBestKey(key, a->username, NULL);
+    static DailyLog log; /* a few kilobytes: off the stack */
+    DailyLog_Load(&log);
+    Daily_MenuWords(twist, best, DailyLog_Streak(&log, date), m->dailySub, sizeof(m->dailySub));
 }
 
 static void LoadBests(App *a) {
@@ -51,7 +81,7 @@ static void LoadBests(App *a) {
     int w, h;
     Setup_Size(&a->settings, &w, &h);
     Setup_BoardLabel(&a->settings, m->bestsBoard, sizeof(m->bestsBoard));
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < BEST_MODES; i++) {
         long best = Record_LoadYourBest(kBestModes[i], w, h, a->username, a->save.highScore, NULL);
         Menu_BestText(Record_UnitOf(kBestModes[i]), best, "no run yet", m->bests[i], sizeof(m->bests[i]));
     }
@@ -71,6 +101,7 @@ void ScrMenu_Enter(App *a, bool back) {
     }
     (void)back;
     LoadBests(a); /* after a run, after Play setup: never per frame */
+    LoadDaily(a);
 }
 
 static void Activate(App *a, int id) {
@@ -89,6 +120,8 @@ static void Activate(App *a, int id) {
             break;
         case MI_SETTINGS: Scr_SoundConfirm(); App_Open(a, SCR_SETTINGS); break;
         case MI_UPDATES: Scr_SoundConfirm(); App_Open(a, SCR_UPDATES); break;
+        case MI_STATS: Scr_SoundConfirm(); App_Open(a, SCR_STATS); break;
+        case MI_DAILY: Scr_SoundConfirm(); App_Open(a, SCR_DAILY); break;
         case MI_QUIT: a->quit = true; break;
         default: break;
     }
@@ -197,15 +230,19 @@ static void DrawTitle(const MenuState *m) {
 
 static void DrawBests(const MenuState *m) {
     const UiTheme *t = Ui_Theme();
-    static const char *const kNames[4] = {"Marathon", "Sprint", "Ultra", "Power"};
+    static const char *const kNames[BEST_MODES] = {"Marathon", "Sprint", "Ultra", "Power", "Dig"};
     char head[64];
     snprintf(head, sizeof(head), "Your bests on %s", m->bestsBoard);
-    Ui_Text(head, 110, BESTS_Y, UI_T8, t->dim);
-    for (int i = 0; i < 4; i++) {
-        int x = i % 2 == 0 ? 110 : 330, y = BESTS_Y + 22 + (i / 2) * 20;
+    /* Two to a line on three lines since 3.6.1 (layout.h's Layout_MenuBest),
+     * so a label never runs into its value, "no run yet" included; still
+     * above the skyline. */
+    Ui_Text(head, MENU_BESTS_X, MENU_BESTS_Y, UI_T8, t->dim);
+    for (int i = 0; i < BEST_MODES; i++) {
+        int x, right, y;
+        Layout_MenuBest(i, &x, &right, &y);
         bool none = strcmp(m->bests[i], "no run yet") == 0;
         Ui_Text(kNames[i], x, y, UI_T8, t->dim);
-        Ui_TextRight(m->bests[i], UI_T8, x + 180, y, none ? t->faint : t->text);
+        Ui_TextRight(m->bests[i], UI_T8, right, y, none ? t->faint : t->text);
     }
 }
 

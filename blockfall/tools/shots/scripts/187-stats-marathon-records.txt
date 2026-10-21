@@ -1,0 +1,34 @@
+#! env SHOTS_STATS=marathon
+# 3.6.1: under All modes a record's mode and day take a line each, so the
+# widest mode name (Marathon, holding all three records here) and the day
+# stay inside their tile: "Marathon, 2026-10-18" ran into the next tile and
+# past x 580 before. On a mode's row the day stands alone.
+wait 60
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 8
+expect app focus Stats
+tap ENTER
+wait 3
+expect screen STATS
+expect app stats:row All modes
+expect app stats:pps 2.41
+expect app stats:who:pps Marathon
+expect app stats:who:combo Marathon
+expect app stats:who:quads Marathon
+expect app stats:sub:pps Marathon|2026-10-18
+expect app stats:sub:combo Marathon|2026-10-18
+expect app stats:sub:quads Marathon|2026-10-12
+wait 30
+expect app stats:grow 1.00
+shot 187-stats-all-marathon
+expect pixels 581 430 39 82 below 120
+tap DOWN
+wait 30
+expect app stats:row Marathon
+expect app stats:sub:pps 2026-10-18|
+expect app stats:sub:quads 2026-10-12|
+shot 187-stats-marathon-row

@@ -9,6 +9,84 @@
 
 #include "ui.h"
 
+static const char *const kNotes_3_6_1[] = {
+    "Danger plays the shared WARNING jingle as it starts, the one Ultra plays at 0:10 (from ghost-common), in place of its own low two-note warning; still at most every 8 s, never in Zen, and once when danger and Ultra's 0:10 come together",
+    "A T-spin made by a half turn (Rotate 180) is full or mini by its corners alone: one that went through the 180 kicks' fifth offset counted as a full T-spin, so a mini paid as a full one. Minis stay minis; quarter turns score as before",
+    "The main menu's Your bests sits two to a line on three lines, so a mode's name never runs into its best (\"no run yet\" included), still above the skyline",
+    "Stats: under All modes a record's mode and its day take a line each, so a long mode name no longer runs into the next tile",
+    "Practice room: the rows sit inside the screen's margin, and Hold reads Once or Infinite (\"Once per piece\" was wider than its stepper)",
+    "Play setup: the Size header keeps clear of Dig's row, the right column ends inside the margin, a long name beside the world best is cut short before its value, and a custom size's world best reads \"this PC only\"",
+    NULL,
+};
+
+static const char *const kNotes_3_6_0[] = {
+    "The Daily challenge, an item on the main menu above Quit: a two-minute score attack everyone plays with the same pieces today. The run is seeded from the shared daily code the other seven daily games use, so the pieces (and power-ups) are the day's for everyone, and it goes on the day's own board, daily-YYYYMMDD, the one Ghost Launcher's desk and the world board read. The normal boards are never touched",
+    "The twist changes with the date, the same for everyone: Ultra on the classic board, Ultra on Wide, Power Ultra (power-ups on the clock), Tall, Tiny, a fast start from level 8, and Dig on the clock. Every twist has its day each week, never the same one two days running",
+    "Retry as often as you like: your best counts, every run has its row, and a streak shows: days in a row with a daily played, kept in Blockfall's own daily.dat (the day, your best, the runs); it lives until a whole day passes without one, as the launcher's desk counts it. The menu item says today's twist, your best today and the streak",
+    "The Daily screen: the day, the twist and what it is, your best today, the runs, the streak and the best streak, today's board on this machine and in the world (your rows in gold) and where your best would stand, then Start. --daily (Ghost Launcher's D key) opens the game on it; Blockfall joins the launcher's daily desk as the eighth daily game",
+    "In play a gold DAILY tag with the twist where the mode's name goes, the clock first in the panel as Ultra's (with Dug in Lines' place on the Dig twist), Best the day's board's, Ultra's warning and last ticks, and the music following the clock. A restart plays the day's pieces again. The results card says Daily and the twist, and its Daily and Scores buttons go to the Daily screen",
+    "Old config.ini, save.dat and score files load unchanged; a daily counts for the lifetime stats under its twist's mode and in runs.log under the day's key",
+    NULL,
+};
+
+static const char *const kNotes_3_5_0[] = {
+    "The Practice room, a button on Play setup under Scores: a Marathon on the board you set up with the rules bent, to learn and try things out. Nothing it does is recorded: no score, no best, no stats, no runs.log, no trophy",
+    "Its options, kept between runs: the start level (1 to 20; the lines count up from it), gravity on or off (off, the piece hangs until you drop it), the lock delay on or off (off, a landed piece never locks by itself; a hard drop locks it), Hold once per piece or infinite, starting garbage (0 to 12 of Dig's grey rows), and finesse hints",
+    "Undo: U or the pad's RB takes the last piece back, up to 50 times in a row, exactly: the board, the queue and the bag, Hold, the score, the level and the clock as they were when the piece came in, so the next pieces come as they would have. An UNDO word over the well and a low swoosh; the panel counts the pieces that can still be taken back in Best's place",
+    "Finesse hints: a piece that took more presses than it needed says how many as it lands, in dim words under the lock's own (\"2 extra presses\"). A tap or a held slide is one press, a turn is one; drops and Hold are not presses. A placement finesse does not count (a tuck, a spin) gets no hint",
+    "A gold PRACTICE tag where the mode's name goes over the well, Undo on the controls card in the Volume row's place, and the results card says Practice: nothing is recorded. Restart and Quit never ask \"are you sure?\" there",
+    "Undo is an eleventh row in Settings > Controls (U and RB as it comes), rebindable like any other and, like Rotate 180, the kind whose only key may be cleared or taken; it does nothing outside the room. An older config.ini loads unchanged: Undo takes U and RB unless one of yours already is, and the room starts with its defaults",
+    NULL,
+};
+
+static const char *const kNotes_3_4_0[] = {
+    "Dig, a sixth mode on Play setup (rising rows): the well starts with eight grey garbage rows, each with one gap, never in the column of the gap of the row under it. Another row pushes up from the floor every 8 s at first and sooner as the run goes on, every 3 s from two and a half minutes in; the stack and a piece resting on it go up with it (the stack eases up a cell; a cut with Reduced motion), with a low thud",
+    "Next row, a bar in the panel (after the combo chips; in the strip's status row on a flat board): it fills over the wait and turns red, pulsing, in its last quarter (steady red with Reduced flashing). A pause holds it, and so does READY",
+    "Digging: every garbage row a clear takes counts as Dug (the panel's second number, in Level's place: Dig's level stays 1, the rises are its pressure) and pays 100 on top of the clear's points; a clear that digs two rows or more says DUG 2 under its word. The run ends when a row is pushed past the top, or a piece has nowhere to go: a top-out, with the rows dug on the results card",
+    "Its own score boards, one per board size like the others (dig on the classic board, dig-14x20 on Wide; custom sizes stay on this machine): the menu's Your bests, now five on three columns, Play setup's bests, the results card and a Dig tab in the Scores browser before Zen. Ghost Launcher and the world board read the dig boards as they are. The Stats screen has a Dig row",
+    "How to play's Modes page has the Dig row, with a demo that stands an I in the gaps of four garbage rows: a quad, 800 and the rows' 400, and the Dug count and the next row's wait under its well",
+    "The garbage draws its gaps from an rng of its own, so a seed gives Dig the pieces it gives every other mode. Dig comes last in the mode list, so an older config.ini's setup_mode still means what it did; old save, score and config files load unchanged",
+    NULL,
+};
+
+static const char *const kNotes_3_3_0[] = {
+    "Stats, a new item on the main menu above Quit: a row for All modes and one for each mode with its runs, lines and time played, and for the row the focus bar is on (Up and Down, the d-pad, the pointer or a click), the records and the lines-by-clear bar",
+    "Three records, each with the day it was set and, under All modes, the mode that set it: the best pieces per second (a run of at least 20 pieces), the biggest combo and the most quads in a run",
+    "The bar: single, double, triple and quad lines in piece colours, with the lines T-spins cleared set apart, a legend with each share, the total, and a line with the T-spins, perfect clears, power-ups and holds. It grows in from the left over 0.35 s when the screen opens and when the row changes (there at once with Reduced motion)",
+    "The stats live in Blockfall's own file, stats.dat, next to the score tables: as a run ends its counters (the results card's) are folded into its mode. The same runs count as for the runs log and the trophies: a piece locked and it scored, never a tuned playtest. Counting starts with the first run that ends after this version; runs.log is written as before, for Ghost Launcher",
+    "Esc, pad B, the mouse's back button or Back go back to the menu, as everywhere",
+    NULL,
+};
+
+static const char *const kNotes_3_2_0[] = {
+    "Modern rules on every board, the classic 10x20 included. Pieces turn with the standard SRS wall kicks (the published tables for J L S T Z and for the I), so spins against walls and into gaps go as in any modern block game, and pieces can no longer climb the stack. The lock delay's resets count a kick like any move",
+    "T-spins: a T whose last move was a turn, with three of its corners filled, scores 400 with no lines, 800 for a single, 1 200 for a double and 1 600 for a triple (a mini, with a front corner open, 100, 200 or 400), times the level. Back-to-back now chains T-spin clears with quads, half again each. A T-spin with no lines keeps the chain",
+    "Perfect clears: a clear that leaves the well empty adds 800 for a single, 1 200 for a double, 1 800 for a triple and 2 000 for a quad (3 200 back to back), times the level",
+    "Callouts for all of it: T-SPIN, T-SPIN MINI, T-SPIN SINGLE, DOUBLE and TRIPLE, PERFECT CLEAR over the clear's own word, with their points popping up; a T-spin's sparkle is the back-to-back's pitched up, and a perfect clear plays the quad's sound higher. The results card counts the run's T-spins",
+    "Next is a queue: the next piece large and up to five more small under it (beside it on a flat board), five as it comes; Settings > Game > Next queue sets 1 to 6. The rules always draw six ahead, so a seed gives exactly the pieces (and power-ups) it always gave, however many are shown. The queue moves up with the slide as a piece comes in (a cut with Reduced motion)",
+    "The classic 10x20 Marathon gets a fresh score board (marathon-10x20) under the modern rules: the menu's Best, Play setup, the results card and the world board start it afresh. The old table and the 74 372 in save.dat stay as Classic (old rules), the last board of the Scores browser's Marathon tab, read and never written to again; save.dat is never changed. Ghost Launcher names the two boards Marathon and Classic (old rules)",
+    "Rotate 180, a half turn in one press, is a tenth row in Settings > Controls with no key or button until you set one (the SRS+ 180 kicks); it is the one action whose only key can be cleared or taken",
+    "An older config.ini loads unchanged: the queue shows five, Rotate 180 has no key",
+    NULL,
+};
+
+static const char *const kNotes_3_1_0[] = {
+    "Danger: with the stack within four rows of the top the well's frame eases to red and pulses (steady with Reduced flashing), faint red stripes hatch the top three rows, and the next piece's outline shows in red where it would come in when it would not fit. It only lets go once seven rows are clear, so it never flickers, and a low warning plays once as it starts, never more often than every 8 s. Never in Zen",
+    "The music follows the board: in Marathon and Power its intensity climbs with the stack as well as the level, so the snare comes in as the stack rises and drops out when you dig out (it used to reach full at about level 5 and stay there). Sprint follows the lines, Ultra the time, full in its last ten seconds, and Zen stays calm",
+    "Ultra's last five seconds each tick, a little higher each time; Sprint's lines-left counter turns gold in its last five lines",
+    "Sprint is a race: the clock is its big number, with hundredths, and it starts on GO. Marks at 10, 20 and 30 lines say how far ahead (gold, -1.4 s) or behind (+0.8 s) your best pace on the board you are, over the well for a moment and under the clock until the next mark; with no pace yet a mark shows its time. The finish says New best by 0.8 s, and the fastest finish's splits are kept as the pace to race (splits.dat)",
+    "The sound pass: a soft tick when a piece locks on its own, a swoosh for Hold (it borrowed the turn's sound), a sound for each power-up, a thaw tick when a Freeze ends and a wind-up when a Slow ends, and a sparkle for a quad back to back. All made in code, as every Blockfall sound is",
+    "Moves vary a little, each clear in a combo rings a semitone higher than the last, and the results card's count-up ticks rise. Each lock plays at most one big sound and one accent, and the level-up sound waits 0.15 s so it never lands on the clear",
+    "Ultra plays the warning once as its countdown turns red at 0:10",
+    "Bomb: the 3x3 it takes blinks where it stood, then bursts in its own colours with a square shockwave and a 9 px shake",
+    "Laser: a charge line runs down the column, then the beam, and the column's cells pop out from the power cell",
+    "Freeze: an ice wash, frost growing in from the corners, a blink in its last 1.5 s (the bar too) and the frost breaking with a tick when it ends",
+    "Slow: the orange frame, two faint afterimages behind the piece, and the wind-up as it ends",
+    "Sweep: a green bar crosses the bottom three rows and bursts them, then the stack drops the three rows (they just vanished before)",
+    "Power marks glow in their power's colour. Reduced flashing holds every blink and glow steady and keeps the white out; Motion: Reduced cuts the charge line, the frost's growth, the afterimages, the shockwave's spread and the Sweep's bar",
+    NULL,
+};
+
 static const char *const kNotes_3_0_0[] = {
     "Settings has tabs across the top: Controls, Feel, Look, Sound and Game. LB and RB, Tab or a click switch them, every change saves at once, and rows marked * are shared with every game",
     "Rotate left: Z on the keyboard and X on the pad. Hard drop, Rotate left, Hold and Restart get a second key, and Hold also answers LB",
@@ -157,6 +235,13 @@ static const char *const kNotes_1_0_0[] = {
 };
 
 static const UiChangelogEntry kChangelog[] = {
+    {"3.6.1", "2026-10-21", kNotes_3_6_1},
+    {"3.6.0", "2026-10-21", kNotes_3_6_0},
+    {"3.5.0", "2026-10-20", kNotes_3_5_0},
+    {"3.4.0", "2026-10-20", kNotes_3_4_0},
+    {"3.3.0", "2026-10-20", kNotes_3_3_0},
+    {"3.2.0", "2026-10-20", kNotes_3_2_0},
+    {"3.1.0", "2026-10-20", kNotes_3_1_0},
     {"3.0.0", "2026-10-14", kNotes_3_0_0},
     {"2.5.0", "2026-10-14", kNotes_2_5_0},
     {"2.4.0", "2026-10-14", kNotes_2_4_0},

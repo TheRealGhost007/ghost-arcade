@@ -1,0 +1,20 @@
+#! env SHOTS_SETUP=2,0,10,20
+# Ultra (3.1.0): the WARNING jingle once, the moment the countdown turns red
+# at 0:10, and not again.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Ultra
+game timeleft 11.2
+mark sounds
+wait 5
+# 0:11 still shows: nothing yet
+expect sounds none
+wait 10
+# 0:10 shows, in red: the warning, once
+shot 151-ultra-warned
+expect sounds jingle:WARNING
+wait 60
+expect sounds jingle:WARNING

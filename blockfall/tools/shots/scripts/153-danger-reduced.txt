@@ -1,0 +1,44 @@
+#! env SHOTS_SETUP=0,0,10,20 SHOTS_MOTION=reduced SHOTS_FLASH=1
+# Danger with Reduced flashing and Motion: Reduced: the frame holds a steady
+# red (no pulse), the stripes and the next piece's outline are still, and
+# nothing flashes white. The warning still plays once.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 #########.
+game row 1 ####.####.
+game row 2 #########.
+game row 3 ##.######.
+game row 4 #########.
+game row 5 #####.###.
+game row 6 #########.
+game row 7 #.#######.
+game row 8 #########.
+game row 9 ######.##.
+game row 10 #########.
+game row 11 ###.#####.
+game row 12 ########..
+game row 13 ##.####.#.
+game row 14 #####.#...
+game row 15 .##.##....
+game row 16 ####.####.
+game row 17 #.#######.
+game row 18 ####.###..
+game piece I 1 7 4
+game next T
+mark sounds
+wait 30
+expect hud danger 1
+expect hud nextblocked 1
+expect hud dangerframe 1.00
+expect sounds jingle:WARNING
+shot 153-danger-reduced
+expect pixels 36 200 4 40 above 130
+expect pixels 40 56 300 600 nowhite 200
+wait 20
+expect hud dangerframe 1.00
+shot 153-danger-reduced-later
+expect pixels 40 56 300 600 nowhite 200

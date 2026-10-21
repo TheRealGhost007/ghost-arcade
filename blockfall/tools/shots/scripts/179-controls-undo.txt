@@ -1,0 +1,113 @@
+#! after-file .config/blockfall/config.ini undo=K
+#! after-file .config/blockfall/config.ini pad_undo=RB
+# Settings > Controls has an eleventh row, Undo (3.5.0), with U and RB as
+# it comes, under Rotate 180 and above Reset controls (moved down a row).
+# Like Rotate 180 it is the optional kind: Delete clears its only key, and
+# a new one binds; the key then undoes in the Practice room and does
+# nothing in a plain run.
+wait 10
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect screen SETTINGS
+expect app settab Controls
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app setrow Undo
+expect app focus Undo key
+expect app key:Undo:1 U
+expect app key:Undo:2 NONE
+expect app pad:Undo:1 RB
+expect app pad:Undo:2 NONE
+shot 179-undo-row
+tap DELETE
+wait 2
+expect app key:Undo:1 NONE
+expect app note Undo's key is cleared.
+tap ENTER
+wait 2
+expect awaiting 1
+expect app capture key:Undo:1
+tap K
+wait 3
+expect awaiting 0
+expect app key:Undo:1 K
+expect app note Undo's key is now K.
+shot 179-undo-rebound
+# Down once more: Reset controls, lit now that a key changed
+tap DOWN
+wait 2
+expect app focus Reset controls
+# in a plain run K does nothing
+tap ESCAPE
+wait 3
+tap UP
+tap UP
+tap UP
+tap ENTER
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect app practice off
+game clear
+game piece O 0 3
+wait 2
+tap SPACE
+wait 2
+expect game pieces 1
+tap K
+wait 2
+expect game pieces 1
+expect hud callouts none
+# in the room it undoes (the plain run leaves with no points: no question)
+game score 0
+wait 1
+tap ESCAPE
+wait 3
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 4
+expect screen MENU
+tap ENTER
+wait 3
+expect screen SETUP
+mouse 167 502
+wait 2
+click 167 502
+wait 4
+expect screen PRACTICE
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect app practice on
+game clear
+game piece O 0 3
+wait 2
+tap SPACE
+wait 2
+expect game pieces 1
+tapshot K 179-k-undoes
+expect game pieces 0
+expect hud callouts UNDO

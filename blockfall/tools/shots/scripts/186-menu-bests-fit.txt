@@ -1,0 +1,34 @@
+#! env SHOTS_NOSCORES=1
+# 3.6.1: the menu's Your bests sits two to a line on three lines, so a
+# label never runs into its value. With no run anywhere (every upgrading
+# player's classic Marathon since 3.2.0) each says "no run yet" clear of its
+# label ("Marathonno run yet" before); with the longest values (9 999 999,
+# a 12:34.56 Sprint) the columns still stay apart, under Quit and above the
+# skyline, and nothing passes x 580.
+wait 10
+expect screen MENU
+expect app best:Marathon no run yet
+expect app best:Sprint no run yet
+expect app best:Dig no run yet
+shot 186-menu-bests-none
+expect pixels 581 516 39 52 below 120
+# nothing between "Marathon" and its value, nor between the two columns
+expect pixels 132 532 58 8 below 120
+expect pixels 282 532 56 36 below 120
+write .local/share/ghost-launcher/scores/blockfall.txt marathon-10x20|TRG|9999999|2026-10-20\nsprint40|TRG|9924544|2026-10-20\nultra|TRG|1234567|2026-10-20\npower|TRG|8765432|2026-10-20\ndig|TRG|31000|2026-10-20\n
+# (the menu reads the bests as it opens: into Play setup and back reads them again)
+tap ENTER
+wait 12
+expect screen SETUP
+tap ESCAPE
+wait 12
+expect screen MENU
+expect app best:Marathon 9 999 999
+expect app best:Sprint 12:34.56
+expect app best:Ultra 1 234 567
+expect app best:Power 8 765 432
+expect app best:Dig 31 000
+shot 186-menu-bests-long
+expect pixels 581 516 39 52 below 120
+expect pixels 132 532 58 8 below 120
+expect pixels 282 532 56 36 below 120

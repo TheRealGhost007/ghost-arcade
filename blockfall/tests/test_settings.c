@@ -277,6 +277,11 @@ static bool Invariants(const Settings *s, char *why, size_t size) {
                 return false;
             }
         }
+        if (Controls_Optional(a)) { /* Rotate 180 (3.2.0) and Undo (3.5.0): they may have nothing, but never a second without a first */
+            if (Controls_IsNone(Controls_KeyConst(s, a, 0)) && !Controls_IsNone(Controls_KeyConst(s, a, 1))) { snprintf(why, size, "%s has a second key alone", Controls_ActionLabel(a)); return false; }
+            if (Controls_Pad(s, a, 0) == PAD_NONE && Controls_Pad(s, a, 1) != PAD_NONE) { snprintf(why, size, "%s has a second button alone", Controls_ActionLabel(a)); return false; }
+            continue;
+        }
         if (!key || !pad) { snprintf(why, size, "%s lost all its %s", Controls_ActionLabel(a), key ? "buttons" : "keys"); return false; }
         if (a != ACT_PAUSE && Controls_IsNone(Controls_KeyConst(s, a, 0))) { snprintf(why, size, "%s's first key is empty", Controls_ActionLabel(a)); return false; }
     }
@@ -720,8 +725,8 @@ static void test_page(void) {
     }
     CHECK(fits && apart, "page: on every tab every control is inside the window, above the note line, and none overlaps another");
     CHECK(labels, "page: every row's label (and its *) ends before its controls start");
-    CHECK(rows[TAB_CONTROLS] == 10 && rows[TAB_FEEL] == 5 && rows[TAB_LOOK] == 9 && rows[TAB_SOUND] == 4 && rows[TAB_GAME] == 5,
-          "page: Controls has the nine actions and Reset, Feel five rows, Look nine, Sound four, Game five");
+    CHECK(rows[TAB_CONTROLS] == 12 && rows[TAB_FEEL] == 5 && rows[TAB_LOOK] == 9 && rows[TAB_SOUND] == 4 && rows[TAB_GAME] == 6,
+          "page: Controls has the eleven actions and Reset, Feel five rows, Look nine, Sound four, Game six (3.2.0: Rotate 180, Next queue; 3.5.0: Undo)");
 
     /* Controls: the caps name the keys, "-" for none; the pad's caps. */
     SetView v = {&s, &pr, TAB_CONTROLS, KIT_NONE, true};
@@ -759,7 +764,7 @@ static void test_page(void) {
     in.focused = true;
     in.key[IK_DOWN] = in.keyRepeat[IK_DOWN] = in.keyDown[IK_DOWN] = true;
     for (int i = 0; i < 12; i++) SetPage_Navigate(&k, &p, &in);
-    CHECK(k.focus == SID_CAP_OF(ACT_RESTART, 3), "page: Down walks the rows; faint Reset controls is passed over");
+    CHECK(k.focus == SID_CAP_OF(ACT_UNDO, 3), "page: Down walks the rows (Undo last since 3.5.0); faint Reset controls is passed over");
     Controls_BindKey(&s, ACT_HOLD, 1, "X");
     SetPage_Layout(&v, &p);
     SetPage_Navigate(&k, &p, &in);
@@ -888,13 +893,13 @@ static void test_page(void) {
     memset(&in, 0, sizeof(in));
     memset(&r, 0, sizeof(r));
     Capture_Begin(&c, ACT_HARD, 2);
-    in.pad[PB_RB] = true;
-    CHECK(Capture_FeedPad(&c, &s, &in, false, &r) == CAPFEED_BOUND && r.kind == BIND_SET && s.pad[ACT_HARD][0] == PB_RB &&
-              strcmp(r.note, "Hard drop's button is now RB.") == 0,
-          "page: RB pressed on Hard drop's first pad cap binds it to slot 1, with the note");
+    in.pad[PB_LT] = true; /* a free button (RB is Undo's since 3.5.0) */
+    CHECK(Capture_FeedPad(&c, &s, &in, false, &r) == CAPFEED_BOUND && r.kind == BIND_SET && s.pad[ACT_HARD][0] == PB_LT &&
+              strcmp(r.note, "Hard drop's button is now LT.") == 0,
+          "page: LT pressed on Hard drop's first pad cap binds it to slot 1, with the note");
     Settings_Default(&s);
     Capture_Begin(&c, ACT_HARD, 3);
-    CHECK(Capture_FeedPad(&c, &s, &in, false, &r) == CAPFEED_BOUND && r.kind == BIND_SET && s.pad[ACT_HARD][1] == PB_RB && s.pad[ACT_HARD][0] == PB_A,
+    CHECK(Capture_FeedPad(&c, &s, &in, false, &r) == CAPFEED_BOUND && r.kind == BIND_SET && s.pad[ACT_HARD][1] == PB_LT && s.pad[ACT_HARD][0] == PB_A,
           "page: the second pad cap (column 3) binds slot 2 and leaves slot 1 alone");
     /* A swap: Y is Hold's; pressed for Rotate right's first, the two swap. */
     Settings_Default(&s);

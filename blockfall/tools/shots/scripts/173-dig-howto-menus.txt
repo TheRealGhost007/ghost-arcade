@@ -1,0 +1,82 @@
+#! env SHOTS_STATS=1
+# Dig everywhere else (3.4.0): How to play's Modes page has a sixth row,
+# whose demo stands an I in the gaps of four garbage rows (a quad, 800 and
+# the rows' 400); the menu's Your bests has a Dig line (three columns now);
+# the Scores browser has a Dig tab before Zen; the Stats screen a Dig row.
+write .local/share/blockfall/scores.txt dig|TRG|3100|2026-10-10\n
+wait 10
+expect screen MENU
+# (the menu reads the bests as it opens: into Play setup and back reads them again)
+tap ENTER
+wait 3
+tap ESCAPE
+wait 3
+expect screen MENU
+expect app best:Dig 3 100
+expect app best:Marathon 24 680
+shot 173-menu-bests
+tap DOWN
+tap ENTER
+wait 3
+expect screen HOWTO
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 3
+expect app howtopage Modes
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+expect app demovariant Dig
+expect app democurrent I
+shot 173-howto-dig
+wait 68
+expect app democlears 4
+expect app democallout QUAD +1 200
+shot 173-howto-dig-quad
+tap ESCAPE
+wait 3
+expect screen MENU
+expect app focus How to play
+# Scores: the Dig tab, with the row on this machine
+tap DOWN
+tap ENTER
+wait 4
+expect screen SCORES
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 3
+expect scores mode Dig
+expect scores board Classic 10x20
+expect scores count 1
+expect app boards 10x20|14x20|8x26|18x30|6x14
+shot 173-scores-dig-tab
+tap RIGHT
+wait 3
+expect scores mode Zen
+tap ESCAPE
+wait 3
+# Stats: the Dig row, before Zen, with no run yet
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 3
+expect screen STATS
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 30
+expect app stats:row Dig
+expect app stats:runs 0
+shot 173-stats-dig
+tap DOWN
+wait 2
+expect app stats:row Zen

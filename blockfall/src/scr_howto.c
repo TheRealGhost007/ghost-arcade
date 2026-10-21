@@ -38,14 +38,15 @@ enum { HI_BACK = 1, HI_TABS, HI_PREV, HI_NEXT, HI_GO, HI_ROW0 = 10 };
 
 static const char *const kPageCells[HOWTO_PAGES] = {"Basics", "Hold and next", "Scoring", "Modes", "Power-ups"};
 
-static const GameMode kModes[MODE_COUNT] = {MODE_MARATHON, MODE_SPRINT, MODE_ULTRA, MODE_ZEN, MODE_POWER};
-static const char *const kModeNotes[MODE_COUNT] = {"endless", "40 lines", "two minutes", "no game over", "power-ups"};
+static const GameMode kModes[MODE_COUNT] = {MODE_MARATHON, MODE_SPRINT, MODE_ULTRA, MODE_ZEN, MODE_POWER, MODE_DIG};
+static const char *const kModeNotes[MODE_COUNT] = {"endless", "40 lines", "two minutes", "no game over", "power-ups", "rising rows"};
 static const char *const kModeText[MODE_COUNT] = {
     "Endless. Every 10 lines the level and the speed go up, and the run ends when the stack reaches the top.",
     "Clear 40 lines as fast as you can. It is ranked by time, and the clock starts on GO.",
     "Two minutes on the clock: score as much as you can before it runs out.",
     "No clock and no game over: a full well is swept away for a fresh start. Zen keeps no scores.",
     "Marathon with power-ups riding on some pieces (see Power-ups).",
+    "Eight grey rows, one gap each; another pushes up every few seconds, sooner as you go (the Next row bar fills first). Clearing garbage counts as Dug, 100 a row on top. It ends when the stack is pushed past the top.",
 };
 static const PowerUp kPowers[PU_COUNT - 1] = {PU_BOMB, PU_LASER, PU_FREEZE, PU_SLOW, PU_SWEEP};
 static const char *const kPowerText[PU_COUNT - 1] = {
@@ -372,7 +373,7 @@ static void DrawHold(const App *a) {
     const UiTheme *t = Ui_Theme();
     int y = Para("Hold puts the falling piece aside and brings in the next one, or the one you held before.", WELL_Y, t->text);
     y = Para("Once per piece: Hold greys until the piece lands.", y, t->text);
-    y = Para("Next shows the piece that comes after this one.", y, t->text);
+    y = Para("Next shows the piece that comes after this one, large, and the ones after it small (Settings > Game sets how many).", y, t->text);
     CapRow row;
     memset(&row, 0, sizeof(row));
     row.label = "Hold";
@@ -395,9 +396,10 @@ static void DrawScoring(const App *a) {
     y += 2 * 18 + 8;
     y = Para("Every 10 lines the level goes up, and the pieces fall faster.", y, t->text);
     y = Para("Combo: clears in a row add 50 x the combo x the level.", y, t->text);
-    y = Para("Back-to-back: a quad right after a quad pays half again.", y, t->text);
+    y = Para("Back-to-back: a quad or a T-spin clear right after one pays half again.", y, t->text);
+    y = Para("T-spin: a T turned into a tight spot: 400, 800, 1 200 or 1 600 (a mini 100, 200 or 400). Perfect clear: an empty well adds 800 to 2 000.", y, t->text);
     y = Para("Soft drop: 1 a row. Hard drop: 2 a row.", y, t->text);
-    Para("The classic 10x20 Marathon keeps the classic scoring, without combo or back-to-back.", y, t->dim);
+    Para("Every board scores the same way, the classic 10x20 too.", y, t->dim);
 }
 
 static void DrawList(const App *a, int count, const char *text, const char *foot) {
@@ -429,6 +431,7 @@ static void DrawUnder(const App *a) {
             case MODE_SPRINT: snprintf(line, sizeof(line), "Lines left %d", SPRINT_LINES - g->linesCleared); break;
             case MODE_ULTRA: snprintf(line, sizeof(line), "Time left %d:%02d", (int)g->timeLeft / 60, (int)g->timeLeft % 60); break;
             case MODE_ZEN: snprintf(line, sizeof(line), "Fresh starts %d", g->zenResets); break;
+            case MODE_DIG: snprintf(line, sizeof(line), "Dug %d  Next row %.0f s", g->dug, (double)Game_DigSecondsLeft(g) + 0.49); break;
             default: snprintf(line, sizeof(line), "Level %d  Lines %d", g->level, g->linesCleared); break;
         }
         (void)s;

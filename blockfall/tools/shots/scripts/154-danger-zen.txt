@@ -1,0 +1,41 @@
+#! env SHOTS_SETUP=3,0,10,20
+# Zen is never in danger: the stack one row from the top shows no red frame,
+# no stripes and no warning, and the music stays at its one calm level.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Zen
+expect view intensity 0.45
+game clear
+game row 0 #########.
+game row 1 ####.####.
+game row 2 #########.
+game row 3 ##.######.
+game row 4 #########.
+game row 5 #####.###.
+game row 6 #########.
+game row 7 #.#######.
+game row 8 #########.
+game row 9 ######.##.
+game row 10 #########.
+game row 11 ###.#####.
+game row 12 ########..
+game row 13 ##.####.#.
+game row 14 #####.#...
+game row 15 .##.##....
+game row 16 ####.####.
+game row 17 #.#######.
+game row 18 ####.###..
+game piece I 1 7 4
+game next T
+mark sounds
+wait 30
+expect hud danger 0
+expect hud free 1
+expect hud nextblocked 0
+expect hud dangerframe 0.00
+expect sounds none
+expect view intensity 0.45
+shot 154-zen-no-danger

@@ -1,0 +1,40 @@
+#! env SHOTS_DAILY=20261023 SHOTS_MOTION=reduced SHOTS_SETUP=0,0,10,20
+#! after-nofile .local/share/blockfall/daily.dat 20261023
+# Another day, another twist: 23 October 2026 is Tall, Ultra on 8x26. With
+# Motion: Reduced the screens cut instead of sliding and the card is just
+# there. A run with nothing landed is not recorded: no board row, no
+# daily.dat, and the Daily screen still says no run yet.
+wait 10
+expect app dailysub Tall, no run yet
+tap UP
+tap UP
+tap ENTER
+wait 4
+expect screen DAILY
+expect app daily:twist Tall
+expect app daily:datewords Friday 23 October
+shot 183-daily-tall-screen
+tap ENTER
+wait 4
+expect screen PLAYING
+expect app daily on
+expect game mode Ultra
+expect game w 8
+expect game h 26
+expect view best 0
+shot 183-daily-tall-run
+game timeleft 0.5
+wait 40
+expect app results on
+expect app card:title TIME UP
+expect app card:sub Daily: Ultra on Tall 8x26
+expect app card:best Nothing landed, so nothing is recorded
+wait 80
+expect app resultsdone 1
+shot 183-daily-tall-results
+tap DOWN
+tap ENTER
+wait 6
+expect screen DAILY
+expect app daily:best 0
+expect app daily:runs 0

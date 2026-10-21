@@ -1,4 +1,5 @@
 #include "hudfx.h"
+#include "finesse.h"
 #include "menumodel.h"
 #include <stdio.h>
 #include <string.h>
@@ -16,15 +17,35 @@ void HudFx_Reset(HudFx *h, const Game *g) {
 /* Top to bottom when several arrive together. */
 static int DisplayRank(CalloutKind k) {
     switch (k) {
-        case CALL_CLEAR: return 0;
-        case CALL_B2B: return 1;
-        case CALL_COMBO: return 2;
-        case CALL_POWER: return 3;
-        case CALL_LEVEL: return 4;
-        case CALL_NEW_BEST: return 5;
-        case CALL_FRESH: return 6;
+        case CALL_PERFECT: return 0;
+        case CALL_CLEAR: return 1;
+        case CALL_B2B: return 2;
+        case CALL_COMBO: return 3;
+        case CALL_DUG: return 4;
+        case CALL_SPLIT: return 5;
+        case CALL_POWER: return 6;
+        case CALL_LEVEL: return 7;
+        case CALL_NEW_BEST: return 8;
+        case CALL_FRESH: return 9;
+        case CALL_UNDO: return 10;
+        case CALL_FINESSE: return 11; /* the hint, under everything */
     }
-    return 7;
+    return 12;
+}
+
+/* The clear's word (3.2.0): a T-spin names itself and its lines, a mini is
+ * T-SPIN MINI whatever it cleared (its popup says the points), a single
+ * alone has no word. */
+static const char *ClearWord(int cleared, TSpinKind tspin) {
+    if (tspin == TSPIN_MINI) return "T-SPIN MINI";
+    if (tspin == TSPIN_FULL) {
+        static const char *const kT[4] = {"T-SPIN", "T-SPIN SINGLE", "T-SPIN DOUBLE", "T-SPIN TRIPLE"};
+        return kT[cleared < 0 ? 0 : (cleared > 3 ? 3 : cleared)];
+    }
+    if (cleared >= 4) return "QUAD";
+    if (cleared == 3) return "TRIPLE";
+    if (cleared == 2) return "DOUBLE";
+    return NULL;
 }
 
 static Callout Make(CalloutKind kind, const char *text, const char *shortText, CalloutTint tint, PowerUp power) {
@@ -81,7 +102,14 @@ static void AddPopup(HudFx *h, const Game *g, long points) {
     int n = g->lastClearCount > 4 ? 4 : g->lastClearCount;
     float rows = 0.0f;
     for (int i = 0; i < n; i++) rows += (float)(g->lastClearRows[i] - BOARD_HIDDEN);
-    p->row = n > 0 ? rows / (float)n + 0.5f : 0.0f;
+    /* A T-spin that cleared nothing (3.2.0) pops from the T's centre row. */
+    p->row = n > 0 ? rows / (float)n + 0.5f : (float)(g->lastLockY + 1 - BOARD_HIDDEN) + 0.5f;
+}
+
+void HudFx_NoteSplit(HudFx *h, const char *text, bool gold) {
+    h->splitPending = true;
+    h->splitGold = gold;
+    snprintf(h->splitText, sizeof(h->splitText), "%s", text ? text : "");
 }
 
 void HudFx_React(HudFx *h, const Game *g, bool passedBest) {
@@ -97,29 +125,51 @@ void HudFx_React(HudFx *h, const Game *g, bool passedBest) {
         }
     }
 
-    Callout cand[8];
+    Callout cand[12]; /* room for every kind at once, though no mode can make them all */
     int n = 0;
     long gained = g->score - h->lastScore;
     if (g->justLocked) {
         int cleared = g->lastClearCount;
-        if (cleared >= 4) cand[n++] = Make(CALL_CLEAR, "QUAD", NULL, TINT_GOLD, PU_NONE);
-        else if (cleared == 3) cand[n++] = Make(CALL_CLEAR, "TRIPLE", NULL, TINT_LIGHT, PU_NONE);
-        else if (cleared == 2) cand[n++] = Make(CALL_CLEAR, "DOUBLE", NULL, TINT_LIGHT, PU_NONE);
+        TSpinKind tspin = g->lastTSpin;
+        const char *word = ClearWord(cleared, tspin);
+        /* gold: a quad or a full T-spin; a mini and the smaller clears light */
+        if (word) cand[n++] = Make(CALL_CLEAR, word, tspin != TSPIN_NONE ? (tspin == TSPIN_MINI ? "MINI" : "T-SPIN") : NULL,
+                                   cleared >= 4 || tspin == TSPIN_FULL ? TINT_GOLD : TINT_LIGHT, PU_NONE);
+        if (g->lastPerfectClear) cand[n++] = Make(CALL_PERFECT, "PERFECT CLEAR", "PERFECT", TINT_GOLD, PU_NONE);
         if (g->lastWasB2B) cand[n++] = Make(CALL_B2B, "BACK-TO-BACK", "B2B", TINT_GOLD, PU_NONE);
         if (cleared > 0 && g->lastCombo >= 2) {
             char buf[24];
             snprintf(buf, sizeof(buf), "COMBO %d", g->lastCombo);
             cand[n++] = Make(CALL_COMBO, buf, NULL, TINT_LIGHT, PU_NONE);
         }
+        if (g->lastDug >= DUG_CALLOUT_MIN) {
+            char buf[24];
+            snprintf(buf, sizeof(buf), "DUG %d", g->lastDug);
+            cand[n++] = Make(CALL_DUG, buf, NULL, TINT_LIGHT, PU_NONE);
+        }
+        if (g->lastDug > 0) h->nudge[STAT_DUG] = 0.0f;
         if (g->lastPower != PU_NONE) {
             char buf[24];
             snprintf(buf, sizeof(buf), "%s", Game_PowerName(g->lastPower));
             for (char *q = buf; *q; q++) if (*q >= 'a' && *q <= 'z') *q = (char)(*q - 32);
             cand[n++] = Make(CALL_POWER, buf, NULL, TINT_POWER, g->lastPower);
         }
-        if (cleared > 0 && gained > 0) AddPopup(h, g, gained);
+        if ((cleared > 0 || tspin != TSPIN_NONE) && gained > 0) AddPopup(h, g, gained);
         if (gained >= 100) h->nudge[STAT_SCORE] = 0.0f; /* a clear or a power-up, not the drop points alone */
         if (cleared > 0) h->nudge[STAT_LINES] = h->nudge[STAT_LINES_LEFT] = 0.0f;
+        /* The Practice room's finesse hint (3.5.0): a lock that took more
+         * presses than it needed says how many, in dim words under whatever
+         * else the lock says; a clean lock says nothing. */
+        if (g->lastFinesseExtra > 0) {
+            char text[24], shortText[12];
+            Finesse_Words(g->lastFinesseExtra, text, sizeof(text), shortText, sizeof(shortText));
+            cand[n++] = Make(CALL_FINESSE, text, shortText, TINT_DIM, PU_NONE);
+        }
+        if (g->practice.on) h->nudge[STAT_UNDO] = 0.0f; /* one more piece that can be taken back */
+    }
+    if (g->justUndid) {
+        cand[n++] = Make(CALL_UNDO, "UNDO", NULL, TINT_LIGHT, PU_NONE);
+        h->nudge[STAT_UNDO] = 0.0f;
     }
     if (g->lastWasLevelUp) {
         char buf[24];
@@ -132,14 +182,19 @@ void HudFx_React(HudFx *h, const Game *g, bool passedBest) {
         cand[n++] = Make(CALL_NEW_BEST, "NEW BEST", NULL, TINT_GOLD, PU_NONE);
         h->nudge[STAT_BEST] = 0.0f;
     }
+    if (h->splitPending) {
+        cand[n++] = Make(CALL_SPLIT, h->splitText, NULL, h->splitGold ? TINT_GOLD : TINT_LIGHT, PU_NONE);
+        h->nudge[STAT_TIME] = 0.0f;
+        h->splitPending = false;
+    }
     if (g->justZenReset) {
         cand[n++] = Make(CALL_FRESH, "FRESH START", NULL, TINT_LIGHT, PU_NONE);
         h->nudge[STAT_FRESH] = 0.0f;
     }
     if (n) Push(h, cand, n);
 
-    /* Ultra's last ten seconds tick. */
-    if (g->cfg.mode == MODE_ULTRA) {
+    /* Ultra's last ten seconds tick (a daily's too, 3.6.0). */
+    if (Game_Timed(g)) {
         int sec = Hud_UltraSeconds(g->timeLeft);
         if (sec != h->lastSecond && sec <= (int)ULTRA_RED_SECONDS) h->nudge[STAT_TIME_LEFT] = 0.0f;
         h->lastSecond = sec;

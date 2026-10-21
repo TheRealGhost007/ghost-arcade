@@ -23,7 +23,7 @@
  *             motion, Motion, screen shake*, reduced flashing*, fullscreen*
  *   Sound     effects volume, music volume*, sound, a test sound
  *   Game      auto pause, R restarts, Ready go, resume countdown, How to
- *             play on the next launch
+ *             play on the next launch, the Next queue (3.2.0)
  * (* shared with every game: prefs.ini.) Every change saves at once. */
 
 typedef enum { TAB_CONTROLS, TAB_FEEL, TAB_LOOK, TAB_SOUND, TAB_GAME, SET_TABS } SetTab;
@@ -44,18 +44,21 @@ const char *SetPage_TabLabel(int tab);
 #define SET_CONTROL_H 28
 #define SET_STEPPER_W 260
 #define SET_TOGGLE_W 144
-/* Controls: a table of caps under its headings. */
+/* Controls: a table of caps under its headings (ten rows since 3.2.0: the
+ * pitch came down from 34 so Rotate 180 fits above Reset controls; eleven
+ * since 3.5.0, Undo: Reset controls and the lines under it moved down a
+ * row, the caps stayed where they were). */
 #define SET_HEAD_Y 166
-#define SET_CAP_Y 182
-#define SET_CAP_PITCH 34
+#define SET_CAP_Y 180
+#define SET_CAP_PITCH 32
 #define SET_CAP_H 28
 #define SET_KEY_W 88
 #define SET_PAD_W 72
-#define SET_RESET_Y 494
+#define SET_RESET_Y 536
 /* The lines under the rows. */
-#define SET_NOTE_Y 540
-#define SET_HELP_Y 576
-#define SET_FOOT_Y 620
+#define SET_NOTE_Y 572
+#define SET_HELP_Y 600
+#define SET_FOOT_Y 640
 #define SET_HINTS_CY 676
 /* Feel: the strip to try your values on. */
 #define STRIP_CELLS 10
@@ -67,12 +70,12 @@ enum {
     SID_BACK = 1,
     SID_TABS,
     SID_CAP = 100, /* + action * 4 + column: 0 key, 1 second key, 2 pad, 3 second pad */
-    SID_RESET = 140,
+    SID_RESET = 146, /* past the caps (SID_CAP + 11 * 4 = 144) */
     SID_PRESET = 150, /* + 0 .. FEEL_PRESETS - 1 */
     SID_DELAY = 160, SID_SPEED, SID_SOFT, SID_STRIP,
     SID_GHOST = 170, SID_GRID, SID_PATTERNS, SID_CARD, SID_PIECE, SID_MOTION, SID_SHAKE, SID_FLASH, SID_FULL,
     SID_EFFECTS = 180, SID_MUSIC, SID_SOUND, SID_TEST,
-    SID_AUTOPAUSE = 190, SID_QUICKR, SID_READY, SID_COUNTDOWN, SID_HOWTO,
+    SID_AUTOPAUSE = 190, SID_QUICKR, SID_READY, SID_COUNTDOWN, SID_HOWTO, SID_QUEUE,
 };
 #define SID_CAP_OF(action, col) (SID_CAP + (action) * 4 + (col))
 #define SET_CAP_COLUMNS 4

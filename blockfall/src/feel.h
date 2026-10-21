@@ -17,6 +17,11 @@
  *    nothing pops. 0.24 s in all; 0.18 s at levels 10-14 and 0.12 s from
  *    15, so the picture never trails the stack for long. A new lock ends the
  *    one before at once. The ghost hides until the rows have settled.
+ *  - A Sweep replays the same way (3.1.0): after any clear's zip a green
+ *    bar crosses the bottom three rows in 0.14 s and their cells go as it
+ *    passes (effects.c bursts them), then the stack drops its three rows
+ *    like a clear's fall. A Sweep alone takes the clear's 0.24 s; with
+ *    Reduced motion the three rows flash green, then cut.
  *  - The falling piece slides in half a cell from the top as it comes in
  *    (0.08 s). A single tap and a gravity step glide over 0.04 s;
  *    auto-repeat and soft drop snap. It is never drawn more than half a
@@ -28,6 +33,10 @@
  *  - Hold: the outgoing piece flies into the Hold box (0.12 s); the box's
  *    edge flashes once when hold is ready again. Next: the old preview
  *    slides out as the new one slides in (0.10 s).
+ *  - A garbage row pushing up (Dig, 3.4.0): the stack is drawn a cell
+ *    below its new place and eases up into it over 0.12 s (the piece it
+ *    lifted glides as any move does); a clear still replaying ends, since
+ *    its rows have moved. A cut with Reduced motion.
  * Motion: Reduced (FeelFrame.motion false) makes every glide, slide, flight,
  * fall, smear and squash a plain cut, and a clear only a short flash before
  * the rows snap down. Piece motion: Snap (FeelFrame.glide false) keeps the
@@ -43,6 +52,8 @@
 #define CLEAR_FALL_PART 0.75f      /* of the drop: the fall; the rest is the settle */
 #define CLEAR_SETTLE_PX 2
 #define QUAD_FRAME_SECONDS 0.25f   /* a quad flashes the well's frame gold */
+#define SWEEP_BAR_SECONDS 0.14f    /* a Sweep's bar crosses the bottom rows */
+#define SWEEP_ROWS 3
 /* The falling piece */
 #define GLIDE_SECONDS 0.04f
 #define GLIDE_MAX_CELLS 0.5f
@@ -64,9 +75,11 @@
 #define HOLD_FLIGHT_SECONDS 0.12f
 #define HOLD_READY_SECONDS 0.15f
 #define NEXT_SLIDE_SECONDS 0.10f
+/* Dig's rise */
+#define RISE_SECONDS 0.12f
 
-typedef enum { CLEAR_NONE, CLEAR_FLASH, CLEAR_ZIP, CLEAR_DROP } ClearStage;
-typedef struct { float flash, zip, drop; } ClearTimes;
+typedef enum { CLEAR_NONE, CLEAR_FLASH, CLEAR_ZIP, CLEAR_SWEEP, CLEAR_DROP } ClearStage;
+typedef struct { float flash, zip, sweep, drop; } ClearTimes;
 
 /* What a frame's input says about the motion this frame. */
 typedef struct {
@@ -80,6 +93,7 @@ typedef struct {
     Board before;         /* the board as the piece was stamped, before the clear and any power-up */
     int rows[4], count;   /* the full rows in `before` (rows count the hidden ones), bottom first */
     int shift;            /* rows a Sweep then moved everything down */
+    int sweepRows[SWEEP_ROWS], sweepCount; /* the rows in `before` the Sweep took (its bar crosses them), bottom first */
     int from[BOARD_MAX_TOTAL_H]; /* each live row's row in `before`; -1: it came in empty at the top */
     int lockCol;          /* where the zip starts: the middle of the piece that landed */
     PieceType lockType;
@@ -133,6 +147,8 @@ typedef struct {
     PieceType slideOld;
     PowerUp slideOldPower;
     int slideOldCell;
+    /* Dig: the stack easing up after a rise */
+    float riseT;
     /* last frame */
     PieceType lastNext;
     PowerUp lastNextPower;
@@ -148,8 +164,10 @@ void Feel_React(Feel *f, const Game *g, const FeelFrame *in);
 void Feel_Tick(Feel *f, float dt);
 
 /* --- line clears */
-/* The stages' lengths for a clear of `count` rows at a level. */
+/* The stages' lengths for a clear of `count` rows at a level (no Sweep). */
 ClearTimes Feel_ClearTimes(int count, int level, bool motion);
+/* The same with a Sweep after the clear (count may be 0: a Sweep alone). */
+ClearTimes Feel_SweepTimes(int count, int level, bool motion);
 float Feel_ClearTotal(ClearTimes t);
 /* Where each row of the board after a clear (and a Sweep's `shift`) came
  * from in the board before it: out[row] for every row of totalH, -1 for a
@@ -158,6 +176,13 @@ void Feel_RowSources(const int *rows, int count, int shift, int totalH, int *out
 ClearStage Feel_ClearStage(const Feel *f);
 /* A cell of a cleared row has zipped out by time t. */
 bool Feel_ClearCellGone(const ClearReplay *r, int col, float t);
+/* The Sweep's bar: where it is at time t, in cells from the left wall (0 to
+ * the width), or -1 while it is not crossing. */
+float Feel_SweepBar(const ClearReplay *r, float t);
+/* `row` (in `before`) is one the Sweep takes. */
+bool Feel_IsSweepRow(const ClearReplay *r, int row);
+/* A cell of a swept row has gone (the bar passed it) by time t. */
+bool Feel_SweepCellGone(const ClearReplay *r, int col, float t);
 /* How far above its place a live row is drawn during the fall, in px (a
  * little below it, negative, while it settles; 0 once it is home). */
 int Feel_RowLift(const Feel *f, int liveRow, int cell);
@@ -204,5 +229,10 @@ bool Feel_HoldFlight(const Feel *f, float *k);
 float Feel_HoldReady(const Feel *f);
 /* The Next box is sliding: k is how far (eased, 0 to 1). */
 bool Feel_NextSlide(const Feel *f, float *k);
+
+/* --- Dig's rise (3.4.0) */
+/* How far below its place the stack is drawn after a rise, in px for a
+ * cell this big: a whole cell as the row pushes up, easing to 0. */
+int Feel_RiseDrop(const Feel *f, int cell);
 
 #endif

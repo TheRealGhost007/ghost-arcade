@@ -11,7 +11,7 @@ static const HowTo kHowTos[] = {
     {"blockfall", "Blockfall",
      "Stack the falling pieces so complete rows vanish. Pick a mode and a board size before you start; Power mode adds bombs, lasers and more.",
      {{"Left / Right", "Slide the piece"}, {"Up", "Rotate"}, {"Z", "Rotate left"}, {"Down", "Soft drop"}, {"Space", "Hard drop"}, {"C", "Hold a piece"}, {"P / Esc", "Pause menu"}, {"R", "Restart (asks first)"}, {NULL, NULL}},
-     "Clear several rows at once, and chain them, for far more points than one at a time. Settings changes every key and pad button."},
+     "Clear several rows at once, and chain them, for far more points than one at a time. A T turned into a tight spot is a T-spin, an empty well a perfect clear. Settings changes every key."},
     {"coilrush", "Coilrush",
      "Steer the snake to the food and grow. Hit a wall (in Classic and Maze) or your own body and the run ends.",
      {{"Arrows / WASD", "Steer"}, {"P", "Pause"}, {"R", "Restart"}, {"Esc", "Back to the menu"}, {NULL, NULL}},

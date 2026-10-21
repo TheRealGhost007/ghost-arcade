@@ -1,0 +1,17 @@
+# 3.6.1 on the Updates screen: the newest entry at the top, its six notes
+# (danger's shared WARNING, the half-turn T-spin, the four screens that fit)
+# wrapped in the view, then a page on (pad RB) to 3.6.0's Daily challenge.
+wait 60
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap ENTER
+wait 12
+expect screen UPDATES
+expect app scroll 0
+shot 191-updates-top
+pad on
+pad tap RB
+wait 2
+shot 191-updates-paged

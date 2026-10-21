@@ -19,12 +19,15 @@ HudSpec Layout_Spec(GameMode mode, bool modernScoring, bool showCard) {
     memset(&s, 0, sizeof(s));
     s.chips = modernScoring;
     s.bars = mode == MODE_POWER;
+    s.rise = mode == MODE_DIG;
     s.card = showCard;
     s.pipsStat = -1;
     switch (mode) {
         case MODE_SPRINT:
-            s.stat[0] = STAT_LINES_LEFT; s.stat[1] = STAT_TIME; s.stat[2] = STAT_SCORE; s.stat[3] = STAT_BEST;
-            s.mainChars = 2; /* "40" */
+            /* 3.1.0: the clock is the main number (Sprint is a race), with
+             * its hundredths small beside it (panel.c); the lines left under it. */
+            s.stat[0] = STAT_TIME; s.stat[1] = STAT_LINES_LEFT; s.stat[2] = STAT_SCORE; s.stat[3] = STAT_BEST;
+            s.mainChars = 4; /* "1:12" at 32 px; ".40" at 16 beside it */
             break;
         case MODE_ULTRA:
             s.stat[0] = STAT_TIME_LEFT; s.stat[1] = STAT_SCORE; s.stat[2] = STAT_LINES; s.stat[3] = STAT_BEST;
@@ -35,6 +38,12 @@ HudSpec Layout_Spec(GameMode mode, bool modernScoring, bool showCard) {
             s.stat[0] = STAT_FRESH; s.stat[1] = STAT_SCORE; s.stat[2] = STAT_LINES; s.stat[3] = STAT_LEVEL;
             s.mainChars = 2;
             break;
+        case MODE_DIG:
+            /* 3.4.0: the score, then the garbage rows dug; Dig's level stays
+             * 1 (the rises are its pressure), so no level and no pips. */
+            s.stat[0] = STAT_SCORE; s.stat[1] = STAT_DUG; s.stat[2] = STAT_LINES; s.stat[3] = STAT_BEST;
+            s.mainChars = 7;
+            break;
         default: /* Marathon, Power */
             s.stat[0] = STAT_SCORE; s.stat[1] = STAT_LEVEL; s.stat[2] = STAT_LINES; s.stat[3] = STAT_BEST;
             s.mainChars = 7; /* "188 450" */
@@ -44,8 +53,27 @@ HudSpec Layout_Spec(GameMode mode, bool modernScoring, bool showCard) {
     return s;
 }
 
+HudSpec Layout_SpecFor(const Game *g, bool showCard) {
+    HudSpec s = Layout_Spec(g->cfg.mode, g->cfg.modernScoring, showCard);
+    if (g->daily.on) {
+        /* The Daily challenge (3.6.0) is on the clock whatever its mode:
+         * Ultra's panel, with Dug in Lines' place on the Dig twist. */
+        s.stat[0] = STAT_TIME_LEFT;
+        s.stat[1] = STAT_SCORE;
+        s.stat[2] = g->cfg.mode == MODE_DIG ? STAT_DUG : STAT_LINES;
+        s.stat[3] = STAT_BEST;
+        s.mainChars = 4;
+        s.pipsStat = -1;
+    }
+    if (g->practice.on)
+        for (int i = 0; i < HUD_STATS; i++)
+            if (s.stat[i] == STAT_BEST) s.stat[i] = STAT_UNDO;
+    return s;
+}
+
 const char *Layout_StatLabel(StatKind k) {
     switch (k) {
+        case STAT_UNDO: return "Undos left";
         case STAT_SCORE: return "Score";
         case STAT_LEVEL: return "Level";
         case STAT_LINES: return "Lines";
@@ -54,6 +82,7 @@ const char *Layout_StatLabel(StatKind k) {
         case STAT_TIME_LEFT: return "Time left";
         case STAT_LINES_LEFT: return "Lines left";
         case STAT_FRESH: return "Fresh starts";
+        case STAT_DUG: return "Dug";
         default: return "";
     }
 }
@@ -79,6 +108,51 @@ void Layout_PreviewCells(LRect box, PieceType piece, bool named, int outX[4], in
     for (int i = 0; i < CELLS_PER_PIECE; i++) {
         outX[i] = originX + (cells[i].x - minX) * PREVIEW_CELL;
         outY[i] = originY + (cells[i].y - minY) * PREVIEW_CELL;
+    }
+}
+
+/* The queue's slots in a box (3.2.0): a row of `n` across `box` when
+ * row is set, else two columns. The small cell shrinks until they fit. */
+static void PlaceQueue(PlayLayout *l, LRect box, int n, bool row) {
+    l->queue = box;
+    l->queueSlots = n;
+    l->queueCols = row ? n : 2;
+    int rows = (n + l->queueCols - 1) / l->queueCols;
+    int cell = QUEUE_CELL;
+    while (cell > QUEUE_MIN_CELL &&
+           (l->queueCols * 4 * cell + (l->queueCols - 1) * QUEUE_GAP > box.w - 2 * QUEUE_PAD ||
+            rows * 2 * cell + (rows - 1) * QUEUE_GAP > box.h - 2 * (row ? 0 : QUEUE_PAD)))
+        cell -= 1;
+    l->queueCell = cell;
+}
+
+LRect Layout_QueueSlot(const PlayLayout *l, int i) {
+    if (l->queueSlots <= 0 || l->queueCols <= 0 || i < 0 || i >= l->queueSlots) return (LRect){0, 0, 0, 0};
+    int cols = l->queueCols, cell = l->queueCell;
+    int slotW = 4 * cell, slotH = 2 * cell;
+    int rows = (l->queueSlots + cols - 1) / cols;
+    int gridW = cols * slotW + (cols - 1) * QUEUE_GAP, gridH = rows * slotH + (rows - 1) * QUEUE_GAP;
+    int x0 = l->queue.x + (l->queue.w - gridW) / 2, y0 = l->queue.y + (l->queue.h - gridH) / 2;
+    return (LRect){x0 + (i % cols) * (slotW + QUEUE_GAP), y0 + (i / cols) * (slotH + QUEUE_GAP), slotW, slotH};
+}
+
+void Layout_QueueCells(const PlayLayout *l, int i, PieceType piece, int outX[4], int outY[4]) {
+    LRect slot = Layout_QueueSlot(l, i);
+    Cell cells[CELLS_PER_PIECE];
+    Tetromino_GetCells(piece, 0, cells);
+    int minX = 99, maxX = -99, minY = 99, maxY = -99;
+    for (int k = 0; k < CELLS_PER_PIECE; k++) {
+        if (cells[k].x < minX) minX = cells[k].x;
+        if (cells[k].x > maxX) maxX = cells[k].x;
+        if (cells[k].y < minY) minY = cells[k].y;
+        if (cells[k].y > maxY) maxY = cells[k].y;
+    }
+    int c = l->queueCell > 0 ? l->queueCell : QUEUE_CELL;
+    int shapeW = (maxX - minX + 1) * c, shapeH = (maxY - minY + 1) * c;
+    int ox = slot.x + (slot.w - shapeW) / 2, oy = slot.y + (slot.h - shapeH) / 2;
+    for (int k = 0; k < CELLS_PER_PIECE; k++) {
+        outX[k] = ox + (cells[k].x - minX) * c;
+        outY[k] = oy + (cells[k].y - minY) * c;
     }
 }
 
@@ -132,22 +206,30 @@ static int SideStatus(PlayLayout *l, const HudSpec *s, int y) {
         l->slow = (LRect){px, y, pw, 8};
         y += STATUS_PITCH;
     }
+    if (s->rise) {
+        l->rise = (LRect){px, y, pw, 8};
+        y += STATUS_PITCH;
+    }
     return y - STATUS_PITCH + 8; /* the last line's bottom */
 }
 
 static void SidePanel(PlayLayout *l, const HudSpec *s) {
     int px = l->panel.x, pw = l->panel.w;
     int y = SIDE_BOARD_Y - LAYOUT_FRAME;
+    int queue = s->queue < 0 ? 0 : (s->queue > QUEUE_SHOWN_MAX ? QUEUE_SHOWN_MAX : s->queue);
+    int nextH = PREVIEW_BOX_H + (queue > 0 ? QUEUE_ROW_H : 0);
     if (pw >= SIDE_ROOMY_W) {
         int bw = (pw - 8) / 2;
-        l->next = (LRect){px, y, bw, PREVIEW_BOX_H};
+        l->next = (LRect){px, y, bw, nextH};
         l->hold = (LRect){px + pw - bw, y, bw, PREVIEW_BOX_H};
-        y += PREVIEW_BOX_H;
+        y += nextH;
     } else {
-        l->next = (LRect){px, y, pw, PREVIEW_BOX_H};
-        l->hold = (LRect){px, y + PREVIEW_BOX_H + 8, pw, PREVIEW_BOX_H};
-        y += 2 * PREVIEW_BOX_H + 8;
+        l->next = (LRect){px, y, pw, nextH};
+        l->hold = (LRect){px, y + nextH + 8, pw, PREVIEW_BOX_H};
+        y += nextH + PREVIEW_BOX_H + 8;
     }
+    l->nextBig = (LRect){l->next.x, l->next.y, l->next.w, PREVIEW_BOX_H};
+    if (queue > 0) PlaceQueue(l, (LRect){l->next.x, l->next.y + PREVIEW_BOX_H - 4, l->next.w, QUEUE_ROW_H}, queue, true);
     y += 16;
     for (int i = 0; i < HUD_STATS; i++) {
         int size = (i == 0 && CharsWidth(s->mainChars, 32) <= pw) ? 32 : 16;
@@ -157,7 +239,7 @@ static void SidePanel(PlayLayout *l, const HudSpec *s) {
         y += h + 12;
     }
     int bottom = y - 12;
-    if (s->chips || s->bars) bottom = SideStatus(l, s, y);
+    if (s->chips || s->bars || s->rise) bottom = SideStatus(l, s, y);
 
     /* The card's last line of text sits 12 px above the well's bottom edge,
      * as it always did, and its divider (12 px above the first row) always
@@ -174,10 +256,14 @@ static void SidePanel(PlayLayout *l, const HudSpec *s) {
 
 static void StripPanel(PlayLayout *l, const HudSpec *s) {
     int x0 = LAYOUT_MARGIN;
-    l->next = (LRect){x0, STRIP_Y, STRIP_BOX_W, PREVIEW_BOX_H};
-    l->hold = (LRect){x0 + STRIP_BOX_W + 8, STRIP_Y, STRIP_BOX_W, PREVIEW_BOX_H};
+    int queue = s->queue < 0 ? 0 : (s->queue > QUEUE_SHOWN_MAX ? QUEUE_SHOWN_MAX : s->queue);
+    int nextW = STRIP_BOX_W + (queue > 0 ? QUEUE_STRIP_W : 0);
+    l->next = (LRect){x0, STRIP_Y, nextW, PREVIEW_BOX_H};
+    l->nextBig = (LRect){x0, STRIP_Y, STRIP_BOX_W, PREVIEW_BOX_H};
+    if (queue > 0) PlaceQueue(l, (LRect){x0 + STRIP_BOX_W - 4, STRIP_Y + 18, QUEUE_STRIP_W, PREVIEW_BOX_H - 22}, queue, false);
+    l->hold = (LRect){x0 + nextW + 8, STRIP_Y, STRIP_BOX_W, PREVIEW_BOX_H};
     /* Four stats in two columns of two: the main number first. */
-    int sx = x0 + 2 * STRIP_BOX_W + 8 + 16, colW = (LAYOUT_WINDOW_W - LAYOUT_MARGIN - sx - 12) / 2;
+    int sx = x0 + nextW + STRIP_BOX_W + 8 + 16, colW = (LAYOUT_WINDOW_W - LAYOUT_MARGIN - sx - 12) / 2;
     for (int i = 0; i < HUD_STATS; i++) {
         int col = i / 2, row = i % 2;
         l->stat[i] = (LRect){sx + col * (colW + 12), STRIP_Y + row * 44, colW, 12 + 16 + (s->pipsStat == i ? 8 : 0)};
@@ -185,8 +271,9 @@ static void StripPanel(PlayLayout *l, const HudSpec *s) {
     }
     /* One status row under the strip: a slot each. */
     int slot = 0, sy = STRIP_Y + PREVIEW_BOX_H + 8;
-    LRect *items[4] = {s->chips ? &l->combo : NULL, s->chips ? &l->b2b : NULL, s->bars ? &l->freeze : NULL, s->bars ? &l->slow : NULL};
-    for (int i = 0; i < 4; i++) {
+    LRect *items[5] = {s->chips ? &l->combo : NULL, s->chips ? &l->b2b : NULL, s->bars ? &l->freeze : NULL, s->bars ? &l->slow : NULL,
+                       s->rise ? &l->rise : NULL};
+    for (int i = 0; i < 5; i++) {
         if (!items[i]) continue;
         *items[i] = (LRect){x0 + slot * STRIP_SLOT_W, sy, STRIP_SLOT_W - 8, 8};
         slot++;
@@ -354,4 +441,50 @@ PopupPlace Layout_Popup(const PlayLayout *l, const char *text, int cx, int cy, i
     if (p.w > l->boardW - 8) p.x = l->boardX + (l->boardW - p.w) / 2; /* wider than any lock can earn: centred, clipped */
     p.y = Clamp(cy - p.size / 2 - rise, l->boardY + 4, l->boardY + l->boardH - 4 - p.size);
     return p;
+}
+
+/* ------------------------------------------- the menus' lines that must fit */
+
+void Layout_MenuBest(int i, int *labelX, int *valueRight, int *y) {
+    if (i < 0) i = 0;
+    int x = MENU_BESTS_X + (i % MENU_BESTS_COLS) * MENU_BESTS_COL_PITCH;
+    if (labelX) *labelX = x;
+    if (valueRight) *valueRight = x + MENU_BESTS_COL_W;
+    if (y) *y = MENU_BESTS_Y + MENU_BESTS_FIRST + (i / MENU_BESTS_COLS) * MENU_BESTS_PITCH;
+}
+
+int Layout_StatsTileX(int i) { return STATS_TILE_X0 + i * STATS_TILE_PITCH; }
+
+int Layout_SetupMiddle(const char *middle, bool name, const char *value, MeasureFn measure, char *out, int size) {
+    if (!out || size <= 0) return 0;
+    out[0] = '\0';
+    if (!middle || !middle[0]) return 0;
+    int room = SETUP_RIGHT_X + SETUP_RIGHT_W - measure(value ? value : "", 8) - 8 - SETUP_BEST_MID_X;
+    int w = measure(middle, 8);
+    if (w <= room) {
+        snprintf(out, (size_t)size, "%s", middle);
+        return w;
+    }
+    int len = (int)strlen(middle);
+    if (!name) {
+        /* "#3 here": the place alone */
+        const char *sp = strchr(middle, ' ');
+        int keep = sp ? (int)(sp - middle) : len;
+        snprintf(out, (size_t)size, "%.*s", keep, middle);
+        w = measure(out, 8);
+        if (keep < len && w <= room) return w;
+        out[0] = '\0';
+        return 0;
+    }
+    /* A name a letter shorter at a time, with a full stop (none after a
+     * space, nor after the stop it may already end in). */
+    for (int keep = len - 1; keep >= 1; keep--) {
+        int k = keep;
+        while (k > 1 && (middle[k - 1] == ' ' || middle[k - 1] == '.')) k--;
+        snprintf(out, (size_t)size, "%.*s.", k, middle);
+        w = measure(out, 8);
+        if (w <= room) return w;
+    }
+    out[0] = '\0';
+    return 0;
 }

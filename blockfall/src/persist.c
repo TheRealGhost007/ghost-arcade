@@ -93,14 +93,18 @@ static int Lookup(const char *const *names, int count, const char *value, int fa
 /* The pad's config.ini keys, in controls.h's action order. */
 static const char *const kPadKeys[CONTROL_ACTIONS] = {
     "pad_left", "pad_right", "pad_soft_drop", "pad_hard_drop", "pad_rotate", "pad_rotate_left", "pad_hold", "pad_pause", "pad_restart",
+    "pad_rotate_half", "pad_undo",
 };
 /* The buttons the pad always had (A hard drop, d-pad Up rotate, Y hold,
  * Start pause, B the pause menu, View restart), plus X for Rotate left and
- * LB as Hold's second (REWORK_PLAN.md, decision 5). */
+ * LB as Hold's second (REWORK_PLAN.md, decision 5), and RB for the
+ * Practice room's Undo (3.5.0). */
 static const int kPadDefaults[CONTROL_ACTIONS][2] = {
     {PB_LEFT, PAD_NONE}, {PB_RIGHT, PAD_NONE}, {PB_DOWN, PAD_NONE}, {PB_A, PAD_NONE}, {PB_UP, PAD_NONE},
-    {PB_X, PAD_NONE},    {PB_Y, PB_LB},        {PB_MENU, PB_B},     {PB_VIEW, PAD_NONE},
+    {PB_X, PAD_NONE},    {PB_Y, PB_LB},        {PB_MENU, PB_B},     {PB_VIEW, PAD_NONE}, {PAD_NONE, PAD_NONE},
+    {PB_RB, PAD_NONE},
 };
+enum { PAD_UNDO_ACTION = 10 }; /* controls.h's ACT_UNDO (kPadKeys' order) */
 
 static int Clamp(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
@@ -124,7 +128,18 @@ void Settings_Default(Settings *s) {
     snprintf(s->rotateLeft2, KEYNAME_LEN, KEY_NONE_NAME);
     snprintf(s->hold2, KEYNAME_LEN, KEY_NONE_NAME);
     snprintf(s->restart2, KEYNAME_LEN, KEY_NONE_NAME);
+    snprintf(s->rotateHalf, KEYNAME_LEN, KEY_NONE_NAME);
+    snprintf(s->rotateHalf2, KEYNAME_LEN, KEY_NONE_NAME);
+    snprintf(s->undo, KEYNAME_LEN, "U");
+    snprintf(s->undo2, KEYNAME_LEN, KEY_NONE_NAME);
     memcpy(s->pad, kPadDefaults, sizeof(s->pad));
+    s->nextQueue = QUEUE_SHOWN_DEFAULT;
+    s->practiceLevel = 1;
+    s->practiceGravity = true;
+    s->practiceLock = true;
+    s->practiceInfiniteHold = false;
+    s->practiceGarbage = 0;
+    s->practiceHints = true;
     s->repeatDelayMs = REPEAT_DELAY_DEFAULT;
     s->repeatSpeedMs = REPEAT_SPEED_DEFAULT;
     s->softDropSpeed = SOFT_NORMAL;
@@ -173,6 +188,17 @@ static void SetField(Settings *s, const char *key, const char *value) {
     else if (strcmp(key, "rotate_left2") == 0) snprintf(s->rotateLeft2, KEYNAME_LEN, "%s", value);
     else if (strcmp(key, "hold2") == 0) snprintf(s->hold2, KEYNAME_LEN, "%s", value);
     else if (strcmp(key, "restart2") == 0) snprintf(s->restart2, KEYNAME_LEN, "%s", value);
+    else if (strcmp(key, "rotate_half") == 0) snprintf(s->rotateHalf, KEYNAME_LEN, "%s", value);
+    else if (strcmp(key, "rotate_half2") == 0) snprintf(s->rotateHalf2, KEYNAME_LEN, "%s", value);
+    else if (strcmp(key, "undo") == 0) snprintf(s->undo, KEYNAME_LEN, "%s", value);
+    else if (strcmp(key, "undo2") == 0) snprintf(s->undo2, KEYNAME_LEN, "%s", value);
+    else if (strcmp(key, "next_queue") == 0) s->nextQueue = Clamp(atoi(value), QUEUE_SHOWN_MIN, QUEUE_SHOWN_LIMIT);
+    else if (strcmp(key, "practice_level") == 0) s->practiceLevel = Clamp(atoi(value), 1, 20);
+    else if (strcmp(key, "practice_gravity") == 0) s->practiceGravity = (atoi(value) != 0);
+    else if (strcmp(key, "practice_lock") == 0) s->practiceLock = (atoi(value) != 0);
+    else if (strcmp(key, "practice_hold") == 0) s->practiceInfiniteHold = (atoi(value) != 0);
+    else if (strcmp(key, "practice_garbage") == 0) s->practiceGarbage = Clamp(atoi(value), 0, 12);
+    else if (strcmp(key, "practice_hints") == 0) s->practiceHints = (atoi(value) != 0);
     else if (strncmp(key, "pad_", 4) == 0) {
         for (int a = 0; a < CONTROL_ACTIONS; a++) {
             size_t n = strlen(kPadKeys[a]);
@@ -218,7 +244,8 @@ static void SetField(Settings *s, const char *key, const char *value) {
 /* Is `name` one of the key fields other than `except`? */
 static bool KeyUsed(const Settings *s, const char *name, const char *except) {
     const char *const fields[] = {s->left, s->left2, s->right, s->right2, s->softDrop, s->softDrop2, s->rotate, s->rotate2, s->hardDrop,
-                                  s->hardDrop2, s->rotateLeft, s->rotateLeft2, s->hold, s->hold2, s->pause, s->quit, s->restart, s->restart2};
+                                  s->hardDrop2, s->rotateLeft, s->rotateLeft2, s->hold, s->hold2, s->pause, s->quit, s->restart, s->restart2,
+                                  s->rotateHalf, s->rotateHalf2, s->undo, s->undo2};
     for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++)
         if (fields[i] != except && strcmp(fields[i], name) == 0) return true;
     return false;
@@ -281,7 +308,7 @@ bool Settings_Load(Settings *s) {
     if (!f) return false;
 
     char line[128];
-    bool rotateLeftSeen = false;
+    bool rotateLeftSeen = false, undoSeen = false, padUndoSeen = false;
     while (fgets(line, sizeof(line), f)) {
         char *trimmed = TrimInPlace(line);
         if (trimmed[0] == '\0' || trimmed[0] == '#') continue;
@@ -291,6 +318,8 @@ bool Settings_Load(Settings *s) {
         char *key = TrimInPlace(trimmed);
         char *value = TrimInPlace(eq + 1);
         if (strcmp(key, "rotate_left") == 0) rotateLeftSeen = true;
+        if (strcmp(key, "undo") == 0) undoSeen = true;
+        if (strcmp(key, "pad_undo") == 0) padUndoSeen = true;
         if (value[0] != '\0') SetField(s, key, value);
     }
     fclose(f);
@@ -298,6 +327,10 @@ bool Settings_Load(Settings *s) {
      * one of your keys (then it starts with none, and the key you have keeps
      * doing what it did). */
     if (!rotateLeftSeen && KeyUsed(s, s->rotateLeft, s->rotateLeft)) snprintf(s->rotateLeft, KEYNAME_LEN, KEY_NONE_NAME);
+    /* The same for Undo (3.5.0): U, and the pad's RB, unless yours already. */
+    if (!undoSeen && KeyUsed(s, s->undo, s->undo)) snprintf(s->undo, KEYNAME_LEN, KEY_NONE_NAME);
+    if (!padUndoSeen && s->pad[PAD_UNDO_ACTION][0] != PAD_NONE && PadUsed(s, s->pad[PAD_UNDO_ACTION][0], PAD_UNDO_ACTION, 0))
+        s->pad[PAD_UNDO_ACTION][0] = PAD_NONE;
     MendMenuKeys(s);
     return true;
 }
@@ -345,13 +378,17 @@ bool Settings_Save(const Settings *s) {
         "rotate_left=%s\n"
         "rotate_left2=%s\n"
         "hold2=%s\n"
-        "restart2=%s\n",
+        "restart2=%s\n"
+        "rotate_half=%s\n"
+        "rotate_half2=%s\n"
+        "undo=%s\n"
+        "undo2=%s\n",
         s->left, s->left2, s->right, s->right2, s->softDrop, s->softDrop2,
         s->rotate, s->rotate2, s->hardDrop, s->hold, s->pause, s->restart, s->quit,
         s->volumePercent, s->audioEnabled ? 1 : 0, s->setupMode, s->setupPreset, s->setupWidth, s->setupHeight,
         s->reducedMotion ? 1 : 0, s->hideControls ? 1 : 0, s->pieceSnap ? 1 : 0, s->readyGo ? 1 : 0,
         s->quickRestart ? 1 : 0, s->resumeCountdown ? 1 : 0, s->ghostPiece,
-        s->hardDrop2, s->rotateLeft, s->rotateLeft2, s->hold2, s->restart2);
+        s->hardDrop2, s->rotateLeft, s->rotateLeft2, s->hold2, s->restart2, s->rotateHalf, s->rotateHalf2, s->undo, s->undo2);
     /* The pad (3.0.0): pad_left=LEFT, pad_left2=NONE, ... */
     for (int a = 0; a < CONTROL_ACTIONS; a++) {
         fprintf(f, "%s=%s\n", kPadKeys[a], Persist_PadName(s->pad[a][0]));
@@ -364,9 +401,17 @@ bool Settings_Save(const Settings *s) {
         "grid=%s\n"
         "block_patterns=%d\n"
         "auto_pause=%d\n"
-        "show_howto=%d\n",
+        "show_howto=%d\n"
+        "next_queue=%d\n"
+        "practice_level=%d\n"
+        "practice_gravity=%d\n"
+        "practice_lock=%d\n"
+        "practice_hold=%d\n"
+        "practice_garbage=%d\n"
+        "practice_hints=%d\n",
         s->repeatDelayMs, s->repeatSpeedMs, Persist_SoftName(s->softDropSpeed), Persist_GridName(s->grid), s->blockPatterns ? 1 : 0,
-        s->autoPause ? 1 : 0, s->showHowTo ? 1 : 0);
+        s->autoPause ? 1 : 0, s->showHowTo ? 1 : 0, s->nextQueue, s->practiceLevel, s->practiceGravity ? 1 : 0, s->practiceLock ? 1 : 0,
+        s->practiceInfiniteHold ? 1 : 0, s->practiceGarbage, s->practiceHints ? 1 : 0);
 
     SafeFile_Close(f);
     return true;

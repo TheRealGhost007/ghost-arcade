@@ -48,7 +48,7 @@ typedef struct {
     CueStage stage;
     float t;            /* seconds into the stage */
     int turns;          /* turns pressed during READY, made at GO */
-    int turnDir[CUE_MAX_TURNS]; /* each one's way: +1 right, -1 left */
+    int turnDir[CUE_MAX_TURNS]; /* each one's way: +1 right, -1 left, 2 a half turn */
     bool hold;          /* a hold pressed during READY, made at GO */
     bool goSound;       /* GO began: the caller plays its jingle and clears this */
 } StartCue;
@@ -57,6 +57,7 @@ typedef struct {
     bool left, right, softDrop;   /* held (Left and Right together already cancel) */
     bool rotate, hardDrop, hold;  /* pressed this frame */
     bool rotateLeft;              /* pressed this frame: a turn counter-clockwise */
+    bool rotateHalf;              /* pressed this frame: a half turn (3.2.0) */
 } PlayIntent;
 
 /* How Left, Right and the soft drop repeat (Settings > Feel). */

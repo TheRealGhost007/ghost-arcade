@@ -47,11 +47,9 @@ expect screen MENU
 # Enter on Width (it starts when let go)
 tap ENTER
 wait 3
-tap DOWN
-tap DOWN
-tap DOWN
-tap DOWN
-tap DOWN
+# (the pointer onto Width: Down from the list would pick Dig first since 3.4.0)
+mouse 150 388
+wait 2
 expect app focus Width
 hold ENTER 10
 wait 2

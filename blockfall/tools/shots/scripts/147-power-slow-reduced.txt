@@ -1,0 +1,23 @@
+#! env SHOTS_SETUP=4,0,10,20 SHOTS_FLASH=1 SHOTS_MOTION=reduced SHOTS_SHAKE=0
+# Slow with Reduced motion: the frame and the bar, no afterimages.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game piece L 0 0
+game power Slow 1
+wait 2
+tap SPACE
+wait 8
+tap RIGHT
+wait 1
+tap RIGHT
+wait 1
+tap RIGHT
+shot 147-slow-calm
+expect feel afterimages 0
+expect pixels 40 56 300 600 nowhite 200

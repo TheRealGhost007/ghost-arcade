@@ -12,8 +12,13 @@
 
 /* The pad's buttons for each action (controls.h's actions, in its order:
  * Move left, Move right, Soft drop, Hard drop, Rotate right, Rotate left,
- * Hold, Pause, Restart), two each, as uiinput.h's PadButton, or PAD_NONE. */
-#define CONTROL_ACTIONS 9
+ * Hold, Pause, Restart, Rotate 180, Undo), two each, as uiinput.h's
+ * PadButton, or PAD_NONE. */
+#define CONTROL_ACTIONS 11
+/* The Next queue (Settings > Game, 3.2.0): pieces the Next box shows. */
+#define QUEUE_SHOWN_MIN 1
+#define QUEUE_SHOWN_DEFAULT 5
+#define QUEUE_SHOWN_LIMIT 6
 #define PAD_NONE (-1)
 
 /* Soft drop speeds (Settings > Feel): a row every 60, 30 (as it always
@@ -56,6 +61,16 @@ typedef struct {
     char rotateLeft2[KEYNAME_LEN];
     char hold2[KEYNAME_LEN];
     char restart2[KEYNAME_LEN];
+    /* 3.2.0: Rotate 180 (a half turn in one press), no key until you set
+     * one (rotate_half, rotate_half2; the pad's pad_rotate_half). */
+    char rotateHalf[KEYNAME_LEN];
+    char rotateHalf2[KEYNAME_LEN];
+    /* 3.5.0: Undo, the Practice room's key (undo, undo2; the pad's
+     * pad_undo): U and RB as it comes. A config.ini from before has no
+     * undo line: Undo takes U unless one of your keys already is U (then
+     * it starts with none), and RB unless a button of yours already is. */
+    char undo[KEYNAME_LEN];
+    char undo2[KEYNAME_LEN];
     /* 3.0.0: the pad's buttons, two per action (pad_left, pad_left2, ...).
      * The defaults are the buttons the pad always had, plus X for Rotate
      * left and LB as Hold's second. */
@@ -75,6 +90,20 @@ typedef struct {
      * launch (show_howto, cleared once it has). */
     bool autoPause;
     bool showHowTo;
+    /* 3.2.0, Settings > Game: pieces the Next box shows (next_queue, 1 to
+     * 6, 5 as it comes): the next one large and the rest small. The rules
+     * always draw six ahead, so it changes nothing about the pieces. */
+    int nextQueue;
+    /* 3.5.0, the Practice room's options (practice_level, practice_gravity,
+     * practice_lock, practice_hold, practice_garbage, practice_hints), as
+     * you last set them. Missing lines are the defaults: level 1, gravity
+     * on, the lock on, Hold once per piece, no garbage, hints on. */
+    int practiceLevel;
+    bool practiceGravity;
+    bool practiceLock;
+    bool practiceInfiniteHold;
+    int practiceGarbage;
+    bool practiceHints;
     int volumePercent; /* 0-100 */
     bool audioEnabled;
     /* The last play setup, so "Start game" opens on what you played last. */

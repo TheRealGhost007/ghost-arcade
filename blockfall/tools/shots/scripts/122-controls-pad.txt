@@ -3,7 +3,8 @@
 # a keyboard key is turned away with a gold note and it keeps waiting;
 # Menu or Esc give up, B is a button like any other). The pad's buttons
 # swap as keys do, Y clears a second button, and in a run the new buttons
-# work: RB hard-drops, A turns left (it was Hard drop's), X holds.
+# work: RB hard-drops (a swap: it was Undo's since 3.5.0, and Undo took
+# Hard drop's A), A turns left (it was Undo's by then), X holds.
 wait 10
 pad on
 pad tap DOWN
@@ -41,9 +42,9 @@ wait 2
 pad tap RB
 wait 3
 expect app pad:Hard_drop:1 RB
-expect app note Hard drop's button is now RB.
+expect app note RB moved from Undo to Hard drop. Undo took A.
 shot 122-rb-bound
-# A for Rotate left takes nothing from anyone now (Hard drop gave it up)
+# A for Rotate left: a swap with Undo (which took it above); Undo gets X
 pad tap DOWN
 pad tap DOWN
 wait 2
@@ -53,7 +54,7 @@ wait 2
 pad tap A
 wait 3
 expect app pad:Rotate_left:1 A
-# X (free now) for Hold's first: a swap within Hold? No: X is free
+# X for Hold's first: a swap with Undo again (it holds X by now); Undo gets Y
 pad tap DOWN
 wait 2
 expect app focus Hold pad

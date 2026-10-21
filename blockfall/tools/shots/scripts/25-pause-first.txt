@@ -54,5 +54,5 @@ expect app focus Leave
 tap ENTER
 wait 5
 expect screen MENU
-expect file .local/share/ghost-launcher/scores/blockfall.txt marathon|TRG|4321|
+expect file .local/share/ghost-launcher/scores/blockfall.txt marathon-10x20|TRG|4321|
 expect file .local/share/blockfall/save.dat high_score=24680

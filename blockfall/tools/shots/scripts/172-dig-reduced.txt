@@ -1,0 +1,26 @@
+#! env SHOTS_SETUP=5,0,10,20 SHOTS_MOTION=reduced SHOTS_FLASH=1
+# Dig with Reduced motion and Reduced flashing: the warning bar holds a
+# steady red (no pulse), and the row pushes up as a cut: the stack is drawn
+# in its new place at once (no easing), the thud plays as before.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Dig
+game rise 1.0
+wait 2
+expect hud risewarn 1
+shot 172-warning-steady
+wait 20
+shot 172-warning-steady-later
+expect pixels 0 0 1 1 below 256
+game rise 0.3
+game piece O 0 4 14
+mark sounds
+wait 18
+expect game rises 1
+expect game py 13
+expect sounds pitched:2
+expect hud risedrop 0
+shot 172-rise-cut

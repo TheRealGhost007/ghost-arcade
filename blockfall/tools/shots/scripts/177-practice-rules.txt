@@ -1,0 +1,95 @@
+#! env SHOTS_SETUP=4,1,14,20 SHOTS_CONFIG=practice_level-9,practice_gravity-0,practice_lock-0,practice_hold-1,practice_garbage-6,practice_hints-0
+# The Practice room's rules from config.ini (3.5.0), on the Wide board with
+# Power set up: the room is still a Marathon. Level 9 with six garbage rows;
+# gravity off (the piece hangs), the lock off (on the ground it never locks
+# by itself; a hard drop does), Hold infinite, no hints. A restart keeps it
+# all, and the results card of a practice run says nothing is recorded.
+wait 10
+tap ENTER
+wait 12
+expect app mode Power
+mouse 167 502
+wait 2
+click 167 502
+wait 4
+expect screen PRACTICE
+expect app popt:Start_level 9
+expect app popt:Gravity Off
+expect app popt:Lock_delay Off
+expect app popt:Hold Infinite
+expect app popt:Starting_garbage 6 rows
+expect app popt:Finesse_hints Off
+shot 177-options-from-config
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+wait 2
+tap ENTER
+wait 3
+expect screen PLAYING
+expect app practice on
+expect game mode Marathon
+expect game w 14
+expect game level 9
+expect game garbage 6
+expect game filled 78
+expect view best 0
+shot 177-wide-level-9
+# gravity off: three seconds, no fall
+wait 180
+expect game py 4
+# the lock off: dropped to the floor with soft drop it sits there
+hold DOWN 40
+wait 90
+expect game pieces 0
+expect game phase PLAYING
+shot 177-resting-unlocked
+tap SPACE
+wait 2
+expect game pieces 1
+expect hud callouts none
+# a restart (R, no question in the room) keeps the rules and the rows
+tap R
+wait 3
+expect app dialog none
+expect game pieces 0
+expect game level 9
+expect game garbage 6
+expect app practice on
+# the end: a stack to the top is a top-out, with the card saying so
+game clear
+game row 0 IIIIIIIIIIIII.
+game row 1 IIIIIIIIIIIII.
+game row 2 IIIIIIIIIIIII.
+game row 3 IIIIIIIIIIIII.
+game row 4 IIIIIIIIIIIII.
+game row 5 IIIIIIIIIIIII.
+game row 6 IIIIIIIIIIIII.
+game row 7 IIIIIIIIIIIII.
+game row 8 IIIIIIIIIIIII.
+game row 9 IIIIIIIIIIIII.
+game row 10 IIIIIIIIIIIII.
+game row 11 IIIIIIIIIIIII.
+game row 12 IIIIIIIIIIIII.
+game row 13 IIIIIIIIIIIII.
+game row 14 IIIIIIIIIIIII.
+game row 15 IIIIIIIIIIIII.
+game row 16 IIIIIIIIIIIII.
+game row 17 IIIIIIIIIIIII.
+game piece O 0 5
+game score 3200
+wait 2
+tap SPACE
+wait 2
+expect game phase GAMEOVER
+wait 110
+expect app results on
+expect app card:title GAME OVER
+expect app card:sub Practice on Wide 14x20
+expect app card:best Practice: nothing is recorded
+expect app card:rank
+expect app card:newbest 0
+shot 177-practice-card

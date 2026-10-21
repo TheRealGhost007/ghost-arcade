@@ -50,8 +50,13 @@ expect scores mode Power
 shot 02-scores-local-power
 tap RIGHT
 wait 3
+expect scores mode Dig
+shot 02-scores-local-dig
+tap RIGHT
+wait 3
 expect scores mode Zen
 shot 02-scores-local-zen
+tap LEFT
 tap LEFT
 wait 3
 tap UP

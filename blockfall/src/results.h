@@ -20,7 +20,8 @@
  *    best stamps a gold NEW BEST with confetti and the new-best jingle;
  *    otherwise it says how far the best is ("Best 26 714, 11 694 to go").
  *    Its place on this machine and where it would stand on the world board,
- *    a trophy just earned, the run in numbers, and the buttons Play again
+ *    a trophy just earned, the run in numbers (T-spins among them since
+ *    3.2.0; in Dig the rows dug, 3.4.0), and the buttons Play again
  *    (picked first, also R or pad View), Change setup, Scores and Menu
  *    (also Esc or pad B).
  *  - Input is ignored for the first 0.4 s, so a hard drop still held as the
@@ -66,6 +67,7 @@ typedef struct {
     bool noteGold;
     char statLabel[RESULTS_STATS][16];
     char statValue[RESULTS_STATS][16];
+    bool daily;            /* a Daily challenge run (3.6.0): Change setup reads Daily and goes to the Daily screen, and so does Scores */
 } ResultsCard;
 
 /* What the play screen knows about the run as it ends. */

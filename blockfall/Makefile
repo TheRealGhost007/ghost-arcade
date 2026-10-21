@@ -7,7 +7,7 @@ COMMON_DIR ?= ../ghost-common
 # The ui* modules are the opt-in input reader, back stack and button kit
 # (only Blockfall builds them for now); gamepad.h's key macros are no longer
 # used: the reader reads the pad as real buttons.
-COMMON_MODULES := rng ghostlink keynames keynames_check sfx ui musicsynth song music prefs runlog achievements winscale tuning tuningui safefile howto \
+COMMON_MODULES := rng ghostlink keynames keynames_check sfx ui musicsynth song music prefs runlog achievements winscale tuning tuningui safefile howto daily \
 	uiinput uiinput_rl uikeymap uinav uikit uikitdraw
 
 TARGET := $(BUILD_DIR)/blockfall
@@ -27,7 +27,11 @@ DEPS := $(OBJECTS:.o=.d)
 
 # Everything that can run without raylib: the rules, what runs record, the
 # score tables, the settings file, auto-repeat, the play-screen layout and
-# its lively parts (callouts, popups, the count-up), the
+# its lively parts (callouts, popups, the count-up), which sounds a frame
+# asks for and how the power-ups' shows run in time, the danger warning and
+# the music's intensity, Sprint's splits and pace file, the lifetime stats file, the
+# Daily challenge (its twists, the day's board and the streak file, with the
+# shared daily code's seed and board name), the
 # input reader and button kit (with the text field the kit's tests cover,
 # which the game itself does not use yet), the back stack, the play keys,
 # what the menus decide, what happens around a run (the pause menu, the
@@ -39,6 +43,8 @@ CORE_SOURCES := $(COMMON_DIR)/rng.c $(COMMON_DIR)/safefile.c $(COMMON_DIR)/prefs
 	$(COMMON_DIR)/uiinput.c $(COMMON_DIR)/uikeymap.c $(COMMON_DIR)/uinav.c $(COMMON_DIR)/uikit.c $(COMMON_DIR)/uitextfield.c \
 	$(SRC_DIR)/tetromino.c $(SRC_DIR)/board.c $(SRC_DIR)/game.c $(SRC_DIR)/repeat.c $(SRC_DIR)/persist.c \
 	$(SRC_DIR)/runrecord.c $(SRC_DIR)/localtable.c $(SRC_DIR)/layout.c $(SRC_DIR)/hudfx.c $(SRC_DIR)/feel.c $(SRC_DIR)/playstep.c $(SRC_DIR)/controls.c \
+	$(SRC_DIR)/soundplan.c $(SRC_DIR)/powerfx.c $(SRC_DIR)/danger.c $(SRC_DIR)/splits.c $(SRC_DIR)/stats.c \
+	$(SRC_DIR)/finesse.c $(SRC_DIR)/practice.c $(SRC_DIR)/challenge.c $(COMMON_DIR)/daily.c \
 	$(SRC_DIR)/comfort.c $(SRC_DIR)/actions.c $(SRC_DIR)/menukeys.c $(SRC_DIR)/menumodel.c $(SRC_DIR)/backdrop.c $(SRC_DIR)/app.c \
 	$(SRC_DIR)/wipe.c $(SRC_DIR)/pausemenu.c $(SRC_DIR)/results.c \
 	$(SRC_DIR)/look.c $(SRC_DIR)/setpage.c $(SRC_DIR)/howtodemo.c $(COMMON_DIR)/keynames.c

@@ -46,5 +46,46 @@ void test_around_all(void);
 /* tests/test_settings.c: Settings with tabs (config.ini's new lines, key
  * words, binding and swaps, Feel, the page) and How to play's demos. */
 void test_settings_all(void);
+/* tests/test_danger.c: the danger warning (free rows, hysteresis, the
+ * warning's 8 s, the next piece's outline), the music's intensity in every
+ * mode, Ultra's last ticks, Sprint's gold counter, splits (marks, diffs,
+ * words, the pace file, the finish line, the callout), the clock on GO. */
+void test_danger_all(void);
+/* tests/test_sound.c: which sounds a frame asks for (soundplan.c): one big
+ * sound and one accent per lock, the pitches, the delayed level up, the
+ * jingles, and that no effect changes the rules. */
+void test_sound_all(void);
+/* tests/test_powerfx.c: the power-ups' shows in time (powerfx.c) and the
+ * Sweep's replay (feel.c). */
+void test_powerfx_all(void);
+/* tests/test_modern.c: modern rules on every board (3.2.0): the SRS kick
+ * tables against the published ones, no climbing, lock resets on a kick,
+ * T-spins and minis, perfect clears, back-to-back chains, the seed's piece
+ * sequence unchanged, the Next queue and its setting, the optional 180 key,
+ * the classic Marathon's fresh board and the old-rules board read only. */
+void test_modern_all(void);
+/* tests/test_stats.c: the lifetime stats (3.3.0): the file's round trip
+ * and its tolerance, the fold of a scripted run (which runs count, the
+ * counters, the T-spin clears), the three records, the total over the
+ * modes, the lines-by-clear bar and the words. */
+void test_stats_all(void);
+/* tests/test_dig.c: Dig mode (3.4.0): the garbage it starts with (one gap
+ * a row, never the row below's), a seed's pieces unchanged, the rise
+ * timing curve, the rises (the stack and the piece lifted, the top-out), the
+ * warning bar, Dug counting and its bonus, the level that stays, a pause
+ * holding the rise, its board keys, the panel, the results card, the
+ * callout, the rise's look and sound, the setup words and the demo. */
+void test_dig_all(void);
+/* tests/test_practice.c: the Practice room (3.5.0): its options bend the
+ * rules, undo puts the exact game back up to 50 steps, the finesse search
+ * and counter, nothing recorded, the eleventh action Undo (controls,
+ * config.ini, play keys, the Settings page), the panel and the words. */
+void test_practice_all(void);
+/* tests/test_daily.c: the Daily challenge (3.6.0): the day and its key,
+ * the twist's weekly rotation, the same date's pieces and power-ups, the
+ * rules on a daily (the clock in every twist, the fast start, Dig, a
+ * restart), what it records (the day's board, never a normal one), the
+ * streak file and logic, and the panel, music, sounds, card and words. */
+void test_daily_all(void);
 
 #endif

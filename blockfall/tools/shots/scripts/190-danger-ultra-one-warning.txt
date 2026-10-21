@@ -1,0 +1,42 @@
+#! env SHOTS_SETUP=2,0,10,20
+# Danger plays the shared WARNING jingle (3.6.1), as Ultra's last ten
+# seconds do. Here both come on the same frame -- the stack climbs to four
+# rows from the top as the countdown turns red at 0:10 -- and only one
+# WARNING plays; neither repeats a second later.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+expect game mode Ultra
+expect hud danger 0
+game timeleft 11.005
+game clear
+game row 0 #########.
+game row 1 ####.####.
+game row 2 #########.
+game row 3 ##.######.
+game row 4 #########.
+game row 5 #####.###.
+game row 6 #########.
+game row 7 #.#######.
+game row 8 #########.
+game row 9 ######.##.
+game row 10 #########.
+game row 11 ###.#####.
+game row 12 ########..
+game row 13 ##.####.#.
+game row 14 #####.#...
+game row 15 .##.##....
+game piece I 1 7 4
+game next T
+mark sounds
+wait 2
+expect hud danger 1
+expect hud free 4
+expect sounds jingle:WARNING
+wait 28
+shot 190-danger-ultra-one-warning
+expect sounds jingle:WARNING
+wait 60
+expect sounds jingle:WARNING

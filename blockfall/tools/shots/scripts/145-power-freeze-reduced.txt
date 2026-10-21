@@ -1,0 +1,27 @@
+#! env SHOTS_SETUP=4,0,10,20 SHOTS_FLASH=1 SHOTS_MOTION=reduced SHOTS_SHAKE=0
+# Freeze with Reduced motion and flashing: no wash, the frost is full at
+# once, and in the last 1.5 s it holds steady (a little dimmer) instead of
+# blinking.
+wait 10
+tap ENTER
+wait 2
+tap ENTER
+wait 2
+game clear
+game row 0 ####.#####
+game row 1 #.#######.
+game row 2 ###.####..
+game piece O 0 6
+game power Freeze 0
+wait 2
+tapshot SPACE 145-freeze-calm-f1
+expect feel frost 1.00
+expect pixels 44 60 16 2 above 120
+game freeze 1.4
+shot 145-freeze-calm-steady
+expect pixels 44 60 16 2 above 85
+expect pixels 44 60 16 2 below 125
+wait 4
+shot 145-freeze-calm-steady-still
+expect pixels 44 60 16 2 above 85
+expect pixels 44 60 16 2 below 125

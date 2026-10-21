@@ -1,0 +1,32 @@
+#! env SHOTS_DAILY=20261024 SHOTS_SETUP=0,0,10,20
+# 24 October 2026 is Dig on the clock: Dig's eight rows and its Next row
+# bar with the two-minute clock first in the panel and Dug in Lines' place.
+# The clock ends it, won: TIME UP with the rows dug.
+wait 10
+expect app dailysub Dig on the clock, no run yet
+tap UP
+tap UP
+tap ENTER
+wait 4
+tap ENTER
+wait 12
+expect screen PLAYING
+expect app daily on
+expect game mode Dig
+expect game garbage 8
+expect game level 1
+tap SPACE
+wait 2
+expect game pieces 1
+game dug 3
+game score 900
+game timeleft 1.0
+shot 184-daily-dig-run
+wait 70
+expect game phase GAMEOVER
+expect game won 1
+expect app card:title TIME UP
+expect app card:sub Daily: Dig on the clock on Classic 10x20
+expect app card:stat9 Dug=3
+wait 60
+shot 184-daily-dig-results

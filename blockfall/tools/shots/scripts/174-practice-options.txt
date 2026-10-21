@@ -1,0 +1,104 @@
+#! env SHOTS_SETUP=0,0,10,20
+#! after-file .config/blockfall/config.ini practice_level=5
+#! after-file .config/blockfall/config.ini practice_gravity=0
+#! after-file .config/blockfall/config.ini practice_hold=1
+#! after-file .config/blockfall/config.ini practice_garbage=4
+# The Practice room (3.5.0): Play setup has a "Practice room" button under
+# Scores. It opens the room's options (start level, gravity, the lock delay,
+# Hold, starting garbage, finesse hints) with the undo line naming your key
+# and button (U or RB) and Start; Esc goes back to Play setup. Left and
+# Right change a value, saved at once. Start opens a practice run: a gold
+# PRACTICE tag over the well, the level and the garbage as set, Undos left
+# in Best's place, Undo on the controls card.
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+expect app look:Practice_room normal
+shot 174-setup-practice-button
+mouse 167 502
+wait 2
+expect app hover Practice room
+click 167 502
+wait 4
+expect screen PRACTICE
+expect app under SETUP
+expect app pfocus Start level
+expect app popt:Start_level 1
+expect app popt:Gravity On
+expect app popt:Lock_delay On
+expect app popt:Hold Once
+expect app popt:Starting_garbage none
+expect app popt:Finesse_hints On
+# Esc goes back, and the button opens it again
+tap ESCAPE
+wait 3
+expect screen SETUP
+click 167 502
+wait 4
+expect screen PRACTICE
+tap UP
+wait 2
+expect app pfocus Start level
+shot 174-practice-options
+# the values: Right and Left change them, and config.ini has them at once
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 2
+expect app popt:Start_level 5
+expect file .config/blockfall/config.ini practice_level=5
+tap DOWN
+tap LEFT
+wait 2
+expect app pfocus Gravity
+expect app popt:Gravity Off
+tap DOWN
+tap DOWN
+tap RIGHT
+wait 2
+expect app pfocus Hold
+expect app popt:Hold Infinite
+tap DOWN
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 2
+expect app popt:Starting_garbage 4 rows
+tap DOWN
+wait 2
+expect app pfocus Finesse hints
+shot 174-practice-set
+tap DOWN
+wait 2
+expect app pfocus Start
+tap ENTER
+wait 3
+expect screen PLAYING
+expect app practice on
+expect game mode Marathon
+expect game level 5
+expect game garbage 4
+expect game filled 36
+expect game hold none
+expect view best 0
+expect app undoleft 0
+shot 174-practice-run
+# gravity off: two seconds later the piece has not moved
+wait 120
+expect game py 4
+expect game pieces 0
+# infinite hold: C twice swaps and swaps back
+game piece O 0 3
+game next S
+wait 2
+tap C
+wait 2
+expect game hold O
+expect game current S
+tap C
+wait 2
+expect game hold S
+expect game current O

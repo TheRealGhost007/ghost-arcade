@@ -1,0 +1,29 @@
+#! env SHOTS_SETUP=0,0,10,20 SHOTS_CONFIG=practice_level-20,practice_hold-0,practice_garbage-12
+# 3.6.1: the Practice room's rows sit inside the 40..580 margin like the
+# other screens' (20..600 before), and every value fits between its
+# stepper's arrows: Hold says Once or Infinite ("Once per piece" ran under
+# both arrows), with level 20 and 12 rows of garbage beside it. Hold's help
+# names both words.
+wait 10
+tap ENTER
+wait 12
+expect screen SETUP
+click 167 502
+wait 4
+expect screen PRACTICE
+expect app popt:Start_level 20
+expect app popt:Hold Once
+expect app popt:Starting_garbage 12 rows
+tap DOWN
+tap DOWN
+tap DOWN
+wait 8
+expect app pfocus Hold
+shot 188-practice-hold-once
+expect pixels 0 150 38 280 below 60
+expect pixels 582 150 38 280 below 60
+tap RIGHT
+wait 8
+expect app popt:Hold Infinite
+expect file .config/blockfall/config.ini practice_hold=1
+shot 188-practice-hold-infinite

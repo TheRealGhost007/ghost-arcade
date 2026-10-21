@@ -4,13 +4,16 @@
 #include <string.h>
 
 static const char *const kLabels[ACT_COUNT] = {
-    "Move left", "Move right", "Soft drop", "Hard drop", "Rotate right", "Rotate left", "Hold", "Pause", "Restart",
+    "Move left", "Move right", "Soft drop", "Hard drop", "Rotate right", "Rotate left", "Hold", "Pause", "Restart", "Rotate 180", "Undo",
 };
 
-/* persist.c mends Pause's and Restart's pad slots on load by these indices. */
-_Static_assert(ACT_PAUSE == 7 && ACT_RESTART == 8, "persist.c's MendMenuKeys names Pause and Restart by index");
+/* persist.c mends Pause's and Restart's pad slots on load by these indices,
+ * and names Undo's pad slot by its. */
+_Static_assert(ACT_PAUSE == 7 && ACT_RESTART == 8 && ACT_UNDO == 10, "persist.c names Pause, Restart and Undo by index");
 
 const char *Controls_ActionLabel(int action) { return (action >= 0 && action < ACT_COUNT) ? kLabels[action] : ""; }
+
+bool Controls_Optional(int action) { return action == ACT_ROTATE_180 || action == ACT_UNDO; }
 
 char *Controls_Key(Settings *s, int action, int slot) {
     if (slot < 0 || slot >= CONTROL_SLOTS) return NULL;
@@ -24,6 +27,8 @@ char *Controls_Key(Settings *s, int action, int slot) {
         case ACT_HOLD: return slot ? s->hold2 : s->hold;
         case ACT_PAUSE: return slot ? s->quit : s->pause;
         case ACT_RESTART: return slot ? s->restart2 : s->restart;
+        case ACT_ROTATE_180: return slot ? s->rotateHalf2 : s->rotateHalf;
+        case ACT_UNDO: return slot ? s->undo2 : s->undo;
         default: return NULL;
     }
 }
@@ -201,7 +206,8 @@ static BindResult Bind(Slots z, int action, int slot, const char *value) {
         snprintf(give, sizeof(give), KEY_NONE_NAME);
         r.withheld = menuKey = true;
     }
-    if (Controls_IsNone(give) && SlotNone(&z, oa, 1 - os)) {
+    /* (Rotate 180 and Undo are optional: their only key may go, and they are left with none.) */
+    if (Controls_IsNone(give) && SlotNone(&z, oa, 1 - os) && !Controls_Optional(oa)) {
         r.kind = BIND_REFUSED;
         int n = snprintf(r.note, sizeof(r.note), "%s is the only %s %s has, ", v, noun, kLabels[oa]);
         if (n > 0 && (size_t)n < sizeof(r.note)) {
@@ -252,14 +258,28 @@ BindResult Controls_BindPad(Settings *s, int action, int slot, int button) {
 
 bool Controls_ClearKey(Settings *s, int action, int slot) {
     char *k = Controls_Key(s, action, slot);
+    if (!k || Controls_IsNone(k)) return false;
+    if (Controls_Optional(action)) { /* optional: either slot clears, and the second moves up */
+        snprintf(k, KEYNAME_LEN, KEY_NONE_NAME);
+        Slots z = {s, false};
+        Normalize(&z, action);
+        return true;
+    }
     /* never an action's last key (Pause's first can be empty) */
-    if (!k || slot != 1 || Controls_IsNone(k) || Controls_IsNone(Controls_KeyConst(s, action, 0))) return false;
+    if (slot != 1 || Controls_IsNone(Controls_KeyConst(s, action, 0))) return false;
     snprintf(k, KEYNAME_LEN, KEY_NONE_NAME);
     return true;
 }
 
 bool Controls_ClearPad(Settings *s, int action, int slot) {
-    if (action < 0 || action >= ACT_COUNT || slot != 1 || Controls_Pad(s, action, slot) == PAD_NONE || Controls_Pad(s, action, 0) == PAD_NONE) return false;
+    if (action < 0 || action >= ACT_COUNT || slot < 0 || slot >= CONTROL_SLOTS || Controls_Pad(s, action, slot) == PAD_NONE) return false;
+    if (Controls_Optional(action)) {
+        s->pad[action][slot] = PAD_NONE;
+        Slots z = {s, true};
+        Normalize(&z, action);
+        return true;
+    }
+    if (slot != 1 || Controls_Pad(s, action, 0) == PAD_NONE) return false;
     s->pad[action][slot] = PAD_NONE;
     return true;
 }
@@ -397,6 +417,8 @@ void Controls_Words(const Settings *s, ControlWords *out) {
     FirstShort(s, ACT_HARD, out->hardDrop, sizeof(out->hardDrop));
     FirstShort(s, ACT_HOLD, out->hold, sizeof(out->hold));
     FirstShort(s, ACT_RESTART, out->restart, sizeof(out->restart));
+    FirstShort(s, ACT_ROTATE_180, out->rotateHalf, sizeof(out->rotateHalf));
+    FirstShort(s, ACT_UNDO, out->undo, sizeof(out->undo));
 
     /* Esc always works as Back; a different Back key works too. Unless a
      * config.ini from before gave Esc to another action: then only Back's
@@ -435,6 +457,8 @@ void Controls_Words(const Settings *s, ControlWords *out) {
     FirstName(s, ACT_ROTATE_LEFT, out->rotateLeftName, sizeof(out->rotateLeftName));
     FirstName(s, ACT_HARD, out->hardName, sizeof(out->hardName));
     FirstName(s, ACT_HOLD, out->holdName, sizeof(out->holdName));
+    FirstName(s, ACT_ROTATE_180, out->rotateHalfName, sizeof(out->rotateHalfName));
+    FirstName(s, ACT_UNDO, out->undoName, sizeof(out->undoName));
 
     /* The pad: your buttons. Moving is the first button of each way. */
     snprintf(out->padMove, sizeof(out->padMove), "%s", Controls_PadCap(Controls_Pad(s, ACT_LEFT, 0)));
@@ -445,6 +469,8 @@ void Controls_Words(const Settings *s, ControlWords *out) {
     PadCaps(s, ACT_HARD, out->padHard, sizeof(out->padHard));
     PadCaps(s, ACT_HOLD, out->padHold, sizeof(out->padHold));
     PadCaps(s, ACT_RESTART, out->padRestart, sizeof(out->padRestart));
+    PadCaps(s, ACT_ROTATE_180, out->padRotateHalf, sizeof(out->padRotateHalf));
+    PadCaps(s, ACT_UNDO, out->padUndo, sizeof(out->padUndo));
     /* Menu always pauses (unless another action has it), so it leads. */
     bool menuInRow = Controls_Pad(s, ACT_PAUSE, 0) == PB_MENU || Controls_Pad(s, ACT_PAUSE, 1) == PB_MENU;
     char caps[16];
