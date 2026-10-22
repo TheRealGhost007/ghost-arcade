@@ -111,11 +111,12 @@ shot verify-p3-menu-pad-mouse
 pad tap B
 wait 3
 expect ui LIST
-# A key turns them back.
+# A key turns them back (Left from the first machine wraps to the last,
+# Pond Kings).
 tap LEFT
 wait 3
 expect app hint 0
-expect selected 11
+expect selected 7
 
 # Settings > Screen > Button hints: Auto follows the device; Keyboard and
 # Xbox pad hold whatever is used, on the strip, the card and the menu.

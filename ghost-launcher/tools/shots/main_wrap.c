@@ -92,7 +92,7 @@ static void StatusOf(char *out, size_t n) {
     snprintf(out, n, "%s", st.text);
 }
 
-/* The row as the hall shows it, by name: "Blockfall,Coilrush,...". */
+/* The row as the hall shows it, by name: "Blockfall,Brickburst,...". */
 static void RowNames(const Lineup *l, char *out, size_t n) {
     size_t used = 0;
     out[0] = '\0';

@@ -1,6 +1,6 @@
 # Ghost Arcade
 
-Eleven original retro arcade games and the launcher that ties them together, by
+Six original retro arcade games and the launcher that ties them together, by
 **The Real Ghost**. Plain C17 and [raylib](https://www.raylib.com), built for Linux
 (developed on Omarchy: Arch, Hyprland, Wayland). Every game is an original take on a
 classic idea: original code, art, sound and music, and no borrowed names or assets.
@@ -8,16 +8,20 @@ classic idea: original code, art, sound and music, and no borrowed names or asse
 | Game | In one line |
 | --- | --- |
 | **Blockfall** | Falling blocks with five modes, custom board sizes and power-ups |
-| **Coilrush** | Snake with classic, wrap and maze modes, and spirit relics |
 | **Brickburst** | Paddle, ball, bombs and twelve walls of bricks |
 | **Skyraid** | Hold the line against the marching formation |
-| **Ghostmaze** | Possession puzzles: you are the ghost, he has a bell |
 | **Rockdrift** | Vector-line space rocks with real inertia |
-| **Lanehop** | Five lanes of traffic, five of river, one hare |
 | **Crawlshot** | Twelve segments come down. Shoot them before they reach you |
 | **Moondrop** | Land it gently. Fuel is the only life you get |
-| **Gemdive** | Dive deeper for gems. Mind the boulders |
-| **Girderclimb** | Swing, reel, let go. The fire is climbing |
+
+Coilrush, Ghostmaze, Lanehop, Gemdive and Girderclimb left the arcade in October 2026. They are
+still in the git history, and updating removes their programs but keeps their saves and scores.
+
+**Pond Kings** is a game of its own beside the arcade's six: hockey, three on three, from
+the frozen pond to the town rink and the big arena. Kids in toques, snowbanks that swallow
+the puck, goalies and slapshots on the rinks, a Journey where you sign the players you
+beat, a daily pond, a shootout, up to four players on one screen, and online games with a
+friend by room code. See [`pondkings/`](pondkings/).
 
 **Ghost Launcher** is the arcade hall: attract-mode cabinets, per-game stats and
 trophies, a daily challenge, optional online leaderboards, and a notice when a newer
@@ -32,8 +36,8 @@ play, with an importer that turns a recording into one. See [`chipforge/`](chipf
     cd ghost-arcade
     ./install.sh
 
-That builds everything, runs the tests, and installs the eleven games, Chipforge and
-Ghost Launcher for your user only (`~/.local`; no root, nothing outside your home folder). Then run
+That builds everything, runs the tests, and installs the six games, Pond Kings, Chipforge
+and Ghost Launcher for your user only (`~/.local`; no root, nothing outside your home folder). Then run
 `ghost-launcher`, or find **Ghost Launcher** in your app menu.
 
 - **Arch, Omarchy, Manjaro, EndeavourOS:** if anything is missing the installer offers to
@@ -49,8 +53,8 @@ cloning as above always gives you the newest one.
 
 ### Building by hand
 
-You need `gcc`, `make`, `pkg-config`, **raylib 6** and `libcurl` (only for the
-launcher's score sync).
+You need `gcc`, `make`, `pkg-config`, **raylib 6** and `libcurl` (for the launcher's
+score sync and Pond Kings' online games).
 
     make            # build everything
     make test       # every headless test suite (needs no display)
@@ -88,16 +92,17 @@ and that game plays it from its next launch. Songs are plain text files
     <game>/           src/ (a raylib-free rules core + rendering), tests/, assets/, tools/
 
 Each game keeps its rules in a core with no raylib in it, so the tests drive real game
-logic headlessly: solvers prove every Ghostmaze room and Gemdive cave can be finished,
-bots land Moondrop and climb Girderclimb towers, and everything runs clean under
-AddressSanitizer and UBSan.
+logic headlessly: bots land Moondrop, and everything runs clean under AddressSanitizer
+and UBSan.
 
 ## Online leaderboards and privacy
 
 Sharing scores is **opt-in**: nothing leaves your computer until you answer yes in the
 launcher (press **O** to change it later). What is sent: your arcade name, game, mode,
-score, date and a random per-install ID. The games themselves never touch the network;
-only `ghost-sync` does, and it treats everything it downloads as hostile. The full
+score, date and a random per-install ID. The games themselves never send scores; only
+`ghost-sync` does, and it treats everything it downloads as hostile. Pond Kings' online
+games and rival crews are the one exception to "the games stay offline": they start only
+when you pick them, and say first what they share. The full
 threat model and the server rules are in
 [`ghost-launcher/online/SECURITY.md`](ghost-launcher/online/SECURITY.md).
 

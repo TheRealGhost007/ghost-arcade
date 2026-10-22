@@ -88,7 +88,7 @@ static void compose_test_theme_lock(void) {
             printf("  theme lock broke on %s\n", t->slug);
         }
     }
-    CHECK(locked, "theme lock: styles 0..3 and the lead reproduce all twelve themes byte for byte");
+    CHECK(locked, "theme lock: styles 0..3 and the lead reproduce every theme byte for byte");
     CHECK(keyed, "theme lock: Music_ThemeToSong records the theme's key");
 }
 
@@ -308,9 +308,9 @@ static void compose_test_guess_key(void) {
         if (tonic == t->rootMidi) tonicExact++;
         else printf("  tonic for %s read as %d, theme has %d\n", t->slug, tonic, t->rootMidi);
     }
-    CHECK(exact == Music_ThemeCount(), "guess key: exact on all twelve themes");
+    CHECK(exact == Music_ThemeCount(), "guess key: exact on every theme");
     CHECK(transposed == Music_ThemeCount(), "guess key: a theme moved up five semitones guesses root + 5");
-    CHECK(chordsRead == 4 * Music_ThemeCount(), "read chords: all 48 theme bar roots recovered from the bass");
+    CHECK(chordsRead == 4 * Music_ThemeCount(), "read chords: every theme bar root recovered from the bass");
     CHECK(tonicOk == Music_ThemeCount(), "tonic: within 36..60 with the key's pitch class for every theme");
     CHECK(tonicExact == Music_ThemeCount(), "tonic: every theme's own register is recovered from its pattern");
 

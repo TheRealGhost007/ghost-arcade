@@ -19,7 +19,7 @@ tap U
 wait 2
 expect app updview running
 expect count 1 --update
-write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the six games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n
 wait 200
 expect app updstep Building
 expect app focus Stop
@@ -41,12 +41,12 @@ shot update-hall-blocked
 tap V
 wait 3
 expect app updview running
-write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n==> Running the test suites\n1469 checks, 0 failures\n==> Installing into ~/.local\n
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the six games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n==> Running the test suites\n1469 checks, 0 failures\n==> Installing into ~/.local\n
 wait 30
 expect app updstep Installing
 expect app look:Stop disabled
 shot update-installing
-write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n==> Running the test suites\n1469 checks, 0 failures\n==> Installing into ~/.local\n==> Version: 89abcdef0123456789abcdef0123456789abcdef\n==> Installed. Start the arcade with:  ghost-launcher\n
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the six games, Chipforge and Ghost Launcher (8 jobs)\ncc -O2 -c src/hall.c -o build/hall.o\n==> Running the test suites\n1469 checks, 0 failures\n==> Installing into ~/.local\n==> Version: 89abcdef0123456789abcdef0123456789abcdef\n==> Installed. Start the arcade with:  ghost-launcher\n
 update 0
 wait 20
 expect app updview done

@@ -64,7 +64,7 @@ void Ui_CornerBadge(const char *iconPath, const char *versionLabel);
 /* --- Whole screens. Each owns BeginDrawing/EndDrawing. --- */
 
 typedef struct {
-    const char *title;      /* "COILRUSH" */
+    const char *title;      /* "BLOCKFALL" */
     const char *tagline;
     const char *const *items;
     const char *const *blurbs; /* optional per-item 8px line under the item (NULL entries/array ok) */

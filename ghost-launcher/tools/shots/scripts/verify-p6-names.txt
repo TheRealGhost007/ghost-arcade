@@ -7,9 +7,6 @@ tap RIGHT
 tap RIGHT
 tap RIGHT
 tap RIGHT
-tap RIGHT
-tap RIGHT
-tap RIGHT
 wait 30
 expect app lit Crawlshot
 tap E

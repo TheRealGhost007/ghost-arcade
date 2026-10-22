@@ -39,7 +39,7 @@ typedef struct {
 
 /* Looks up the name to play under, as set in Ghost Launcher: this game's
  * own override if it has one (gameName is the catalog name, e.g.
- * "Coilrush"), otherwise the arcade-wide name. Always leaves a usable name
+ * "Blockfall"), otherwise the arcade-wide name. Always leaves a usable name
  * in out: GHOSTLINK_DEFAULT_NAME when there's no launcher or nothing is
  * set. Returns true only if a real profile name was found. */
 bool GhostLink_GetUsername(const char *gameName, char *out, size_t outSize);

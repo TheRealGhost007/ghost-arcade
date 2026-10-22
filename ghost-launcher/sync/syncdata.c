@@ -342,8 +342,7 @@ size_t Sync_BuildUploadJson(const SyncRow *rows, int count, const char *installI
 }
 
 static const char *const kKnownGames[] = {
-    "blockfall", "coilrush", "brickburst", "skyraid", "ghostmaze", "rockdrift",
-    "lanehop", "crawlshot", "moondrop", "gemdive", "girderclimb",
+    "blockfall", "brickburst", "skyraid", "rockdrift", "crawlshot", "moondrop", "pondkings",
 };
 
 int Sync_KnownGameCount(void) { return (int)(sizeof(kKnownGames) / sizeof(kKnownGames[0])); }

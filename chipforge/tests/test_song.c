@@ -491,7 +491,7 @@ static void song_test_library(void) {
 }
 
 static void song_test_themes(void) {
-    CHECK(Music_ThemeCount() == 12, "themes: eleven games and the launcher");
+    CHECK(Music_ThemeCount() == 8, "themes: seven games and the launcher");
     CHECK(strcmp(Music_ThemeAt(0)->slug, "ghostarcade") == 0, "themes: the launcher comes first");
     CHECK(Music_ThemeAt(Music_ThemeCount()) == Music_ThemeAt(0) && Music_ThemeAt(-1) == Music_ThemeAt(Music_ThemeCount() - 1), "themes: ThemeAt wraps");
     CHECK(strcmp(Music_FindTheme("skyraid")->slug, "skyraid") == 0, "themes: find by slug");

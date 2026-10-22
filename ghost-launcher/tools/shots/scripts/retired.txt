@@ -1,0 +1,34 @@
+#! env SHOTS_ADMIN=0 SHOTS_RETIRED=1
+# The five games that left the arcade (Coilrush, Ghostmaze, Lanehop, Gemdive,
+# Girderclimb) still stand, installed, at the end of this player's games.txt.
+# The real launcher takes them out once, at start (Migrate_RetiredGames): the
+# hall's row is exactly the eight left, in catalog order; games.txt is saved
+# without their lines and with the others; launcher.ini says
+# migrated.retired=1. Their programs stay on disk. Pond Kings is already in
+# this catalog, so the step that adds it (Migrate_NewGames, run next) adds no
+# second one.
+wait 30
+expect ui LIST
+expect app games 8
+expect app row Blockfall,Brickburst,Skyraid,Rockdrift,Crawlshot,Moondrop,Chipforge,Pond Kings
+expect app lit Blockfall
+# Saved by the launcher (its own header, not the harness's), without them.
+expect file .config/ghost-launcher/games.txt # Ghost Launcher game catalog: name|exec|icon|description|install-from\n
+expect nofile .config/ghost-launcher/games.txt Coilrush|
+expect nofile .config/ghost-launcher/games.txt Ghostmaze|
+expect nofile .config/ghost-launcher/games.txt Lanehop|
+expect nofile .config/ghost-launcher/games.txt Gemdive|
+expect nofile .config/ghost-launcher/games.txt Girderclimb|
+expect file .config/ghost-launcher/games.txt Blockfall|~/bin/blockfall|
+expect file .config/ghost-launcher/games.txt Brickburst|~/bin/brickburst|
+expect file .config/ghost-launcher/games.txt Skyraid|~/bin/skyraid|
+expect file .config/ghost-launcher/games.txt Rockdrift|~/bin/rockdrift|
+expect file .config/ghost-launcher/games.txt Crawlshot|~/bin/crawlshot|
+expect file .config/ghost-launcher/games.txt Moondrop|~/bin/moondrop|
+expect file .config/ghost-launcher/games.txt Chipforge|~/bin/chipforge|
+expect file .config/ghost-launcher/games.txt Pond Kings|~/bin/pondkings|
+expect file .config/ghost-launcher/launcher.ini migrated.retired=1\n
+# Only the catalog lines went: the retired programs are still on disk.
+expect file bin/coilrush exit 0
+expect file bin/girderclimb exit 0
+shot retired-hall

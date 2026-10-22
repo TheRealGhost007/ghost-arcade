@@ -1,6 +1,10 @@
+#! env SHOTS_EXTRA_GAMES=5
 # Phase 0 behaviour, end to end in the real launcher: hold-to-repeat, the
 # pad as real buttons, Alt+Enter only toggling fullscreen, and prefs.ini
-# read again so F11 never undoes a setting a game changed.
+# read again so F11 never undoes a setting a game changed. Five extra
+# machines make a row of thirteen: a second's hold is seven steps, which on
+# the eight real machines would end one short of coming round to where it
+# began.
 wait 30
 expect ui LIST
 expect selected 0
@@ -37,7 +41,7 @@ wait 2
 expect selected 6
 pad hold LEFT 60
 wait 2
-expect selected 11
+expect selected 12
 pad tap RIGHT
 wait 2
 expect selected 0

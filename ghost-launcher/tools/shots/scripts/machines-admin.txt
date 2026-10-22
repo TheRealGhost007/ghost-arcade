@@ -1,10 +1,11 @@
-#! env SHOTS_ADMIN=1
+#! env SHOTS_ADMIN=1 SHOTS_EXTRA_GAMES=5
 # Phase 5: Settings > Machines as admin: every machine's status, Add a
 # machine, and each row's Edit and Remove. The form shows all five fields;
 # a rename carries playtime and the game's own name over (or not, with the
 # switch off); a new program carries your row settings and warns that
 # scores and trophies stay with the old one; Remove asks first; '|' and a
-# second machine of the same name are refused.
+# second machine of the same name are refused. Five extra machines make the
+# list longer than the seven rows it shows (thirteen in all).
 wait 30
 tap TAB
 wait 3
@@ -12,7 +13,7 @@ tap SHIFT TAB
 wait 5
 expect app tab Machines
 expect app status:Blockfall Installed
-expect app status:Coilrush Installed
+expect app status:Crawlshot Installed
 mouse 900 600
 wait 3
 expect app look:Add a machine normal
@@ -31,20 +32,22 @@ tap RIGHT
 wait 2
 expect app focus Remove
 shot machines-admin-focus
-# Gemdive, further down, is not installed.
+# Moondrop is not installed; five notches of the wheel put it at the top,
+# with the extra machines under it (all but the last), Blockfall out of sight.
 mouse 480 400
 wheel -5
 wait 3
-expect app status:Gemdive Not installed
+expect app status:Moondrop Not installed
+expect app status:Blockfall absent
 shot machines-admin-scrolled
 wheel 5
 wait 3
 
-# Edit Coilrush by its Edit: all five fields at once, typing in the name.
-click 712 314
+# Edit Crawlshot by its Edit: all five fields at once, typing in the name.
+click 712 434
 wait 5
 expect ui EDIT_GAME
-expect profile Coilrush
+expect profile Crawlshot
 expect app formactive Name
 expect app carry none
 shot machines-form-edit
@@ -52,7 +55,7 @@ tap END
 tap SPACE
 text Two
 wait 3
-expect profile Coilrush Two
+expect profile Crawlshot Two
 expect app carry on
 shot form-rename
 click 168 536
@@ -60,12 +63,12 @@ wait 5
 expect ui SETTINGS
 expect app tab Machines
 expect app toast Saved
-expect file .config/ghost-launcher/games.txt Coilrush Two|~/bin/coilrush|
-expect file .local/share/ghost-launcher/playtime.txt Coilrush Two|610.0
-expect nofile .local/share/ghost-launcher/playtime.txt Coilrush|
+expect file .config/ghost-launcher/games.txt Crawlshot Two|~/bin/crawlshot|
+expect file .local/share/ghost-launcher/playtime.txt Crawlshot Two|610.0
+expect nofile .local/share/ghost-launcher/playtime.txt Crawlshot|
 
 # Skyraid renamed with Carry them over off: its time stays under Skyraid.
-click 712 394
+click 712 354
 wait 5
 expect ui EDIT_GAME
 expect profile Skyraid
@@ -93,15 +96,15 @@ expect file .config/ghost-launcher/games.txt SkyraidJet|
 expect file .local/share/ghost-launcher/playtime.txt Skyraid|425.0
 expect nofile .local/share/ghost-launcher/playtime.txt SkyraidJet|
 
-# Lanehop, a favourite, gets a new program: the star goes with it, and the
-# form says its scores and trophies stay with lanehop.
-click 404 514
+# Rockdrift, a favourite, gets a new program: the star goes with it, and the
+# form says its scores and trophies stay with rockdrift.
+click 404 394
 wait 3
-expect app fav:Lanehop 1
+expect app fav:Rockdrift 1
 click 712 274
 wait 5
 expect ui EDIT_GAME
-expect profile Lanehop
+expect profile Rockdrift
 tap TAB
 tap END
 text 2
@@ -118,28 +121,28 @@ expect app focus Save
 tap ENTER
 wait 5
 expect ui SETTINGS
-expect file .config/ghost-launcher/games.txt Lanehop|~/bin/lanehop2|
-expect file .config/ghost-launcher/launcher.ini fav.lanehop2=1
-expect nofile .config/ghost-launcher/launcher.ini fav.lanehop=
+expect file .config/ghost-launcher/games.txt Rockdrift|~/bin/rockdrift2|
+expect file .config/ghost-launcher/launcher.ini fav.rockdrift2=1
+expect nofile .config/ghost-launcher/launcher.ini fav.rockdrift=
 
 # Remove asks first: Keep keeps it, Remove takes it out.
 click 792 474
 wait 3
 expect app dialog remove
-expect app dialogtitle Remove Ghostmaze?
+expect app dialogtitle Remove Moondrop?
 tap ESCAPE
 wait 3
-expect app games 12
+expect app games 13
 click 792 474
 wait 3
 tap RIGHT
 tap ENTER
 wait 5
 expect app dialog none
-expect app games 11
-expect nofile .config/ghost-launcher/games.txt Ghostmaze|
+expect app games 12
+expect nofile .config/ghost-launcher/games.txt Moondrop|
 expect app focus Edit
-expect app focusrow Rockdrift
+expect app focusrow Chipforge
 
 # Add a machine: '|' never goes in; a name another machine has is refused.
 click 812 242
@@ -173,7 +176,7 @@ wait 2
 tap ENTER
 wait 5
 expect ui SETTINGS
-expect app games 12
+expect app games 13
 expect file .config/ghost-launcher/games.txt Blockbump|~/bin/x|||\n
 tap ESCAPE
 wait 5

@@ -32,7 +32,7 @@ shot form-add-confirm
 tap ENTER
 wait 5
 expect ui LIST
-expect selected 12
+expect selected 8
 expect file .config/ghost-launcher/games.txt Nopath|~/bin/nothing-here||A machine with no program|\n
 
 # Enter on it: not installed and nothing to install from, so the card says why.
@@ -76,38 +76,40 @@ expect app dialogtitle Remove Nopath?
 tap ENTER
 wait 3
 expect app dialog none
-expect selected 12
+expect selected 8
 expect file .config/ghost-launcher/games.txt Nopath|
 tap DELETE
 wait 3
 tap RIGHT
 tap ENTER
 wait 5
-expect selected 11
+expect selected 7
 expect nofile .config/ghost-launcher/games.txt Nopath
 expect app toast Saved
 
-# Gemdive is not installed: Enter installs. It fails, then is tried again.
+# Moondrop is not installed: Enter installs. It fails, then is tried again.
+# (Left twice from Pond Kings: past Chipforge to Moondrop.)
 tap LEFT
 tap LEFT
 wait 30
-expect selected 9
+expect selected 5
 tap ENTER
 wait 10
-expect count 1 install Gemdive
+expect count 1 install Moondrop
 shot hall-installing
 install fail
 wait 10
 shot hall-install-failed
 tap ENTER
 wait 5
-expect count 2 install Gemdive
+expect count 2 install Moondrop
 install ok
 wait 10
 expect launches 0
 
 # D: a coin and the daily on Blockfall (it has one since 3.6.0) and on
-# Brickburst.
+# Brickburst. Right three times from Moondrop: Chipforge, Pond Kings, then
+# round the end to Blockfall.
 tap RIGHT
 tap RIGHT
 tap RIGHT
@@ -120,9 +122,8 @@ expect launches 1
 gameexit
 wait 5
 tap RIGHT
-tap RIGHT
 wait 30
-expect selected 2
+expect selected 1
 tap D
 wait 20
 shot hall-daily-coin
@@ -205,17 +206,16 @@ wait 3
 expect ui LIST
 tap H
 wait 5
-expect trophy 2
+expect trophy 1
 pad tap RIGHT
 wait 2
-expect trophy 3
+expect trophy 2
 shot trophies-skyraid
 pad tap B
 wait 3
 expect ui LIST
 
 # Shift+U on Blockfall edits its own name ("Arcade" in the fixtures).
-tap LEFT
 tap LEFT
 wait 30
 expect selected 0

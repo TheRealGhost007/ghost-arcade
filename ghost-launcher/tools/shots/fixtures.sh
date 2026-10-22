@@ -8,8 +8,8 @@
 #     the first-run question is already answered);
 #   - prefs.ini, a player name, playtime, scores, world scores, trophies,
 #     runs.log for Stats, and update.txt.
-# SHOTS_UNINSTALLED="gemdive ..." leaves those machines uninstalled (default
-# gemdive; use commas inside a script's '#! env' line); SHOTS_UPDATE=
+# SHOTS_UNINSTALLED="moondrop ..." leaves those machines uninstalled (default
+# moondrop; use commas inside a script's '#! env' line); SHOTS_UPDATE=
 # behind|current|unknown|stale picks update.txt (default behind; stale = one
 # an older build wrote, which the launcher must not believe); SHOTS_FIRSTRUN=1
 # leaves the share-scores question unanswered, so the launcher opens on it;
@@ -20,8 +20,9 @@
 # Your row (launcher.ini): SHOTS_ORDER=yours|recent|most|az, SHOTS_START_ON=
 # last|first, SHOTS_LAST_PLAYED=slug, SHOTS_FAVS=slug,slug, SHOTS_HIDDEN=
 # slug,slug. SHOTS_HALL_SONG=1 puts three songs in the Chipforge library and
-# gives the hall one ("Ghost Arcade (launcher)"); SHOTS_GEMDELVE=1 adds the
-# old Gemdelve playtime the launcher folds into Gemdive once.
+# gives the hall one ("Ghost Arcade (launcher)"); SHOTS_RETIRED=1 puts the five
+# games that left the arcade back in the catalog (installed), for the launcher
+# to take out once (Migrate_RetiredGames).
 # SHOTS_SPRINT_TIMES=1 adds Blockfall's Sprint 40 (time) and old Sprint boards.
 # The daily desk (Phase 6): SHOTS_DAILIES=1 adds daily runs to runs.log (a
 # three-day streak through today, a best of six before it) and today's daily
@@ -38,7 +39,7 @@ CONF=$H/.config
 GL=$DATA/ghost-launcher
 mkdir -p "$GL/scores/global" "$GL/achievements" "$CONF/ghost-launcher" "$CONF/ghost-arcade" "$H/bin" "$H/src"
 ln -s "$LAUNCHER/assets" "$GL/assets"
-UNINSTALLED=" $(printf '%s' "${SHOTS_UNINSTALLED-gemdive}" | tr ',' ' ') "
+UNINSTALLED=" $(printf '%s' "${SHOTS_UNINSTALLED-moondrop}" | tr ',' ' ') "
 day() { date -d "-$1 days" +%F; }
 
 {
@@ -56,6 +57,13 @@ day() { date -d "-$1 days" +%F; }
         esac
         echo "$name|~/bin/$slug|$realicon|$desc|~/src/$slug"
     done
+    if [ "${SHOTS_RETIRED-0}" = 1 ]; then
+        for slug in coilrush ghostmaze lanehop gemdive girderclimb; do
+            printf '#!/bin/sh\nexit 0\n' > "$H/bin/$slug"
+            chmod +x "$H/bin/$slug"
+            echo "$(printf '%s' "${slug:0:1}" | tr a-z A-Z)${slug:1}|~/bin/$slug||A game that has left the arcade.|"
+        done
+    fi
     for ((i = 1; i <= ${SHOTS_EXTRA_GAMES-0}; i++)); do
         printf '#!/bin/sh\nexit 0\n' > "$H/bin/extra$i"
         chmod +x "$H/bin/extra$i"
@@ -71,7 +79,7 @@ else
 fi
 printf '# Ghost Arcade preferences, shared by every game\nmusic_volume=70\nscreen_shake=1\nreduced_flashing=0\nfullscreen=0\n' > "$CONF/ghost-arcade/prefs.ini"
 printf '# Ghost Launcher profiles\n__DEFAULT__|%s\nBlockfall|Arcade\n' "${SHOTS_NAME-TRG}" > "$GL/profiles.txt"
-printf '# Ghost Launcher playtime: name|seconds\n__TOTAL__|9120.0\nBlockfall|2296.0\nBrickburst|1361.0\nChipforge|1120.0\nCoilrush|610.0\nSkyraid|425.0\nLanehop|300.0\nGirderclimb|92.0\n' > "$GL/playtime.txt"
+printf '# Ghost Launcher playtime: name|seconds\n__TOTAL__|9120.0\nBlockfall|2296.0\nBrickburst|1361.0\nChipforge|1120.0\nCrawlshot|610.0\nSkyraid|425.0\nRockdrift|300.0\nMoondrop|92.0\n' > "$GL/playtime.txt"
 
 # Boards for the machine pages (Phase 5): each file's best is what the hall's
 # card shows (Blockfall: Arcade 12840 here, Ghost 20480 in the world;
@@ -80,7 +88,7 @@ daily() { printf 'daily-%s' "$(date -d "-$1 days" +%Y%m%d)"; }
 printf 'classic|Arcade|12840|%s\nclassic|Arcade|11200|%s\nclassic|Arcade|8000|%s\nclassic|TRG|5200|%s\nmarathon|TRG|9100|%s\n' \
     "$(day 2)" "$(day 4)" "$(day 6)" "$(day 8)" "$(day 5)" > "$GL/scores/blockfall.txt"
 printf 'normal|TRG|3625|%s\nnormal|TRG|2950|%s\n%s|TRG|1800|%s\n' "$(day 1)" "$(day 3)" "$(daily 0)" "$(day 0)" > "$GL/scores/brickburst.txt"
-printf 'classic|TRG|410|%s\n' "$(day 3)" > "$GL/scores/coilrush.txt"
+printf 'normal|TRG|410|%s\n' "$(day 3)" > "$GL/scores/crawlshot.txt"
 printf 'normal|TRG|2210|%s\n' "$(day 6)" > "$GL/scores/skyraid.txt"
 {
     printf 'classic|Ghost|20480|%s\nclassic|Moth|18200|%s\nclassic|Arcade|12840|%s\nclassic|Pix|11950|%s\n' "$(day 1)" "$(day 3)" "$(day 2)" "$(day 4)"
@@ -100,7 +108,7 @@ touch -d '-10 minutes' "$GL/scores/global" # the boards came down a while ago (S
 
 printf 'r0|%s\ns1|%s\nl3|%s\n' "$(day 9)" "$(day 7)" "$(day 2)" > "$GL/achievements/blockfall.txt"
 printf 'r0|%s\ns1|%s\n' "$(day 4)" "$(day 1)" > "$GL/achievements/brickburst.txt"
-printf 'r0|%s\n' "$(day 3)" > "$GL/achievements/coilrush.txt"
+printf 'r0|%s\n' "$(day 3)" > "$GL/achievements/crawlshot.txt"
 
 runs() { # runs SLUG SCORE DAYSAGO...
     local slug=$1 score=$2
@@ -110,11 +118,9 @@ runs() { # runs SLUG SCORE DAYSAGO...
 }
 runs blockfall 4200 0 0 1 2 2 3 5 8 12
 runs brickburst 1800 0 1 1 4 6
-runs coilrush 300 3 9
+runs crawlshot 300 3 9
 runs skyraid 2210 6 13
-runs lanehop 900 2
-
-if [ "${SHOTS_GEMDELVE-0}" = 1 ]; then printf 'Gemdelve|334.2\nGemdive|84.1\n' >> "$GL/playtime.txt"; fi
+runs rockdrift 900 2
 
 dailyruns() { # dailyruns SLUG SCORE DAYSAGO...: daily runs on those days' boards
     local slug=$1 score=$2
@@ -128,7 +134,7 @@ if [ "${SHOTS_DAILIES-0}" = 1 ]; then
     printf '%s|TRG|2900|%s\n' "$(daily 0)" "$(day 0)" >> "$GL/scores/skyraid.txt"
     printf '%s|Ghost|5100|%s\n%s|Moth|4400|%s\n%s|TRG|2900|%s\n' "$(daily 0)" "$(day 0)" "$(daily 0)" "$(day 0)" "$(daily 0)" "$(day 0)" \
         > "$GL/scores/global/skyraid.txt"
-    printf '%s|Pix|900|%s\n' "$(daily 0)" "$(day 0)" > "$GL/scores/global/lanehop.txt"
+    printf '%s|Pix|900|%s\n' "$(daily 0)" "$(day 0)" > "$GL/scores/global/crawlshot.txt"
 fi
 
 ini=$CONF/ghost-launcher/launcher.ini

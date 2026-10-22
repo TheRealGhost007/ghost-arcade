@@ -25,19 +25,19 @@ expect app dialog remove
 click 376 358
 wait 3
 expect app dialog none
-expect app games 12
+expect app games 8
 tap DELETE
 wait 3
 click 40 600
 wait 3
 expect app dialog none
-expect app games 12
+expect app games 8
 tap DELETE
 wait 3
 tap LEFT
 tap ENTER
 wait 3
-expect app games 12
+expect app games 8
 pad on
 wait 2
 tap DELETE
@@ -48,7 +48,7 @@ expect app focus Remove
 pad tap A
 wait 3
 expect app dialog none
-expect app games 11
+expect app games 7
 expect app toast Saved
 expect nofile .config/ghost-launcher/games.txt Blockfall|
 shot toast-removed
@@ -90,7 +90,7 @@ tap RIGHT
 tap ENTER
 wait 3
 expect app toast Couldn't save
-expect app games 11
-expect file .config/ghost-launcher/games.txt Coilrush|
+expect app games 7
+expect file .config/ghost-launcher/games.txt Brickburst|
 shot toast-remove-failed
 chmod .config/ghost-launcher 755

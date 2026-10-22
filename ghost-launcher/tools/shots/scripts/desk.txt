@@ -1,4 +1,4 @@
-#! env SHOTS_ADMIN=0 SHOTS_DAILIES=1 SHOTS_UNINSTALLED=gemdive,moondrop
+#! env SHOTS_ADMIN=0 SHOTS_DAILIES=1 SHOTS_UNINSTALLED=moondrop
 # Phase 6: the Daily challenge desk. The chalkboard on the hall's wall says
 # how many of the row's daily games are played today and opens the desk; so
 # do Shift+D, the Arcade menu and a machine page's Daily challenge. The desk
@@ -9,10 +9,10 @@
 # so this script never names it.)
 wait 30
 expect ui LIST
-expect app chalk 2 of 8 today
-expect app desk 2/8
+expect app chalk 2 of 7 today
+expect app desk 2/7
 expect app streak 3/6
-expect app deskrows Blockfall,Brickburst*,Skyraid*,Rockdrift,Lanehop,Crawlshot,Moondrop,Girderclimb
+expect app deskrows Blockfall,Brickburst*,Skyraid*,Rockdrift,Crawlshot,Moondrop,Pond Kings
 shot hall-chalkboard
 
 # The chalkboard is a button on the wall.
@@ -36,9 +36,8 @@ wait 3
 expect ui LIST
 
 # Shift+D opens it on the lit machine's row; Up/Down skip Moondrop (not
-# installed) and go round; Shift+D closes it again.
-tap RIGHT
-wait 3
+# installed) and go round the ends (Pond Kings is the last row); Shift+D
+# closes it again.
 tap RIGHT
 wait 30
 expect app lit Brickburst
@@ -52,16 +51,20 @@ wait 2
 expect app deskfocus Skyraid
 tap DOWN
 tap DOWN
-tap DOWN
+wait 2
+expect app deskfocus Crawlshot
 tap DOWN
 wait 2
-expect app deskfocus Girderclimb
+expect app deskfocus Pond Kings
 tap DOWN
 wait 2
 expect app deskfocus Blockfall
 tap UP
 wait 2
-expect app deskfocus Girderclimb
+expect app deskfocus Pond Kings
+tap UP
+wait 2
+expect app deskfocus Crawlshot
 shot desk-keys
 tap SHIFT D
 wait 3

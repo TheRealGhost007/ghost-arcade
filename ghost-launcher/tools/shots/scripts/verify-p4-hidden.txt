@@ -1,11 +1,11 @@
-#! env SHOTS_ADMIN=0 SHOTS_HIDDEN=blockfall,coilrush,brickburst,skyraid,ghostmaze,rockdrift,lanehop,crawlshot,moondrop,gemdive,girderclimb,chipforge
+#! env SHOTS_ADMIN=0 SHOTS_HIDDEN=blockfall,brickburst,skyraid,rockdrift,crawlshot,moondrop,chipforge,pondkings
 # Phase 4 edge: a launcher.ini (edited by hand) that hides every machine.
 # The hall says so and where to bring them back; nothing on it can play,
 # star or name a machine that is not there; T and the screens still work;
 # Settings > Machines shows them all and Show puts one back.
 wait 30
 expect app row
-expect app games 12
+expect app games 8
 expect app lit
 expect app chip:Play Enter disabled
 shot verify-hidden-hall
@@ -31,7 +31,7 @@ wait 3
 tap SHIFT TAB
 wait 3
 expect app tab Machines
-expect app mine Blockfall,Coilrush,Brickburst,Skyraid,Ghostmaze,Rockdrift,Lanehop,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app mine Blockfall,Brickburst,Skyraid,Rockdrift,Crawlshot,Moondrop,Chipforge,Pond Kings
 click 632 274
 wait 3
 expect app hidden:Blockfall 0

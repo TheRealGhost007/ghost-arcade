@@ -348,6 +348,8 @@ static void Row(const char *const *lines) {
 }
 
 static SettingsView View(void) {
+    /* Twelve sample machines, the arcade as it was until 2026-10-21: a long
+     * list, and names as long as any a player may type. */
     static const char *const kNames[] = {"Blockfall", "Coilrush", "Brickburst", "Skyraid", "Ghostmaze", "Rockdrift",
                                          "Lanehop", "Crawlshot", "Moondrop", "Girderclimb", "Gemdive", "Chipforge"};
     memset(&sManifest, 0, sizeof(sManifest));

@@ -3,7 +3,7 @@
 # update.pid names its updater): followed through update.log, games wait,
 # Stop is faint; when it ends it is judged from the log and Restart shows.
 wait 30
-write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\n
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the six games, Chipforge and Ghost Launcher (8 jobs)\n
 elsewhere launcher
 wait 400
 expect app updelsewhere 1
@@ -17,7 +17,7 @@ expect app updstep Building
 expect app look:Stop disabled
 expect app look:Update now absent
 shot update-elsewhere-running
-write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\n==> Running the test suites\n==> Installing into ~/.local\n==> Version: 89abcdef0123456789abcdef0123456789abcdef\n==> Installed.\n
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the six games, Chipforge and Ghost Launcher (8 jobs)\n==> Running the test suites\n==> Installing into ~/.local\n==> Version: 89abcdef0123456789abcdef0123456789abcdef\n==> Installed.\n
 elsewhere none
 wait 100
 expect app updelsewhere 0

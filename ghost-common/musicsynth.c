@@ -18,16 +18,12 @@ static const MusicTheme kThemes[] = {
     /* slug          bpm root scale             prog           bass arp drum seed oct swing */
     {"ghostarcade",   96, 45, SCALE_MINOR,      {0, 5, 3, 4},   0, 1, 2, 101, 2, 0.10f},
     {"blockfall",    140, 50, SCALE_MINOR,      {0, 5, 2, 6},   3, 0, 0, 202, 2, 0.00f},
-    {"coilrush",     132, 52, SCALE_DORIAN,     {0, 3, 4, 3},   1, 2, 1, 303, 2, 0.06f},
     {"brickburst",   128, 48, SCALE_MAJOR,      {0, 4, 5, 3},   0, 0, 1, 404, 2, 0.00f},
     {"skyraid",      150, 43, SCALE_HARMONIC,   {0, 5, 3, 4},   3, 1, 3, 505, 2, 0.00f},
-    {"ghostmaze",     88, 41, SCALE_PHRYGIAN,   {0, 1, 0, 6},   2, 3, 2, 606, 2, 0.12f},
     {"rockdrift",    112, 46, SCALE_MINOR,      {0, 6, 5, 6},   2, 1, 1, 707, 3, 0.00f},
-    {"lanehop",      136, 55, SCALE_MIXOLYDIAN, {0, 6, 3, 0},   1, 2, 3, 808, 2, 0.08f},
     {"crawlshot",    124, 47, SCALE_HARMONIC,   {0, 3, 4, 0},   0, 3, 1, 909, 2, 0.00f},
     {"moondrop",      84, 53, SCALE_DORIAN,     {0, 4, 1, 4},   2, 1, 2, 111, 3, 0.10f},
-    {"gemdive",       118, 44, SCALE_MINOR,      {0, 2, 5, 4},   1, 0, 1, 222, 2, 0.05f},
-    {"girderclimb",  144, 49, SCALE_MIXOLYDIAN, {0, 3, 6, 4},   3, 2, 0, 333, 2, 0.00f},
+    {"pondkings",    118, 55, SCALE_MAJOR,      {0, 3, 0, 4},   1, 1, 1, 444, 2, 0.18f}, /* a jig on the pond */
 };
 #define THEME_N ((int)(sizeof(kThemes) / sizeof(kThemes[0])))
 

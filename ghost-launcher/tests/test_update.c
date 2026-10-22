@@ -58,7 +58,7 @@ static void test_clean_and_steps(void) {
     CHECK(strcmp(out, "xxl is a word") == 0, "update log: only a marker on its own is taken out");
 
     CHECK(SelfUpdate_StepOf("==> Fetching the newest version") == SU_STEP_FETCH, "update steps: fetching");
-    CHECK(SelfUpdate_StepOf("==> Building the eleven games (8 jobs)") == SU_STEP_BUILD, "update steps: building");
+    CHECK(SelfUpdate_StepOf("==> Building the six games (8 jobs)") == SU_STEP_BUILD, "update steps: building");
     CHECK(SelfUpdate_StepOf("==> Running the test suites") == SU_STEP_TEST, "update steps: testing");
     CHECK(SelfUpdate_StepOf("==> Installing into ~/.local") == SU_STEP_INSTALL, "update steps: installing");
     CHECK(SelfUpdate_StepOf("==> Installed. Start the arcade") == SU_STEP_DONE, "update steps: installed");

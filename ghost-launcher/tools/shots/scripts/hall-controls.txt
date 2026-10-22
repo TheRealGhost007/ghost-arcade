@@ -1,10 +1,12 @@
-#! env SHOTS_ADMIN=0 SHOTS_UNINSTALLED=gemdive,skyraid
+#! env SHOTS_ADMIN=0 SHOTS_UNINSTALLED=moondrop,skyraid SHOTS_EXTRA_GAMES=1
 # Phase 3: the hall by mouse. Pointing at a side machine gives it a soft
 # glow and the hand; a click brings it to the middle; a click on the lit one
 # drops the coin and plays it; clicks and the wheel wait while the coin
 # drops; the wheel moves one machine per notch. The header's chips and
 # every button of the control strip are buttons, and the strip names the
 # keys or the pad's buttons, whichever was used last.
+# Nine machines: the arcade's eight, then Extra 1, which has no daily
+# challenge.
 wait 30
 expect selected 0
 expect app chip:Play Enter normal
@@ -15,7 +17,7 @@ shot hall-strip-keys
 # slots waiting. The carpet is nothing.
 mouse 680 300
 wait 3
-expect app look:Coilrush hover
+expect app look:Brickburst hover
 expect app cursor hand
 shot hall-hover-glow
 mouse 480 300
@@ -32,13 +34,13 @@ mouse 680 300
 mdown left
 wait 2
 expect selected 0
-expect app look:Coilrush pressed
+expect app look:Brickburst pressed
 mup left
 wait 2
 expect selected 1
 wait 30
 expect app settled 1
-expect app look:Brickburst hover
+expect app look:Skyraid hover
 # Dragged off before letting go: nothing.
 mdown left
 mouse 480 450
@@ -55,9 +57,9 @@ click 680 300
 wheel -1
 wait 3
 expect selected 1
-expect app look:Brickburst absent
+expect app look:Skyraid absent
 wait 60
-expect launched Coilrush
+expect launched Brickburst
 expect launches 1
 gameexit
 wait 5
@@ -81,15 +83,16 @@ wheel -0.5
 wait 2
 expect selected 1
 
-# The strip, clicked. The arrows step one and wrap round.
+# The strip, clicked. The arrows step one and wrap round ("< 3 / 9 >":
+# with a one-digit count the left arrow stands at 828-852).
 click 924 616
 wait 3
 expect selected 2
-click 822 616
-click 822 616
-click 822 616
+click 840 616
+click 840 616
+click 840 616
 wait 3
-expect selected 11
+expect selected 8
 click 924 616
 wait 3
 expect selected 0
@@ -110,32 +113,35 @@ expect launches 2
 gameexit
 wait 5
 
-# Daily is faint on Coilrush, which has none: pointing at it says why on
-# the card, and so does D (which used to do nothing at all).
-tap RIGHT
+# Daily is faint on Extra 1, which has none: pointing at it says why on
+# the card, and so does D (which used to do nothing at all). Left from
+# Blockfall wraps round to it.
+tap LEFT
 wait 30
-expect selected 1
+expect selected 8
 mouse 174 616
 wait 3
 expect app look:Daily disabled
 expect app cursor default
-expect app status Coilrush has no daily challenge.
+expect app status Extra 1 has no daily challenge.
 shot hall-daily-reason
 mouse 480 450
 wait 2
 tap D
 wait 3
-expect app note Coilrush has no daily challenge.
+expect app note Extra 1 has no daily challenge.
 expect launches 2
 shot hall-daily-note
-# Moving on takes the note with it.
+# Moving on (round to Blockfall) takes the note with it.
 tap RIGHT
 wait 3
+expect selected 0
 expect app note
 expect app status Press Enter to play
 # On Brickburst it works: a click drops the daily coin.
+tap RIGHT
 wait 30
-expect selected 2
+expect selected 1
 expect app chip:Daily D normal
 click 174 616
 wait 70
@@ -147,7 +153,7 @@ wait 5
 # Skyraid is not installed: Play says Install, Daily says to install first.
 tap RIGHT
 wait 30
-expect selected 3
+expect selected 2
 expect app chip:Install Enter normal
 expect app chip:Daily D disabled
 mouse 180 616

@@ -1,5 +1,8 @@
 # Ghost Arcade: making the games actually fun
 
+> **2026-10-21:** Coilrush, Ghostmaze, Lanehop, Gemdive and Girderclimb have left the
+> arcade. What this document says about them is history; their code is in the git history.
+
 Status: PLAN, nothing started. Written 2026-09-20 after the ten-game roadmap
 shipped. Every game has correct rules and passing tests; none of that proves
 it is *fun*. Most of them have never been played by a person. This plan is

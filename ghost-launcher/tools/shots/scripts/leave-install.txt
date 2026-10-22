@@ -2,13 +2,14 @@
 # game runs) the EXIT sign quits at once.
 quits
 wait 30
+# Moondrop, not installed here, is third from the end: round to it.
 tap LEFT
 tap LEFT
 tap LEFT
 wait 30
 tap ENTER
 wait 5
-expect count 1 install Gemdive
+expect count 1 install Moondrop
 click 46 74
 wait 3
 expect app dialog leave

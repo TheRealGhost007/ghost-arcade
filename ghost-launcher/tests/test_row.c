@@ -3,7 +3,7 @@
  * mapping between a place in the row and a line of games.txt (and that the
  * hall draws and clicks through the same mapping), start on last played,
  * keeping the right machine lit through Remove, Add and Edit, and what each
- * change writes to launcher.ini; the one-time Gemdelve fold (src/migrate.c);
+ * change writes to launcher.ini; the one-time retired-games migration (src/migrate.c);
  * the hall music's rules (src/hallmusic.c) and the quiet hall (src/hall.c).
  * test_main.c's main() points XDG_DATA_HOME and XDG_CONFIG_HOME at a temp
  * folder before these run. */
@@ -56,7 +56,9 @@ static void Add(const char *name, const char *slug) {
     snprintf(e->exec, sizeof(e->exec), "~/.local/bin/%s", slug);
 }
 
-/* The real catalog's twelve, in games.txt's order. */
+/* The arcade's catalog as it was until 2026-10-21, in games.txt's order:
+ * sample machines for the row, and the five since retired for the
+ * migration that removes them. */
 static void Catalog(void) {
     memset(&sCat, 0, sizeof(sCat));
     static const char *const kNames[] = {"Blockfall", "Coilrush", "Brickburst", "Skyraid", "Ghostmaze", "Rockdrift",
@@ -364,73 +366,103 @@ static void test_row_saves(void) {
 
 /* -------------------------------------------------------------- migrate */
 
-static bool PlaytimeHas(const char *text) {
-    const char *data = getenv("XDG_DATA_HOME");
-    char path[700], buf[4096];
-    snprintf(path, sizeof(path), "%s/ghost-launcher/playtime.txt", data ? data : "");
-    FILE *f = fopen(path, "r");
-    if (!f) return false;
-    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
-    buf[n] = '\0';
-    fclose(f);
-    return strstr(buf, text) != NULL;
+/* The catalog's machines by name, joined: "Blockfall,Brickburst,...". */
+static const char *CatalogNames(const Manifest *m) {
+    static char out[1024];
+    out[0] = '\0';
+    for (int i = 0; i < m->count; i++) {
+        size_t used = strlen(out);
+        snprintf(out + used, sizeof(out) - used, "%s%s", i ? "," : "", m->games[i].name);
+    }
+    return out;
 }
 
 static void test_migrate(void) {
+    /* The player's own games.txt: whatever an earlier test left is put back after. */
+    const char *config = getenv("XDG_CONFIG_HOME");
+    char path[700], kept[720];
+    snprintf(path, sizeof(path), "%s/ghost-launcher/games.txt", config ? config : "");
+    snprintf(kept, sizeof(kept), "%s.kept", path);
+    bool hadCatalog = rename(path, kept) == 0;
+    static Manifest disk;
+    const char *const kLeft = "Blockfall,Brickburst,Skyraid,Rockdrift,Crawlshot,Moondrop,Chipforge";
+
+    CHECK(Migrate_IsRetired("coilrush") && Migrate_IsRetired("ghostmaze") && Migrate_IsRetired("lanehop") &&
+          Migrate_IsRetired("gemdive") && Migrate_IsRetired("girderclimb"), "retired: the five that left");
+    CHECK(!Migrate_IsRetired("blockfall") && !Migrate_IsRetired("chipforge") && !Migrate_IsRetired("") && !Migrate_IsRetired(NULL),
+          "retired: not the rest, nor nothing");
+
+    /* The arcade as it was: the five go, the rest stay in their order, saved, then marked. */
     Catalog();
     IniWrite("hall_sounds=3\n");
     LauncherIni_Load(&sIni);
-    memset(&sStats, 0, sizeof(sStats));
-    Stats_AddGameTime(&sStats, "Gemdelve", 334.2);
-    Stats_AddGameTime(&sStats, "Gemdive", 84.1);
-    Stats_AddGameTime(&sStats, "Blockfall", 10);
-    CHECK(Migrate_GemdelvePlaytime(&sIni, &sStats, &sCat), "migrate: Gemdelve's time moves");
-    CHECK(Stats_GetGameTime(&sStats, "Gemdelve") == 0.0 && Stats_GetGameTime(&sStats, "Gemdive") > 418.29 &&
-          Stats_GetGameTime(&sStats, "Gemdive") < 418.31 && Stats_GetGameTime(&sStats, "Blockfall") == 10.0, "migrate: ...onto Gemdive, the rest as it was");
-    CHECK(PlaytimeHas("Gemdive|418.3") && !PlaytimeHas("Gemdelve") && IniHas("migrated.gemdelve=1") && IniHas("hall_sounds=3"),
-          "migrate: playtime.txt saved, then the mark set, other lines kept");
-    Stats_AddGameTime(&sStats, "Gemdelve", 50);
-    CHECK(!Migrate_GemdelvePlaytime(&sIni, &sStats, &sCat) && Stats_GetGameTime(&sStats, "Gemdelve") == 50.0, "migrate: once only");
+    CHECK(Migrate_RetiredGames(&sIni, &sCat, true), "retired: the five machines leave the catalog");
+    CHECK(sCat.count == 7 && strcmp(CatalogNames(&sCat), kLeft) == 0, "retired: the other seven stay, in their order");
+    CHECK(Manifest_Load(&disk, "/nonexistent") && strcmp(CatalogNames(&disk), kLeft) == 0, "retired: games.txt is saved without them");
+    CHECK(IniHas("migrated.retired=1") && IniHas("hall_sounds=3"), "retired: then marked done, other settings kept");
 
-    /* A catalog that calls the gemdive machine something else; the old name
-     * written twice by hand; no Gemdive line yet. */
+    /* Once only: a machine added back by hand afterwards stays. */
+    Manifest_AddGame(&sCat, "Coilrush", "~/.local/bin/coilrush", "", "", "");
+    CHECK(!Migrate_RetiredGames(&sIni, &sCat, true) && sCat.count == 8, "retired: once only");
+
+    /* By program name: a renamed machine goes, a lookalike name with its own program stays. */
     IniWrite("");
     LauncherIni_Load(&sIni);
-    snprintf(sCat.games[9].name, sizeof(sCat.games[9].name), "Gem Dive");
-    memset(&sStats, 0, sizeof(sStats));
-    Stats_AddGameTime(&sStats, "Gemdelve", 100);
-    sStats.entries[sStats.count] = sStats.entries[0]; /* a second line of it */
-    sStats.count++;
-    CHECK(Migrate_GemdelvePlaytime(&sIni, &sStats, &sCat) && Stats_GetGameTime(&sStats, "Gem Dive") == 200.0 && sStats.count == 1,
-          "migrate: onto the catalog's name for gemdive, every copy of the old line");
-    /* Nothing to fold: just marked. */
-    IniWrite("");
-    LauncherIni_Load(&sIni);
-    memset(&sStats, 0, sizeof(sStats));
-    CHECK(!Migrate_GemdelvePlaytime(&sIni, &sStats, &sCat) && IniHas("migrated.gemdelve=1"), "migrate: nothing to move is still marked done");
-    /* A catalog that still has a Gemdelve machine: that time is in use. */
-    IniWrite("");
-    LauncherIni_Load(&sIni);
-    snprintf(sCat.games[9].name, sizeof(sCat.games[9].name), "Gemdelve");
-    Stats_AddGameTime(&sStats, "Gemdelve", 30);
-    CHECK(!Migrate_GemdelvePlaytime(&sIni, &sStats, &sCat) && Stats_GetGameTime(&sStats, "Gemdelve") == 30.0 && !IniHas("migrated"),
-          "migrate: not while a machine is still called Gemdelve, and not marked");
-    /* playtime.txt cannot be written: not marked, so the next start tries again. */
     Catalog();
+    snprintf(sCat.games[1].name, sizeof(sCat.games[1].name), "Snake");
+    Add("Gemdive", "my-gemdive");
+    CHECK(Migrate_RetiredGames(&sIni, &sCat, true) && sCat.count == 8 && strstr(CatalogNames(&sCat), "Snake") == NULL &&
+          strcmp(sCat.games[7].name, "Gemdive") == 0, "retired: matched by program, not by name");
+
+    /* Nothing to remove: still marked done. */
     IniWrite("");
     LauncherIni_Load(&sIni);
-    memset(&sStats, 0, sizeof(sStats));
-    Stats_AddGameTime(&sStats, "Gemdelve", 30);
-    const char *data = getenv("XDG_DATA_HOME");
-    char path[700], moved[720];
-    snprintf(path, sizeof(path), "%s/ghost-launcher/playtime.txt", data ? data : "");
-    snprintf(moved, sizeof(moved), "%s.away", path);
-    rename(path, moved);
-    mkdir(path, 0755); /* a folder in its place: the save's last step fails */
-    CHECK(Migrate_GemdelvePlaytime(&sIni, &sStats, &sCat) && !IniHas("migrated"), "migrate: a save that failed leaves no mark");
-    rmdir(path);
-    rename(moved, path);
+    CHECK(!Migrate_RetiredGames(&sIni, &sCat, true) && IniHas("migrated.retired=1"), "retired: nothing to remove is still marked done");
+
+    /* No catalog loaded: nothing touched, nothing marked. */
     IniWrite("");
+    LauncherIni_Load(&sIni);
+    Catalog();
+    CHECK(!Migrate_RetiredGames(&sIni, &sCat, false) && sCat.count == 12 && !IniHas("migrated"),
+          "retired: without a catalog, not marked, so a later start does it");
+
+    /* games.txt cannot be written: gone for this session, not marked, so the next start tries again. */
+    unlink(path);
+    mkdir(path, 0755); /* a folder in its place: the save's last step fails */
+    CHECK(Migrate_RetiredGames(&sIni, &sCat, true) && sCat.count == 7 && !IniHas("migrated"),
+          "retired: a save that failed leaves no mark");
+    rmdir(path);
+
+    /* Pond Kings joins a catalog made before it: once, at the end of the row. */
+    IniWrite("");
+    LauncherIni_Load(&sIni);
+    Catalog();
+    int before = sCat.count;
+    CHECK(Migrate_NewGames(&sIni, &sCat, true) && sCat.count == before + 1 && strcmp(sCat.games[before].name, "Pond Kings") == 0 &&
+              strcmp(sCat.games[before].exec, "~/.local/bin/pondkings") == 0 && strcmp(sCat.games[before].install, "~/Work/ghost-arcade/pondkings") == 0,
+          "new games: Pond Kings joins at the end of the row");
+    CHECK(Manifest_Load(&disk, "/nonexistent") && disk.count == before + 1 && strcmp(disk.games[before].name, "Pond Kings") == 0 &&
+              IniHas("migrated.pondkings=1"),
+          "new games: games.txt is saved with it, then marked done");
+    Manifest_RemoveGame(&sCat, before);
+    CHECK(!Migrate_NewGames(&sIni, &sCat, true) && sCat.count == before, "new games: once only: removed by hand, it stays removed");
+
+    IniWrite("");
+    LauncherIni_Load(&sIni);
+    Catalog();
+    Add("Hockey Night", "pondkings");
+    CHECK(!Migrate_NewGames(&sIni, &sCat, true) && sCat.count == before + 1 && IniHas("migrated.pondkings=1"),
+          "new games: a catalog that has it (by program) is only marked");
+
+    IniWrite("");
+    LauncherIni_Load(&sIni);
+    Catalog();
+    CHECK(!Migrate_NewGames(&sIni, &sCat, false) && sCat.count == before && !IniHas("migrated"),
+          "new games: without a catalog, not marked, so a later start does it");
+
+    IniWrite("");
+    unlink(path);
+    if (hadCatalog) rename(kept, path);
 }
 
 /* ---------------------------------------------------------- hall music */

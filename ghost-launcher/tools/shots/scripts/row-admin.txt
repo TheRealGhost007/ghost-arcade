@@ -5,9 +5,9 @@
 # machine the hall shows lit, and the row is rebuilt after each.
 wait 30
 expect app order A-Z
-expect app row Skyraid,Blockfall,Brickburst,Chipforge,Coilrush,Crawlshot,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+expect app row Skyraid,Blockfall,Brickburst,Chipforge,Crawlshot,Moondrop,Pond Kings,Rockdrift
 expect app lit Skyraid
-expect selected 3
+expect selected 2
 
 # Edit on the second place opens Blockfall (catalog index 0).
 tap RIGHT
@@ -27,40 +27,48 @@ tap RIGHT
 tap RIGHT
 wait 30
 expect app lit Chipforge
-expect selected 11
+expect selected 6
 tap DELETE
 wait 5
 expect app dialogtitle Remove Chipforge?
 tap ESC
 wait 3
-expect app games 12
+expect app games 8
 
-# Remove Coilrush: place 4 in the row, catalog index 1 (the second line of games.txt).
-tap RIGHT
+# Remove Brickburst: place 2 in the row, catalog index 1 (the second line of
+# games.txt). Chipforge, which now stands at place 2, is lit.
+tap LEFT
 wait 30
-expect app lit Coilrush
+expect app lit Brickburst
 expect selected 1
 tap DELETE
 wait 5
-expect app dialogtitle Remove Coilrush?
+expect app dialogtitle Remove Brickburst?
 tap RIGHT
 tap ENTER
 wait 5
 expect app dialog none
-expect app games 11
-expect nofile .config/ghost-launcher/games.txt Coilrush|
-expect file .config/ghost-launcher/games.txt Crawlshot|
-expect app row Skyraid,Blockfall,Brickburst,Chipforge,Crawlshot,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
-expect app lit Crawlshot
-expect app place 4
+expect app games 7
+expect nofile .config/ghost-launcher/games.txt Brickburst|
+expect file .config/ghost-launcher/games.txt Chipforge|
+expect app row Skyraid,Blockfall,Chipforge,Crawlshot,Moondrop,Pond Kings,Rockdrift
+expect app lit Chipforge
+expect app place 2
 expect app settled 1
 shot row-admin-removed
 
-# Edit Crawlshot's name: the same line of games.txt, a new place in A-Z.
+# Edit Rockdrift's name (place 6, catalog index 2 now): the same line of
+# games.txt, a new place in A-Z.
+tap RIGHT
+tap RIGHT
+tap RIGHT
+tap RIGHT
+wait 30
+expect app lit Rockdrift
 tap E
 wait 5
 expect ui EDIT_GAME
-expect profile Crawlshot
+expect profile Rockdrift
 hold BACKSPACE 120
 text Arcwalk
 tap ENTER
@@ -72,15 +80,15 @@ wait 3
 tap ENTER
 wait 5
 expect ui LIST
-expect file .config/ghost-launcher/games.txt Arcwalk|~/bin/crawlshot|
-expect app row Skyraid,Arcwalk,Blockfall,Brickburst,Chipforge,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+expect file .config/ghost-launcher/games.txt Arcwalk|~/bin/rockdrift|
+expect app row Skyraid,Arcwalk,Blockfall,Chipforge,Crawlshot,Moondrop,Pond Kings
 expect app lit Arcwalk
 expect app place 1
 # Its favourite and place stay with its program name, not its title.
 tap F
 wait 3
-expect file .config/ghost-launcher/launcher.ini fav.crawlshot=1\n
-expect app row Arcwalk,Skyraid,Blockfall,Brickburst,Chipforge,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
+expect file .config/ghost-launcher/launcher.ini fav.rockdrift=1\n
+expect app row Arcwalk,Skyraid,Blockfall,Chipforge,Crawlshot,Moondrop,Pond Kings
 
 # Add: the new machine is lit, wherever A-Z puts it.
 tap A
@@ -97,22 +105,22 @@ wait 3
 tap ENTER
 wait 5
 expect ui LIST
-expect app games 12
+expect app games 8
 expect app lit Bumper
-expect app row Arcwalk,Skyraid,Blockfall,Brickburst,Bumper,Chipforge,Gemdive,Ghostmaze,Girderclimb,Lanehop,Moondrop,Rockdrift
-expect app place 4
+expect app row Arcwalk,Skyraid,Blockfall,Bumper,Chipforge,Crawlshot,Moondrop,Pond Kings
+expect app place 3
 expect app note 
 expect app status Not installed, and no folder to install it from.
 wait 30
 shot row-admin-added
 
-# And Enter on a machine plays that machine.
+# And Enter on a machine plays that machine (Blockfall: place 2, catalog index 0).
 tap LEFT
 wait 30
-expect app lit Brickburst
+expect app lit Blockfall
 tap ENTER
 wait 70
-expect launched Brickburst
+expect launched Blockfall
 gameexit
 wait 3
 

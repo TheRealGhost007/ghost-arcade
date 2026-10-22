@@ -1,7 +1,7 @@
 # Blockfall
 
 A lightweight, native falling-block puzzle game for Linux, built with
-[raylib](https://www.raylib.com) and plain C, and one of the eleven games of
+[raylib](https://www.raylib.com) and plain C, and one of the six games of
 the Ghost Arcade. Built and tuned for Omarchy (Hyprland/Wayland on Arch), but
 it's a normal X11/GLFW desktop app and should run on most Linux desktops.
 

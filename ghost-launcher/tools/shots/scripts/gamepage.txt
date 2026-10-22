@@ -1,8 +1,10 @@
-#! env SHOTS_ADMIN=0
+#! env SHOTS_ADMIN=0 SHOTS_EXTRA_GAMES=1
 # Phase 5: a machine's page. It opens with I, pad X, the strip's This game or
 # a click on the card (Enter on the row still plays at once); every tab;
 # boards by X; the arrows to the next machine; Play, Daily, Favourite and the
 # name from the page; Chipforge's page; a machine that is not installed.
+# Nine machines: the arcade's eight, then Extra 1, which has no daily
+# challenge; Moondrop is not installed.
 wait 30
 expect ui LIST
 expect app chip:This_game I normal
@@ -92,18 +94,16 @@ pad tap B
 wait 5
 expect ui LIST
 pad off
-tap RIGHT
-wait 2
 
 # The arrows (and PgUp/PgDn): the machine after it, and the hall follows.
 tap I
 wait 8
-expect app pagefor Coilrush
+expect app pagefor Blockfall
 tap PAGE_DOWN
 wait 5
 expect app pagefor Brickburst
 expect app lit Brickburst
-expect app place 2
+expect app place 1
 tap RIGHT
 wait 3
 expect app pagetab Scores
@@ -122,9 +122,10 @@ wait 3
 tap X
 wait 3
 expect app pageboard Normal
-click 794 28
+# "< 2 / 9 >": with a one-digit count the left arrow stands at 800-824.
+click 812 28
 wait 5
-expect app pagefor Coilrush
+expect app pagefor Blockfall
 click 896 28
 wait 5
 expect app pagefor Brickburst
@@ -202,26 +203,28 @@ wait 5
 expect ui GAME
 expect app pagefor Blockfall
 
-# Coilrush has no daily: faint, and pointing at it says why.
-tap PAGE_DOWN
+# Extra 1 has no daily: faint, and pointing at it says why. It is last on
+# the row, so PgUp from Blockfall comes round to it.
+tap PAGE_UP
 wait 5
-expect app pagefor Coilrush
+expect app pagefor Extra 1
 mouse 900 620
 wait 2
 mouse 200 448
 wait 3
 expect app look:Daily challenge disabled
-expect app pagehelp Coilrush has no daily challenge.
+expect app pagehelp Extra 1 has no daily challenge.
 tap D
 wait 3
 expect ui GAME
-expect app pagestatus Coilrush has no daily challenge.
+expect app pagestatus Extra 1 has no daily challenge.
 shot page-daily-reason
 
-# Chipforge: Open Chipforge and Favourite; About and Songs.
+# Chipforge, two before Extra 1 (Pond Kings stands between): Open Chipforge
+# and Favourite; About and Songs.
 tap PAGE_UP
 wait 5
-expect app pagefor Blockfall
+expect app pagefor Pond Kings
 tap PAGE_UP
 wait 8
 expect app pagefor Chipforge
@@ -240,13 +243,10 @@ shot page-chipforge-songs
 tap RIGHT
 wait 3
 
-# Gemdive is not installed: Install, and the paper sign.
+# Moondrop is not installed: Install, and the paper sign.
 tap PAGE_UP
 wait 8
-expect app pagefor Girderclimb
-tap PAGE_UP
-wait 8
-expect app pagefor Gemdive
+expect app pagefor Moondrop
 expect app look:Install focused
 mouse 900 620
 wait 3
@@ -256,12 +256,12 @@ wait 2
 click 200 408
 wait 5
 expect ui GAME
-expect count 1 install Gemdive
+expect count 1 install Moondrop
 expect app look:Installing... disabled
 expect app pagestatus Installing
 shot page-installing
-write bin/gemdive #!/bin/sh\nexit 0\n
-chmod bin/gemdive 755
+write bin/moondrop #!/bin/sh\nexit 0\n
+chmod bin/moondrop 755
 install ok
 # The fake install ends between frames; the card (and the page) reads the
 # machines again within three seconds.
@@ -270,4 +270,4 @@ expect app look:Play hover
 tap ESCAPE
 wait 5
 expect ui LIST
-expect app lit Gemdive
+expect app lit Moondrop

@@ -1,12 +1,11 @@
-#! env SHOTS_ADMIN=0 SHOTS_HALL_SONG=1 SHOTS_GEMDELVE=1
+#! env SHOTS_ADMIN=0 SHOTS_HALL_SONG=1
 # Phase 4: hall music and the quiet hall. The harness has no sound device,
 # so this checks what the launcher asks of the music (menu layer, silent),
 # not what is heard: the menu layer only while the hall is in front with no
 # coin dropping and no game running; the hall's share of the shared volume;
 # the Chipforge song given to the hall, picked up again after a visit to
 # Chipforge; Hall music Off; 10 frames a second with the clock stopped
-# while a game the launcher started has the screen. Also the one-time fold
-# of the old Gemdelve playtime into Gemdive.
+# while a game the launcher started has the screen.
 wait 30
 expect app music menu
 expect app musicvolume 42
@@ -14,11 +13,6 @@ expect app hallmusic 1
 expect app hallsong Ghost Arcade (launcher)
 expect app fps 60
 expect app quiet 0
-expect app playtime:Gemdive 418.3
-expect app playtime:Gemdelve 0.0
-expect file .local/share/ghost-launcher/playtime.txt Gemdive|418.3\n
-expect nofile .local/share/ghost-launcher/playtime.txt Gemdelve
-expect file .config/ghost-launcher/launcher.ini migrated.gemdelve=1\n
 
 # Not in front: silent. Back in front: the tune again.
 focus off
@@ -107,7 +101,9 @@ expect app musicvolume 30
 tap ESC
 wait 3
 
-# Chipforge's card: three songs in the library, and the hall's song.
+# Chipforge's card: three songs in the library, and the hall's song. Two to
+# the left: round past Pond Kings, the last machine, to Chipforge.
+tap LEFT
 tap LEFT
 wait 30
 expect app lit Chipforge

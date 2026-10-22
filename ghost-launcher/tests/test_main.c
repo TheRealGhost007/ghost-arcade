@@ -62,10 +62,10 @@ static bool ReadFile(const char *relPath, char *out, size_t outSize) {
 }
 
 static void test_validators(void) {
-    CHECK(Sync_IsSlug("coilrush", 32), "slug: plain name ok");
+    CHECK(Sync_IsSlug("skyraid", 32), "slug: plain name ok");
     CHECK(Sync_IsSlug("daily-20260919", 32), "slug: digits and dashes ok");
     CHECK(!Sync_IsSlug("", 32), "slug: empty rejected");
-    CHECK(!Sync_IsSlug("Coilrush", 32), "slug: uppercase rejected");
+    CHECK(!Sync_IsSlug("Skyraid", 32), "slug: uppercase rejected");
     CHECK(!Sync_IsSlug("../etc", 32), "slug: path traversal rejected");
     CHECK(!Sync_IsSlug("a/b", 32), "slug: slash rejected");
     CHECK(!Sync_IsSlug("a b", 32), "slug: space rejected");
@@ -82,32 +82,32 @@ static void test_validators(void) {
 
 static void test_parse_local_line(void) {
     SyncRow r;
-    CHECK(Sync_ParseLocalLine("coilrush", "classic|ghost|120|2026-09-19\n", &r), "line: good row parses");
-    CHECK(strcmp(r.game, "coilrush") == 0 && strcmp(r.mode, "classic") == 0, "line: game and mode");
+    CHECK(Sync_ParseLocalLine("skyraid", "classic|ghost|120|2026-09-19\n", &r), "line: good row parses");
+    CHECK(strcmp(r.game, "skyraid") == 0 && strcmp(r.mode, "classic") == 0, "line: game and mode");
     CHECK(strcmp(r.username, "ghost") == 0 && r.score == 120 && strcmp(r.date, "2026-09-19") == 0, "line: fields");
 
-    CHECK(!Sync_ParseLocalLine("coilrush", "# comment", &r), "line: comment skipped");
-    CHECK(!Sync_ParseLocalLine("coilrush", "\n", &r), "line: blank skipped");
-    CHECK(!Sync_ParseLocalLine("coilrush", "classic|ghost|120", &r), "line: missing field rejected");
-    CHECK(!Sync_ParseLocalLine("coilrush", "classic|ghost|0|2026-09-19", &r), "line: zero score rejected");
-    CHECK(!Sync_ParseLocalLine("coilrush", "classic|ghost|-4|2026-09-19", &r), "line: negative score rejected");
-    CHECK(!Sync_ParseLocalLine("coilrush", "classic|ghost|12x|2026-09-19", &r), "line: non-numeric score rejected");
-    CHECK(!Sync_ParseLocalLine("coilrush", "classic|ghost|999999999999|2026-09-19", &r), "line: absurd score rejected");
-    CHECK(!Sync_ParseLocalLine("coilrush", "classic|ghost|120|unknown", &r), "line: bad date rejected");
-    CHECK(!Sync_ParseLocalLine("coilrush", "Classic Mode|ghost|120|2026-09-19", &r), "line: bad mode rejected");
+    CHECK(!Sync_ParseLocalLine("skyraid", "# comment", &r), "line: comment skipped");
+    CHECK(!Sync_ParseLocalLine("skyraid", "\n", &r), "line: blank skipped");
+    CHECK(!Sync_ParseLocalLine("skyraid", "classic|ghost|120", &r), "line: missing field rejected");
+    CHECK(!Sync_ParseLocalLine("skyraid", "classic|ghost|0|2026-09-19", &r), "line: zero score rejected");
+    CHECK(!Sync_ParseLocalLine("skyraid", "classic|ghost|-4|2026-09-19", &r), "line: negative score rejected");
+    CHECK(!Sync_ParseLocalLine("skyraid", "classic|ghost|12x|2026-09-19", &r), "line: non-numeric score rejected");
+    CHECK(!Sync_ParseLocalLine("skyraid", "classic|ghost|999999999999|2026-09-19", &r), "line: absurd score rejected");
+    CHECK(!Sync_ParseLocalLine("skyraid", "classic|ghost|120|unknown", &r), "line: bad date rejected");
+    CHECK(!Sync_ParseLocalLine("skyraid", "Classic Mode|ghost|120|2026-09-19", &r), "line: bad mode rejected");
     CHECK(!Sync_ParseLocalLine("../evil", "classic|ghost|120|2026-09-19", &r), "line: bad game slug rejected");
 
-    CHECK(Sync_ParseLocalLine("coilrush", "classic||50|2026-09-19", &r) && strcmp(r.username, "PLAYER") == 0,
+    CHECK(Sync_ParseLocalLine("skyraid", "classic||50|2026-09-19", &r) && strcmp(r.username, "PLAYER") == 0,
           "name: empty becomes PLAYER");
-    CHECK(Sync_ParseLocalLine("coilrush", "classic|   |50|2026-09-19", &r) && strcmp(r.username, "PLAYER") == 0,
+    CHECK(Sync_ParseLocalLine("skyraid", "classic|   |50|2026-09-19", &r) && strcmp(r.username, "PLAYER") == 0,
           "name: all-spaces becomes PLAYER");
-    CHECK(Sync_ParseLocalLine("coilrush", "classic|  padded  |50|2026-09-19", &r) && strcmp(r.username, "padded") == 0,
+    CHECK(Sync_ParseLocalLine("skyraid", "classic|  padded  |50|2026-09-19", &r) && strcmp(r.username, "padded") == 0,
           "name: trimmed");
-    CHECK(Sync_ParseLocalLine("coilrush", "classic|tab\there|50|2026-09-19", &r) && strcmp(r.username, "tabhere") == 0,
+    CHECK(Sync_ParseLocalLine("skyraid", "classic|tab\there|50|2026-09-19", &r) && strcmp(r.username, "tabhere") == 0,
           "name: control characters stripped");
-    CHECK(Sync_ParseLocalLine("coilrush", "classic|caf\xc3\xa9|50|2026-09-19", &r) && strcmp(r.username, "caf??") == 0,
+    CHECK(Sync_ParseLocalLine("skyraid", "classic|caf\xc3\xa9|50|2026-09-19", &r) && strcmp(r.username, "caf??") == 0,
           "name: non-ASCII bytes neutralised (never sends broken UTF-8)");
-    CHECK(Sync_ParseLocalLine("coilrush",
+    CHECK(Sync_ParseLocalLine("skyraid",
                               "classic|0123456789012345678901234567890123456789|50|2026-09-19", &r),
           "name: over-long accepted");
     CHECK(strlen(r.username) == 32, "name: clipped to the server's 32-char limit");
@@ -115,20 +115,20 @@ static void test_parse_local_line(void) {
 
 static void test_upload_json(void) {
     SyncRow rows[2];
-    Sync_ParseLocalLine("coilrush", "classic|ghost|120|2026-09-19", &rows[0]);
-    Sync_ParseLocalLine("coilrush", "maze|say \"hi\" \\ ok|75|2026-09-20", &rows[1]);
+    Sync_ParseLocalLine("skyraid", "classic|ghost|120|2026-09-19", &rows[0]);
+    Sync_ParseLocalLine("skyraid", "maze|say \"hi\" \\ ok|75|2026-09-20", &rows[1]);
 
     char body[1024];
     size_t n = Sync_BuildUploadJson(rows, 2, "11111111-2222-4333-8444-555555555555", body, sizeof(body));
     CHECK(n > 0 && n == strlen(body), "json: length reported");
     const char *expected =
         "{\"p_install_id\":\"11111111-2222-4333-8444-555555555555\",\"p_rows\":["
-        "{\"game\":\"coilrush\",\"mode\":\"classic\",\"username\":\"ghost\",\"score\":120,\"played_on\":\"2026-09-19\"},"
-        "{\"game\":\"coilrush\",\"mode\":\"maze\",\"username\":\"say \\\"hi\\\" / ok\",\"score\":75,\"played_on\":\"2026-09-20\"}]}";
+        "{\"game\":\"skyraid\",\"mode\":\"classic\",\"username\":\"ghost\",\"score\":120,\"played_on\":\"2026-09-19\"},"
+        "{\"game\":\"skyraid\",\"mode\":\"maze\",\"username\":\"say \\\"hi\\\" / ok\",\"score\":75,\"played_on\":\"2026-09-20\"}]}";
     CHECK(strcmp(body, expected) == 0, "json: exact body, quotes escaped, backslash neutralised");
 
     /* A name made of nothing but quotes cannot break out of its string. */
-    Sync_ParseLocalLine("coilrush", "classic|\"\"\"\"\"\"\"\"|5|2026-09-19", &rows[0]);
+    Sync_ParseLocalLine("skyraid", "classic|\"\"\"\"\"\"\"\"|5|2026-09-19", &rows[0]);
     n = Sync_BuildUploadJson(rows, 1, "x", body, sizeof(body));
     int bare = 0, escaped = 0;
     for (size_t i = 1; i < n; i++) if (body[i] == '"') { if (body[i - 1] == '\\') escaped++; else bare++; }
@@ -139,7 +139,7 @@ static void test_upload_json(void) {
     CHECK(Sync_BuildUploadJson(rows, 1, "x", tiny, sizeof(tiny)) == 0, "json: reports 0 when the buffer is too small");
     CHECK(Sync_BuildUploadJson(rows, 0, "x", body, sizeof(body)) > 0 && strstr(body, "\"p_rows\":[]}") != NULL, "json: an empty batch is still valid JSON");
 
-    CHECK(Sync_KnownGameCount() == 11 && Sync_IsKnownGame("gemdive") && !Sync_IsKnownGame("gemdelve") && !Sync_IsKnownGame("../x") && !Sync_IsKnownGame(NULL),
+    CHECK(Sync_KnownGameCount() == 7 && Sync_IsKnownGame("moondrop") && Sync_IsKnownGame("pondkings") && !Sync_IsKnownGame("gemdive") && !Sync_IsKnownGame("coilrush") && !Sync_IsKnownGame("../x") && !Sync_IsKnownGame(NULL),
           "known games: exactly ours");
     char noisy[] = "ok\x1b[31m\x07\nnext\xff";
     Sync_MakePrintable(noisy);
@@ -150,15 +150,15 @@ static void test_board_csv(void) {
     const char *csv =
         "game,mode,username,score,played_on\n"
         "blockfall,marathon,ghost,9000,2026-09-18\n"
-        "coilrush,classic,\"comma, name\",300,2026-09-19\r\n"
-        "coilrush,classic,\"quote \"\"q\"\"\",200,2026-09-19\n"
-        "coilrush,maze,pipe|name,150,2026-09-19\n"
+        "skyraid,classic,\"comma, name\",300,2026-09-19\r\n"
+        "skyraid,classic,\"quote \"\"q\"\"\",200,2026-09-19\n"
+        "skyraid,maze,pipe|name,150,2026-09-19\n"
         "../../etc,classic,evil,999,2026-09-19\n"
-        "coilrush,BAD MODE,evil,999,2026-09-19\n"
-        "coilrush,classic,evil,notanumber,2026-09-19\n"
-        "coilrush,classic,evil,50,yesterday\n"
-        "coilrush,classic,short\n"
-        "coilrush,wrap,last,10,2026-09-17";
+        "skyraid,BAD MODE,evil,999,2026-09-19\n"
+        "skyraid,classic,evil,notanumber,2026-09-19\n"
+        "skyraid,classic,evil,50,yesterday\n"
+        "skyraid,classic,short\n"
+        "skyraid,wrap,last,10,2026-09-17";
     SyncRow rows[16];
     int n = Sync_ParseBoardCsv(csv, rows, 16);
     CHECK(n == 5, "board: header skipped, 5 valid rows kept, 5 hostile/broken rows dropped");
@@ -171,8 +171,8 @@ static void test_board_csv(void) {
     const char *hostile =
         "game,mode,username,score,played_on\n"
         "zzz-invented-game,classic,evil,999,2026-09-19\n"
-        "coilrush,classic,evil,999999999999,2026-09-19\n"
-        "coilrush,classic,\"\x1b[2J\x07 wipe\",40,2026-09-19\n";
+        "skyraid,classic,evil,999999999999,2026-09-19\n"
+        "skyraid,classic,\"\x1b[2J\x07 wipe\",40,2026-09-19\n";
     n = Sync_ParseBoardCsv(hostile, rows, 16);
     CHECK(n == 1, "board: invented games and impossible scores from the server are dropped");
     bool clean = true;
@@ -190,28 +190,28 @@ static void test_cache_and_local_files(void) {
     const char *csv =
         "game,mode,username,score,played_on\n"
         "blockfall,marathon,ghost,9000,2026-09-18\n"
-        "coilrush,classic,anna,300,2026-09-19\n"
-        "coilrush,maze,ghost,150,2026-09-19\n";
+        "skyraid,classic,anna,300,2026-09-19\n"
+        "skyraid,maze,ghost,150,2026-09-19\n";
     int n = Sync_ParseBoardCsv(csv, rows, 8);
     CHECK(Sync_WriteGlobalCache(rows, n) == 2, "cache: one file per game");
 
-    CHECK(ReadFile("data/ghost-launcher/scores/global/coilrush.txt", buf, sizeof(buf)), "cache: coilrush file exists");
+    CHECK(ReadFile("data/ghost-launcher/scores/global/skyraid.txt", buf, sizeof(buf)), "cache: skyraid file exists");
     CHECK(strcmp(buf, "classic|anna|300|2026-09-19\nmaze|ghost|150|2026-09-19\n") == 0,
           "cache: same row format the games already read");
     CHECK(ReadFile("data/ghost-launcher/scores/global/blockfall.txt", buf, sizeof(buf)) &&
           strcmp(buf, "marathon|ghost|9000|2026-09-18\n") == 0, "cache: games don't bleed into each other");
 
     /* A second, smaller sync replaces the file rather than appending. */
-    n = Sync_ParseBoardCsv("h\ncoilrush,wrap,solo,5,2026-09-19\n", rows, 8);
+    n = Sync_ParseBoardCsv("h\nskyraid,wrap,solo,5,2026-09-19\n", rows, 8);
     Sync_WriteGlobalCache(rows, n);
-    CHECK(ReadFile("data/ghost-launcher/scores/global/coilrush.txt", buf, sizeof(buf)) &&
+    CHECK(ReadFile("data/ghost-launcher/scores/global/skyraid.txt", buf, sizeof(buf)) &&
           strcmp(buf, "wrap|solo|5|2026-09-19\n") == 0, "cache: rewritten whole, no stale rows");
 
     /* The cache round-trips through the local-file loader. */
     char path[800];
-    snprintf(path, sizeof(path), "%s/data/ghost-launcher/scores/global/coilrush.txt", gTmpRoot);
-    CHECK(Sync_LoadLocalFile(path, "coilrush", rows, 8) == 1 && rows[0].score == 5, "local: loader reads the same format");
-    CHECK(Sync_LoadLocalFile("/nonexistent/file.txt", "coilrush", rows, 8) == 0, "local: missing file is just empty");
+    snprintf(path, sizeof(path), "%s/data/ghost-launcher/scores/global/skyraid.txt", gTmpRoot);
+    CHECK(Sync_LoadLocalFile(path, "skyraid", rows, 8) == 1 && rows[0].score == 5, "local: loader reads the same format");
+    CHECK(Sync_LoadLocalFile("/nonexistent/file.txt", "skyraid", rows, 8) == 0, "local: missing file is just empty");
 
     WriteFile("data/ghost-launcher/scores/mixed.txt",
               "# Ghost Arcade scores for mixed: mode|username|score|date\n"
@@ -242,7 +242,7 @@ static void test_board_download(void) {
     char q[1024];
     size_t n = Sync_BoardQuery(now, q, sizeof(q));
     CHECK(n == strlen(q) && n > 0, "download: the query fits");
-    CHECK(strstr(q, "game=in.(blockfall,coilrush,brickburst,skyraid,ghostmaze,rockdrift,lanehop,crawlshot,moondrop,gemdive,girderclimb)") != NULL,
+    CHECK(strstr(q, "game=in.(blockfall,brickburst,skyraid,rockdrift,crawlshot,moondrop,pondkings)") != NULL,
           "download: every known game, and only those");
     CHECK(strstr(q, "&or=(mode.not.like.daily-*,mode.gte.daily-20260930)") != NULL, "download: regular boards, and dailies no older than the cut-off");
     CHECK(strstr(q, "&order=rank.asc,game.asc,mode.asc") != NULL && strstr(q, "&limit=1000") != NULL,
@@ -253,18 +253,18 @@ static void test_board_download(void) {
     const char *csv =
         "game,mode,username,score,played_on\n"
         "blockfall,classic,ghost,900,2026-10-01\n"
-        "girderclimb,classic,anna,50,2026-10-02\n"
+        "rockdrift,classic,anna,50,2026-10-02\n"
         "blockfall,daily-20261013,ghost,70,2026-10-13\n"
         "blockfall,daily-20250101,old,99,2025-01-01\n"
         "blockfall,classic,anna,800,2026-10-01\n"
-        "girderclimb,classic,ghost,40,2026-10-02\n"
+        "rockdrift,classic,ghost,40,2026-10-02\n"
         "blockfall,classic,trg,700,2026-10-01\n";
     SyncRow rows[16];
     int count = Sync_ParseBoardCsv(csv, rows, 16);
     count = Sync_DropOldDailies(rows, count, cutoff);
     CHECK(count == 6, "download: an old daily is dropped even if the server sends it");
     Sync_GroupBoards(rows, count);
-    const char *want[6][2] = {{"blockfall", "ghost"}, {"blockfall", "anna"}, {"blockfall", "trg"}, {"blockfall", "ghost"}, {"girderclimb", "anna"}, {"girderclimb", "ghost"}};
+    const char *want[6][2] = {{"blockfall", "ghost"}, {"blockfall", "anna"}, {"blockfall", "trg"}, {"blockfall", "ghost"}, {"rockdrift", "anna"}, {"rockdrift", "ghost"}};
     bool grouped = true;
     for (int i = 0; i < 6; i++) grouped &= strcmp(rows[i].game, want[i][0]) == 0 && strcmp(rows[i].username, want[i][1]) == 0;
     CHECK(grouped && strcmp(rows[3].mode, "daily-20261013") == 0, "download: grouped by game and board, each board in its rank order");
@@ -568,11 +568,11 @@ static void test_daily(void) {
 }
 
 static void test_achievements(void) {
-    static const char *const kSlugs[12] = {"blockfall", "coilrush", "brickburst", "skyraid", "ghostmaze", "rockdrift", "lanehop", "crawlshot", "moondrop", "gemdive", "girderclimb", "chipforge"};
+    static const char *const kSlugs[8] = {"blockfall", "brickburst", "skyraid", "rockdrift", "crawlshot", "moondrop", "pondkings", "chipforge"};
     /* The table: six per game, every id unique, thresholds sensible. */
     int total = 0;
     bool unique = true, sane = true;
-    for (int g = 0; g < 11; g++) {
+    for (int g = 0; g < 7; g++) {
         int n = Ach_CountForGame(kSlugs[g]);
         CHECK(n == 6, "achievements: six for each game");
         total += n;
@@ -586,6 +586,9 @@ static void test_achievements(void) {
     for (int a = 0; a < Ach_Count(); a++) for (int b = a + 1; b < Ach_Count(); b++) if (strcmp(Ach_At(a)->id, Ach_At(b)->id) == 0 && strcmp(Ach_At(a)->slug, Ach_At(b)->slug) == 0) unique = false;
     CHECK(total == Ach_Count() && unique && sane, "achievements: table is complete, ids unique per game, score tiers ascend");
     CHECK(Ach_CountForGame("nonesuch") == 0 && Ach_ForGame("nonesuch", 0) == NULL, "achievements: an unknown game has none");
+    CHECK(Ach_CountForGame("coilrush") == 0 && Ach_CountForGame("ghostmaze") == 0 && Ach_CountForGame("lanehop") == 0 &&
+              Ach_CountForGame("gemdive") == 0 && Ach_CountForGame("girderclimb") == 0,
+          "achievements: none for the games that left the arcade");
 
     /* Nothing earned yet. */
     CHECK(Ach_UnlockedForGame("blockfall") == 0 && !Ach_IsUnlocked("blockfall", "r0", NULL), "achievements: none to begin with");
@@ -614,15 +617,15 @@ static void test_achievements(void) {
     CHECK(Ach_UnlockedForGame("blockfall") == 6, "achievements: all six");
 
     /* Games are independent. */
-    CHECK(Ach_UnlockedForGame("coilrush") == 0, "achievements: another game is untouched");
+    CHECK(Ach_UnlockedForGame("skyraid") == 0, "achievements: another game is untouched");
     CHECK(Ach_CheckRun("moondrop", 600, 2) == 2, "achievements: a first run that also scores well earns both");
     CHECK(Ach_CheckRun("moondrop", 0, 0) == 0, "achievements: a poor run earns nothing new");
     /* Junk in the file is ignored. */
     char p[800];
-    snprintf(p, sizeof(p), "%s/data/ghost-launcher/achievements/lanehop.txt", gTmpRoot);
+    snprintf(p, sizeof(p), "%s/data/ghost-launcher/achievements/crawlshot.txt", gTmpRoot);
     FILE *f = fopen(p, "w");
     if (f) { fputs("garbage\n||\nr0|2026-01-01\n\xff\xfe\n", f); fclose(f); }
-    CHECK(Ach_IsUnlocked("lanehop", "r0", NULL) && Ach_UnlockedForGame("lanehop") == 1, "achievements: a damaged file is read as far as it makes sense");
+    CHECK(Ach_IsUnlocked("crawlshot", "r0", NULL) && Ach_UnlockedForGame("crawlshot") == 1, "achievements: a damaged file is read as far as it makes sense");
 }
 
 static void test_runstats(void) {
@@ -783,9 +786,9 @@ static void test_safefile(void) {
 }
 
 static void test_howto(void) {
-    static const char *const kSlugs[12] = {"blockfall", "coilrush", "brickburst", "skyraid", "ghostmaze", "rockdrift", "lanehop", "crawlshot", "moondrop", "gemdive", "girderclimb", "chipforge"};
+    static const char *const kSlugs[8] = {"blockfall", "brickburst", "skyraid", "rockdrift", "crawlshot", "moondrop", "pondkings", "chipforge"};
     bool all = true, sane = true;
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 8; i++) {
         const HowTo *h = HowTo_ForSlug(kSlugs[i]);
         if (!h) { all = false; continue; }
         int controls = 0;
@@ -795,7 +798,10 @@ static void test_howto(void) {
         }
         if (controls < 3 || controls >= HOWTO_MAX_CONTROLS || strlen(h->goal) < 20 || strlen(h->tip) < 10 || strlen(h->goal) > 240 || strlen(h->tip) > 200) sane = false;
     }
-    CHECK(all && HowTo_Count() == 12, "howto: every game and Chipforge has a card");
+    CHECK(all && HowTo_Count() == 8, "howto: every game and Chipforge has a card");
+    CHECK(!HowTo_ForSlug("coilrush") && !HowTo_ForSlug("ghostmaze") && !HowTo_ForSlug("lanehop") && !HowTo_ForSlug("gemdive") &&
+              !HowTo_ForSlug("girderclimb"),
+          "howto: none for the games that left the arcade");
     CHECK(sane, "howto: each card has a goal, a tip and a sensible number of controls");
     CHECK(HowTo_ForSlug("nope") == NULL && HowTo_ForSlug(NULL) == NULL, "howto: unknown slug is NULL");
     CHECK(!HowTo_Seen("lanehop"), "howto: not seen at first");

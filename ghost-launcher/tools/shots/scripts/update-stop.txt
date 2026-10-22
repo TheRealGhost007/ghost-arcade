@@ -5,7 +5,7 @@ tap V
 wait 3
 tap U
 wait 3
-write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the eleven games, Chipforge and Ghost Launcher (8 jobs)\n
+write .local/share/ghost-launcher/update.log ==> Fetching the newest version\n==> Building the six games, Chipforge and Ghost Launcher (8 jobs)\n
 wait 30
 # Leave from the menu: the box says the update carries on.
 tap ESC

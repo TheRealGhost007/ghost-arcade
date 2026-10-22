@@ -312,7 +312,7 @@ static void recipe_test_roll(void) {
     }
     /* And from a theme: a roll lands in the recipe register, not the theme's. */
     Recipe t;
-    Recipe_FromTheme(&t, Music_FindTheme("lanehop"));
+    Recipe_FromTheme(&t, Music_FindTheme("moondrop")); /* root 53: above the recipe register, so the roll must move it */
     Recipe_Roll(&t, 99);
     CHECK(changed, "roll: every roll changes at least one field");
     CHECK(collision, "roll: even when the seed redraws the recipe on screen");

@@ -2,7 +2,7 @@
 # Phase 6: attract mode. After a minute with nothing pressed on the hall
 # (Settings > Screen > Attract mode; 1 min unless set) the card slides
 # away, PRESS ANY BUTTON stands where it was, and every six seconds the row
-# glides on to the next installed machine (Gemdive, not installed here, is
+# glides on to the next installed machine (Moondrop, not installed here, is
 # passed by; from the last machine it jumps round to the first). Your own
 # machine never changes. Any key, click, wheel or pointer move wakes it,
 # back on your machine, and that press does nothing else: Enter drops no
@@ -16,36 +16,40 @@ wait 3
 tap LEFT
 wait 3
 tap LEFT
+wait 3
+tap LEFT
 wait 30
-expect app lit Moondrop
+expect app lit Rockdrift
 wait 3500
 expect app attract 0
 wait 80
 expect app attract 1
-expect app shown Moondrop
-expect app lit Moondrop
+expect app shown Rockdrift
+expect app lit Rockdrift
 wait 30
 expect app cardout 1.00
 expect app look:Card absent
 expect app look:Favourite absent
 shot attract
 wait 330
-expect app shown Girderclimb
-expect app lit Moondrop
+expect app shown Crawlshot
+expect app lit Rockdrift
 wait 360
 expect app shown Chipforge
 wait 50
 shot attract-jukebox
 wait 310
+expect app shown Pond Kings
+wait 360
 expect app shown Blockfall
-expect app lit Moondrop
+expect app lit Rockdrift
 
 # A key wakes it, back on your machine; the Enter that woke it plays nothing.
 tap ENTER
 wait 2
 expect app attract 0
-expect app shown Moondrop
-expect app lit Moondrop
+expect app shown Rockdrift
+expect app lit Rockdrift
 wait 80
 expect launches 0
 expect app settled 1
@@ -61,7 +65,7 @@ expect app attract 1
 click 680 300
 wait 3
 expect app attract 0
-expect app lit Moondrop
+expect app lit Rockdrift
 expect launches 0
 expect count 0 install
 
@@ -78,5 +82,5 @@ expect app attract 1
 wheel -1
 wait 30
 expect app attract 0
-expect app lit Moondrop
+expect app lit Rockdrift
 expect app settled 1

@@ -1,4 +1,4 @@
-#! env SHOTS_ADMIN=1
+#! env SHOTS_ADMIN=1 SHOTS_EXTRA_GAMES=1
 # Phase 5 verifier: what the review found and fixed.
 # - A press held across a page flip (Enter, or the mouse on Play while PgDn
 #   turns) no longer starts the machine turned to.
@@ -9,6 +9,8 @@
 # - The strip: no time reads faint, time with no date reads Not recorded,
 #   a machine without trophies reads None.
 # - A machine of the admin's own, on every tab; Edit and Remove from a page.
+# Nine machines: the arcade's eight, then Extra 1, which has no daily
+# challenge; it is last on the row, so PgUp from Blockfall comes round to it.
 wait 30
 tap I
 wait 8
@@ -16,9 +18,9 @@ expect app pagefor Blockfall
 expect app focus Play
 down ENTER
 wait 3
-tap PAGE_DOWN
+tap PAGE_UP
 wait 5
-expect app pagefor Coilrush
+expect app pagefor Extra 1
 up ENTER
 wait 5
 expect ui GAME
@@ -28,20 +30,20 @@ mdown left
 wait 3
 tap PAGE_DOWN
 wait 5
-expect app pagefor Brickburst
+expect app pagefor Blockfall
 mup left
 wait 5
 expect ui GAME
 wait 70
 expect launches 0
 
-# Brickburst's Daily has the keys; Coilrush's is faint, so they go to Play.
+# Blockfall's Daily has the keys; Extra 1's is faint, so they go to Play.
 tap DOWN
 wait 2
 expect app focus Daily challenge
 tap PAGE_UP
 wait 5
-expect app pagefor Coilrush
+expect app pagefor Extra 1
 expect app focus Play
 expect app look:Play focused
 expect app pagehelp Back to the hall, where the coin drops and it starts.
@@ -57,12 +59,13 @@ wait 5
 pad off
 expect ui LIST
 
-# The strip: Chipforge has 18m and no date known; Ghostmaze nothing at all.
-expect app lit Coilrush
+# The strip: Chipforge has 18m and no date known; Extra 1 nothing at all
+# (not even trophies to win: None); Moondrop none of its six trophies yet.
+# Pond Kings stands between Chipforge and Extra 1: the pages turn past it.
+expect app lit Extra 1
 tap I
 wait 8
 tap PAGE_UP
-wait 3
 tap PAGE_UP
 wait 5
 expect app pagefor Chipforge
@@ -73,21 +76,22 @@ wait 3
 shot verify-p5-chipforge-strip
 tap PAGE_DOWN
 tap PAGE_DOWN
-tap PAGE_DOWN
-tap PAGE_DOWN
-tap PAGE_DOWN
 wait 5
-expect app pagefor Ghostmaze
+expect app pagefor Extra 1
 expect app strip:1 0m (faint)
 expect app strip:3 Never (faint)
+expect app strip:4 None (faint)
+tap PAGE_UP
+tap PAGE_UP
+tap PAGE_UP
+wait 5
+expect app pagefor Moondrop
 expect app strip:4 0/6
-tap PAGE_UP
-tap PAGE_UP
 tap PAGE_UP
 wait 5
 
-# Edit Coilrush from its page: Left/Right on the form's buttons.
-expect app pagefor Coilrush
+# Edit Crawlshot from its page: Left/Right on the form's buttons.
+expect app pagefor Crawlshot
 tap E
 wait 5
 expect ui EDIT_GAME
@@ -116,9 +120,9 @@ shot verify-p5-form-row
 tap ENTER
 wait 5
 expect ui GAME
-expect app pagefor Coilrush Two
+expect app pagefor Crawlshot Two
 expect app strip:1 10m
-expect file .local/share/ghost-launcher/playtime.txt Coilrush Two|610.0
+expect file .local/share/ghost-launcher/playtime.txt Crawlshot Two|610.0
 
 # A machine of the admin's own: no how-to card, no scores, no trophies.
 tap ESCAPE
@@ -160,12 +164,13 @@ tap RIGHT
 tap ENTER
 wait 5
 expect ui LIST
-expect app games 12
+expect app games 9
 
 # A double-click on the card: the first click opens the page, the second
 # (where the page's Favourite now is) presses nothing. A later click does.
-expect app lit Chipforge
-tap LEFT
+# Right from Extra 1, the last, comes round to Blockfall.
+expect app lit Extra 1
+tap RIGHT
 wait 30
 mouse 200 525
 wait 2
@@ -178,9 +183,9 @@ wait 1
 mup left
 wait 3
 expect ui GAME
-expect app pagefor Girderclimb
-expect app fav:Girderclimb 0
+expect app pagefor Blockfall
+expect app fav:Blockfall 0
 wait 30
 click 200 525
 wait 3
-expect app fav:Girderclimb 1
+expect app fav:Blockfall 1

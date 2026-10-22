@@ -21,7 +21,7 @@ void test_kit_all(void);
 void test_settings_all(void);
 /* tests/test_hall.c: the hall's row, hit testing, pad map, strip and status line; the name board's grid. */
 void test_hall_all(void);
-/* tests/test_row.c: your row (orders, favourites, hiding, the place/catalog mapping), the Gemdelve fold, hall music, the quiet hall. */
+/* tests/test_row.c: your row (orders, favourites, hiding, the place/catalog mapping), the retired-games migration, hall music, the quiet hall. */
 void test_row_all(void);
 /* tests/test_page.c: a machine's page and its boards, admin's form, the Machines manager's carry-over. */
 void test_page_all(void);

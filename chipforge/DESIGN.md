@@ -3,7 +3,7 @@
 Chipforge is Ghost Arcade's music maker: a chiptune tracker that writes songs
 the games can play, and an importer that turns a recording (WAV/OGG/MP3)
 into one of those songs. It lives in the `ghost-arcade` monorepo beside the
-eleven games and the launcher, and it is built like them: C17, raylib 6,
+seven games and the launcher, and it is built like them: C17, raylib 6,
 `ghost-common` compiled straight from `../ghost-common`, `make`, `make test`
 (headless, no raylib), `make install` into `~/.local`.
 
@@ -16,7 +16,7 @@ eleven games and the launcher, and it is built like them: C17, raylib 6,
 - `ghost-common/musicsynth.h/.c` — the synth. `Synth_Init(&s, &song, rate)`,
   `Synth_Render`, `Synth_SetPosition`, `Synth_SetLoopPattern`, `Synth_Preview`,
   `Synth_CurrentPattern`, `Synth_RenderWavFile`, and `Music_ThemeToSong` which
-  turns any of the twelve built-in game themes (`Music_ThemeAt(i)`,
+  turns any of the eight built-in themes (`Music_ThemeAt(i)`,
   `Music_ThemeCount()`) into a one-pattern song: Chipforge's presets.
 - `ghost-common/music.c` — what the GAMES use. Already prefers an assigned
   Chipforge song over the built-in theme. Chipforge does not use it; it has
@@ -62,7 +62,7 @@ must not define `main` and must use `static` helpers with unique names
 
 Window 960x640 logical (landscape, like the launcher), title "Chipforge",
 light colour teal `(Color){40, 220, 190, 255}`, `Ui_DefaultTheme(light)`.
-Slug `chipforge`. Version 1.1.0.
+Slug `chipforge`. Version 1.1.1.
 
 Screens (an `AppState` enum in main.c):
 
@@ -156,12 +156,12 @@ Screens (an `AppState` enum in main.c):
   length, patterns, notes found, "truncated" if so) and `Enter` opens the
   result in the EDITOR with the title from `Browser_TitleFromPath`, unsaved.
   Failure (LoadWave invalid, Transcribe false) shows a plain message.
-- **PRESETS** — the twelve themes by name (`Music_ThemeAt(i)->slug`,
+- **PRESETS** — the eight themes by name (`Music_ThemeAt(i)->slug`,
   capitalised; "ghostarcade" shown as "Ghost Arcade"); Enter opens
   a copy in the editor named after the game, unsaved. Up/Down previews
   nothing (keep it simple); Space plays the highlighted theme through the
   player so you can audition it, Space again stops.
-- **ASSIGN** — the twelve slugs (the 11 games + `ghostarcade`) with the
+- **ASSIGN** — the eight slugs (the seven games + `ghostarcade`) with the
   currently assigned file for each (from `Song_AssignedName`); Enter assigns
   the current song's file (saving it first if it has never been saved: goes
   through the NAME prompt, then assigns), Delete clears that slug, Escape

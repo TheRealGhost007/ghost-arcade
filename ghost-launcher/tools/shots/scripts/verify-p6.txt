@@ -1,4 +1,4 @@
-#! env SHOTS_ADMIN=0 SHOTS_DAILIES=1
+#! env SHOTS_ADMIN=0 SHOTS_DAILIES=1 SHOTS_EXTRA_GAMES=1 SHOTS_UNINSTALLED=
 # Phase 6 verification: what the extras' first build got wrong.
 # - A wheel flick is one gesture: its first notch wakes attract mode, and
 #   the notches right behind it must not move the row off your machine
@@ -11,9 +11,10 @@
 # - Shift+D on a page opens the desk, as on the hall (it did nothing, and
 #   before the desk it was the page's Daily).
 # - Settings > Screen > Attract mode: each choice's note stays in its row.
+# Every machine is installed here (SHOTS_UNINSTALLED is empty), so the row
+# the double-click's second click lands on (Moondrop's) is one that plays;
+# Extra 1 is a machine with no daily challenge.
 wait 30
-tap RIGHT
-wait 3
 tap RIGHT
 wait 30
 expect app lit Brickburst
@@ -82,7 +83,9 @@ expect launches 1
 gameexit
 wait 10
 
-# Shift+D on a page: the desk; Esc back to the page.
+# Shift+D on a page: the desk; Esc back to the page. On the page of a
+# machine with no daily (Extra 1, round the start of the row) D does
+# nothing, and Shift+D still opens the desk.
 tap I
 wait 10
 expect ui GAME
@@ -93,9 +96,13 @@ expect app under GAME
 tap ESCAPE
 wait 3
 expect ui GAME
-tap PAGE_DOWN
+tap PAGE_UP
 wait 10
-expect app pagefor Ghostmaze
+tap PAGE_UP
+wait 10
+tap PAGE_UP
+wait 10
+expect app pagefor Extra 1
 tap D
 wait 5
 expect ui GAME

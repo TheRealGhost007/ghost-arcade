@@ -28,7 +28,9 @@ wait 3
 expect app typing 0
 expect ui SETTINGS
 expect file .local/share/ghost-launcher/profiles.txt __DEFAULT__|TRG\n
-# Start on, then the names list: down past the sixth name scrolls it.
+# Start on, then the names list: down past the sixth name scrolls it
+# (eight machines, six in sight: holding down to the last, Pond Kings,
+# scrolls it two rows).
 pad tap DOWN
 wait 2
 expect app focusrow Start on
@@ -40,8 +42,8 @@ wait 2
 expect app focus Clear
 pad hold DOWN 100
 wait 3
-expect app namestop 6
-expect app focusrow Chipforge
+expect app namestop 2
+expect app focusrow Pond Kings
 shot settings-pad-names
 pad hold UP 120
 wait 3

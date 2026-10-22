@@ -39,10 +39,10 @@ plays it instead of its built-in theme from its next launch.
   patterns and notes found; Enter opens the result in the editor, unsaved.
   You can also drop an audio file onto the window, or start
   `chipforge <file>` (a `.gsong` opens in the editor, audio imports).
-- **Game themes**: the twelve built-in themes (the eleven games and the
+- **Game themes**: the eight built-in themes (the seven games and the
   launcher) as presets. Space auditions one; Enter opens a copy in the editor;
   R opens Make a song on that theme's own recipe, to make one like it.
-- **Give it to a game**: the eleven games, and Ghost Arcade (launcher) for the
+- **Give it to a game**: the seven games, and Ghost Arcade (launcher) for the
   launcher's hall, with what each plays now. Enter assigns the current song
   (saving it first if needed), Delete clears a slot.
 - **Settings**, **How to play**, **Updates**: the shared arcade screens.
@@ -461,7 +461,7 @@ src/
   main.c          window, the app state machine, the other screens (Make a song included)
 ../ghost-common/
   song.c/h        the Song model, .gsong format, library and music.ini
-  musicsynth.c/h  the synth and the twelve built-in themes
+  musicsynth.c/h  the synth and the eight built-in themes
   ui, winscale, prefs, sfx, howto
 tests/            test_main.c includes test_song.c, test_editor.c,
                   test_browser.c, test_transcribe.c, test_compose.c,

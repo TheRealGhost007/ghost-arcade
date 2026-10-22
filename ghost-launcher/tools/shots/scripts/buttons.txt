@@ -52,7 +52,8 @@ wait 3
 expect ui LIST
 expect file .config/ghost-launcher/online.conf enabled=1\n
 
-# Trophies: the arrows beside the game's name step it, round the ends.
+# Trophies: the arrows beside the game's name step it, round the ends
+# (from Blockfall back to the arcade's last machine, Pond Kings).
 tap H
 wait 3
 expect trophy 0
@@ -66,7 +67,7 @@ expect trophy 1
 click 84 164
 click 84 164
 wait 3
-expect trophy 11
+expect trophy 7
 mouse 200 164
 wait 3
 expect app cursor default

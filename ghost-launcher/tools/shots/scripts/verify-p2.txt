@@ -51,7 +51,9 @@ tap UP
 wait 2
 expect app focus Tabs
 
-# The names list, end to end with the keys: it scrolls under the focus.
+# The names list, end to end with the keys: it scrolls under the focus
+# (eight machines, six in sight: reaching the last, Pond Kings, scrolls it
+# two rows).
 tap U
 wait 3
 expect app tab Player
@@ -59,8 +61,8 @@ expect app typing 0
 expect app focus Edit
 hold DOWN 140
 wait 2
-expect app focusrow Chipforge
-expect app namestop 6
+expect app focusrow Pond Kings
+expect app namestop 2
 shot verify-settings-names-end
 hold UP 140
 wait 2
@@ -73,9 +75,8 @@ wait 3
 expect ui LIST
 tap RIGHT
 tap RIGHT
-tap RIGHT
 wait 20
-expect selected 3
+expect selected 2
 tap TAB
 wait 3
 tap SHIFT U

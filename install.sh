@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ghost Arcade installer: builds the eleven games, Chipforge and Ghost Launcher
+# Ghost Arcade installer: builds the six games, Pond Kings, Chipforge and Ghost Launcher
 # from this checkout and installs them for the current user (~/.local). No root needed,
 # and nothing outside your home folder is touched.
 #
@@ -116,7 +116,7 @@ if [ "$MODE" = update ]; then
 fi
 
 jobs=$(nproc 2>/dev/null || echo 2)
-say "Building the eleven games, Chipforge and Ghost Launcher ($jobs jobs)"
+say "Building the six games, Pond Kings, Chipforge and Ghost Launcher ($jobs jobs)"
 make -s -j"$jobs"
 
 if [ "$RUN_TESTS" -eq 1 ]; then

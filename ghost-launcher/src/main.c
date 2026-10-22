@@ -2257,7 +2257,7 @@ int main(void) {
     char *assetsDir = a->assetsDir;
     ResolveAssetsDir(assetsDir, sizeof(a->assetsDir));
 
-    Manifest_Load(&a->manifest, assetsDir);
+    bool catalogLoaded = Manifest_Load(&a->manifest, assetsDir);
     Stats_Load(&a->stats);
     Profiles_Load(&a->profiles);
     a->adminUnlocked = AdminLock_IsUnlocked();
@@ -2275,7 +2275,8 @@ int main(void) {
     a->buttonHints = Settings_ButtonHints(&a->ini);
     a->hallMusic = HallMusic_Enabled(&a->ini);
     a->attractSetting = Attract_Setting(&a->ini);
-    Migrate_GemdelvePlaytime(&a->ini, &a->stats, &a->manifest);
+    Migrate_RetiredGames(&a->ini, &a->manifest, catalogLoaded);
+    Migrate_NewGames(&a->ini, &a->manifest, catalogLoaded);
     LoadSounds(a, assetsDir);
     Music_Init(HALL_MUSIC_SLUG); /* after the audio device opens; silent without one */
     HallMusic_Song(&a->hallSong);

@@ -75,7 +75,7 @@ void Desk_DateWords(int dayNumber, char *out, size_t size) {
 
 /* ---------------------------------------------------------------- games */
 
-static const char *const kDailyGames[] = {"brickburst", "skyraid", "rockdrift", "lanehop", "crawlshot", "moondrop", "girderclimb", "blockfall"};
+static const char *const kDailyGames[] = {"brickburst", "skyraid", "rockdrift", "crawlshot", "moondrop", "blockfall", "pondkings"};
 #define DAILY_GAMES ((int)(sizeof(kDailyGames) / sizeof(kDailyGames[0])))
 
 int Desk_GameCount(void) { return DAILY_GAMES; }

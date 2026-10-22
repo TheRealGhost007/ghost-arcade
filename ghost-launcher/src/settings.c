@@ -382,7 +382,7 @@ static void LayoutOnline(SettingsPage *p, const SettingsView *v) {
 #define MACH_REMOVE_W 80
 #define MACH_ADD_W 136
 #define MACH_STAR_W 22 /* the 16 px star before a favourite's name, and its gap */
-#define MACH_NAME_ROOM (MACH_FAV_X - 8 - SET_LABEL_X - MACH_STAR_W) /* "Girderclimb" fits */
+#define MACH_NAME_ROOM (MACH_FAV_X - 8 - SET_LABEL_X - MACH_STAR_W) /* an eleven-letter name like "Girderclimb" fits */
 
 /* Why Up or Down cannot move this machine, or NULL when it can. */
 static const char *MoveBlock(const SettingsView *v, int index, int dir) {

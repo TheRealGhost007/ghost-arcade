@@ -1,5 +1,8 @@
 # Ghost Arcade Roadmap
 
+> **2026-10-21:** Coilrush, Ghostmaze, Lanehop, Gemdive and Girderclimb have left the
+> arcade. What this document says about them is history; their code is in the git history.
+
 The plan for every game in the Ghost Launcher catalog, plus the shared pieces
 that make them feel like one arcade instead of ten unrelated binaries.
 

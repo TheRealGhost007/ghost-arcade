@@ -32,7 +32,7 @@ bool Scores_IsTimeBoard(const char *slug, const char *mode);
 void Scores_FormatScore(bool timed, long score, char *out, size_t size);
 
 /* The score-file slug is the game's binary name: the basename of the
- * catalog's exec path ("~/.local/bin/coilrush" -> "coilrush"). Returns
+ * catalog's exec path ("~/.local/bin/blockfall" -> "blockfall"). Returns
  * false if that isn't a safe file name (lowercase letters, digits, '-'). */
 bool Scores_SlugFromExec(const char *execPath, char *out, size_t outSize);
 

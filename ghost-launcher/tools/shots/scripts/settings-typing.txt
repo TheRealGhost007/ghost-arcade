@@ -89,9 +89,8 @@ shot hall-long-name
 # Shift+U: the selected machine's own name, scrolled into sight.
 tap RIGHT
 tap RIGHT
-tap RIGHT
 wait 30
-expect selected 3
+expect selected 2
 tap SHIFT U
 wait 3
 expect app typing 1
@@ -105,20 +104,17 @@ tap RIGHT
 tap RIGHT
 tap RIGHT
 tap RIGHT
-tap RIGHT
-tap RIGHT
-tap RIGHT
 wait 30
-expect selected 10
+expect selected 6
 tap SHIFT U
 wait 3
-expect app focusrow Girderclimb
-expect app namestop 5
+expect app focusrow Chipforge
+expect app namestop 1
 shot settings-typing-scrolled
 tap ESC
 wait 3
 expect ui LIST
-expect nofile .local/share/ghost-launcher/profiles.txt Girderclimb|
+expect nofile .local/share/ghost-launcher/profiles.txt Chipforge|
 
 # The mouse: a click on a game's name box types there.
 tap TAB
@@ -126,8 +122,8 @@ wait 3
 click 330 358
 wait 3
 expect app typing 1
-expect app focusrow Coilrush
-text Coily
+expect app focusrow Brickburst
+text Bricky
 mouse 820 358
 wait 3
 expect app look:Cancel hover
@@ -137,12 +133,12 @@ click 600 580
 wait 3
 expect app typing 0
 expect ui SETTINGS
-expect file .local/share/ghost-launcher/profiles.txt Coilrush|Coily\n
+expect file .local/share/ghost-launcher/profiles.txt Brickburst|Bricky\n
 expect app toast Saved
 # Clear puts the game back on the arcade name.
 click 820 358
 wait 3
-expect file .local/share/ghost-launcher/profiles.txt Coilrush|\n
+expect file .local/share/ghost-launcher/profiles.txt Brickburst|\n
 expect app toast Saved
 # Cancel puts the old name back.
 click 700 318

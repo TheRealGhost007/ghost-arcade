@@ -20,7 +20,7 @@ static int arrange_Mod(int a, int n) { int r = a % n; return r < 0 ? r + n : r; 
 
 static int arrange_SourceCount(void) { return Music_ThemeCount() + ARRANGE_RECIPES; }
 
-/* The songs every test runs over: the twelve themes, then songs made the
+/* The songs every test runs over: the built-in themes, then songs made the
  * way the recipe screen makes them (compose.h's writers in a roll's
  * register, tonic 40..51 with the tune at leadOctave 3), one per named
  * progression, walking every root, scale and style of every track so the

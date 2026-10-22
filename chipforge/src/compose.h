@@ -14,7 +14,7 @@
  *
  * Styles 0..3 of bass, arp and drums and the lead writer are a port of
  * Music_ThemeToSong's composer in ghost-common/musicsynth.c and reproduce it
- * byte for byte (the theme-lock test pins that), so the twelve game themes
+ * byte for byte (the theme-lock test pins that), so the built-in game themes
  * stay exactly what the games ship while Chipforge gets more styles here
  * without ghost-common changing. */
 
@@ -150,7 +150,7 @@ bool Compose_FitLead(SongPattern *p, ComposeKey k, const ComposeChords *c);
 int Compose_GuessStyle(const SongPattern *p, ComposeKey k, SongTrack track);
 /* The leadOctave Compose_Lead would need to sit where this pattern's lead
  * does (by its average note), 1..5; 2 for an empty lead. Exact for the
- * twelve themes, so a new tune keeps the register of the one it replaces. */
+ * built-in themes, so a new tune keeps the register of the one it replaces. */
 int Compose_LeadOctave(ComposeKey k, int tonicMidi, const SongPattern *p);
 
 /* ---- the named progressions --------------------------------------------- */

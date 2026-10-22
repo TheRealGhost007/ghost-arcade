@@ -203,19 +203,21 @@ static void test_desk_featured(void) {
         if (f < 0 || f >= Desk_GameCount()) inRange = false;
         else if (f == Desk_Featured(d - 1)) never2 = false;
     }
-    for (int round = -3; round < 200; round++) { /* rounds of eight days begin on day 0 */
+    for (int round = -3; round < 200; round++) { /* rounds of seven days begin on day 0 */
         int seen = 0;
         for (int d = round * DESK_ROUND; d < round * DESK_ROUND + DESK_ROUND; d++) seen |= 1 << Desk_Featured(d);
         if (seen != (1 << Desk_GameCount()) - 1) rounds = false;
     }
     CHECK(same && inRange, "featured: the same game all day, always a daily game");
-    CHECK(rounds && DESK_ROUND == Desk_GameCount(), "featured: every daily game has its day in each round of eight");
+    CHECK(rounds && DESK_ROUND == Desk_GameCount(), "featured: every daily game has its day in each round of seven");
     CHECK(never2, "featured: never the same game two days running, across rounds too");
     int a = Desk_Featured(today), b = Desk_Featured(today + DESK_ROUND), c = Desk_Featured(today + 2 * DESK_ROUND);
     CHECK(!(a == b && b == c), "featured: rounds are not all alike");
-    CHECK(Desk_IsDaily("skyraid") && Desk_IsDaily("girderclimb") && Desk_IsDaily("blockfall") && !Desk_IsDaily("chipforge") &&
-              !Desk_IsDaily(NULL) && Desk_GameCount() == 8 && strcmp(Desk_GameSlug(99), "") == 0 && strcmp(Desk_GameSlug(7), "blockfall") == 0,
-          "desk games: the eight with a daily (Blockfall since its 3.6.0)");
+    CHECK(Desk_IsDaily("skyraid") && Desk_IsDaily("moondrop") && Desk_IsDaily("blockfall") && !Desk_IsDaily("chipforge") &&
+              !Desk_IsDaily(NULL) && Desk_GameCount() == 7 && strcmp(Desk_GameSlug(99), "") == 0 && strcmp(Desk_GameSlug(5), "blockfall") == 0 &&
+              Desk_IsDaily("pondkings") && strcmp(Desk_GameSlug(6), "pondkings") == 0,
+          "desk games: the seven with a daily");
+    CHECK(!Desk_IsDaily("lanehop") && !Desk_IsDaily("girderclimb"), "desk games: none of the games that left the arcade");
 }
 
 /* ----------------------------------------------------------------- desk */
@@ -235,10 +237,8 @@ static void DeskCatalog(void) {
     AddGame("Brickburst", "brickburst");
     AddGame("Skyraid", "skyraid");
     AddGame("Rockdrift", "rockdrift");
-    AddGame("Lanehop", "lanehop");
     AddGame("Crawlshot", "crawlshot");
     AddGame("Moondrop", "moondrop");
-    AddGame("Girderclimb", "girderclimb");
     AddGame("Chipforge", "chipforge");
 }
 
@@ -253,7 +253,7 @@ static void test_desk_load(void) {
     localtime_r(&now, &tm);
     strftime(date, sizeof(date), "%Y-%m-%d", &tm);
     /* Brickburst today (runs.log) and the two days before (Skyraid);
-     * Lanehop only on today's local board; Skyraid's world board has you 2nd. */
+     * Crawlshot only on today's local board; Skyraid's world board has you 2nd. */
     snprintf(line, sizeof(line), "%s 10:00:00|%s|1800|3\n%s 10:05:00|normal|2950|3\n", date, mode, date);
     WriteUnder("XDG_DATA_HOME", "brickburst/runs.log", line);
     char d2[24];
@@ -265,33 +265,33 @@ static void test_desk_load(void) {
     snprintf(line, sizeof(line), "%s|Ghost|2600|%s\n%s|trg|1800|%s\n%s|Moth|2200|%s\n", mode, date, mode, date, yday, date);
     WriteUnder("XDG_DATA_HOME", "ghost-launcher/scores/global/brickburst.txt", line);
     snprintf(line, sizeof(line), "%s|TRG|400|%s\n", mode, date);
-    WriteUnder("XDG_DATA_HOME", "ghost-launcher/scores/lanehop.txt", line);
+    WriteUnder("XDG_DATA_HOME", "ghost-launcher/scores/crawlshot.txt", line);
 
     Profiles prof;
     memset(&prof, 0, sizeof(prof));
     Profiles_SetUsername(&prof, PROFILE_DEFAULT_KEY, "TRG");
     bool installed[MANIFEST_MAX_GAMES];
     for (int i = 0; i < MANIFEST_MAX_GAMES; i++) installed[i] = true;
-    installed[6] = false; /* Moondrop */
+    installed[5] = false; /* Moondrop */
     /* The row: Skyraid first, Rockdrift hidden (off the row). */
     Lineup row;
     memset(&row, 0, sizeof(row));
-    int order[] = {2, 0, 1, 4, 5, 6, 7, 8};
-    for (int p = 0; p < 8; p++) row.index[row.count++] = order[p];
+    int order[] = {2, 0, 1, 4, 5, 6};
+    for (int p = 0; p < 6; p++) row.index[row.count++] = order[p];
     static Desk desk;
     DeskSource src = {&sCat, &row, installed, &prof, now};
     Desk_Load(&desk, &src);
-    CHECK(desk.today == today && strcmp(desk.mode, mode) == 0 && desk.count == 7, "desk: a row for each daily game on your row (Blockfall too; not Chipforge or a hidden one)");
+    CHECK(desk.today == today && strcmp(desk.mode, mode) == 0 && desk.count == 5, "desk: a row for each daily game on your row (Blockfall too; not Chipforge or a hidden one)");
     CHECK(strcmp(desk.rows[0].name, "Skyraid") == 0 && strcmp(desk.rows[1].name, "Blockfall") == 0 && strcmp(desk.rows[2].name, "Brickburst") == 0 &&
-              strcmp(desk.rows[3].name, "Lanehop") == 0 && desk.rows[0].index == 2,
+              strcmp(desk.rows[3].name, "Crawlshot") == 0 && desk.rows[0].index == 2,
           "desk: in your row's order");
-    const DeskRow *bb = &desk.rows[2], *sky = &desk.rows[0], *lane = &desk.rows[3], *moon = &desk.rows[5], *bf = &desk.rows[1];
+    const DeskRow *bb = &desk.rows[2], *sky = &desk.rows[0], *crawl = &desk.rows[3], *moon = &desk.rows[4], *bf = &desk.rows[1];
     CHECK(!bf->played && !bf->hasBest && bf->installed && strcmp(bf->slug, "blockfall") == 0, "desk: Blockfall's row, not played today");
     CHECK(bb->played && bb->runsToday == 1 && bb->hasBest && bb->best == 1800 && bb->hasWorld && bb->world == 2600 &&
               strcmp(bb->worldName, "Ghost") == 0 && bb->rank == 2,
           "desk: played today, your best, the world's #1 and your place (names matched without case)");
     CHECK(!sky->played && !sky->hasBest && !sky->hasWorld && sky->rank == 0, "desk: not played today: nothing to show");
-    CHECK(lane->played && lane->runsToday == 0 && lane->best == 400, "desk: a score on today's board counts as played without a runs.log line");
+    CHECK(crawl->played && crawl->runsToday == 0 && crawl->best == 400, "desk: a score on today's board counts as played without a runs.log line");
     CHECK(!moon->installed && strcmp(moon->name, "Moondrop") == 0, "desk: a machine not installed is on the desk, faint");
     CHECK(desk.played == 2 && desk.streak.today && desk.streak.current == 3 && desk.streak.best == 3, "desk: today's count and the streak over every game");
     CHECK(desk.dots[DESK_DOTS - 1] && desk.dots[DESK_DOTS - 2] && desk.dots[DESK_DOTS - 3] && !desk.dots[DESK_DOTS - 4], "desk: the last fourteen days");
@@ -302,12 +302,12 @@ static void test_desk_load(void) {
           "desk: the featured row is today's pick");
     char words[48];
     Desk_BoardLine(&desk, words, sizeof(words));
-    CHECK(strcmp(words, "2 of 7 today") == 0, "desk: the chalkboard's line");
+    CHECK(strcmp(words, "2 of 5 today") == 0, "desk: the chalkboard's line");
 
     /* The pick never depends on the row's order. */
     Lineup other;
     memset(&other, 0, sizeof(other));
-    for (int p = 7; p >= 0; p--) other.index[other.count++] = order[p];
+    for (int p = 5; p >= 0; p--) other.index[other.count++] = order[p];
     static Desk again;
     src.lineup = &other;
     Desk_Load(&again, &src);
@@ -315,7 +315,7 @@ static void test_desk_load(void) {
           "desk: the same featured game whatever your row");
 
     CHECK(Desk_StartRow(&desk, 1) == 2 && Desk_StartRow(&desk, 0) == 1, "desk start: on the machine it was opened for");
-    CHECK(Desk_StartRow(&desk, 6) != 5 && Desk_StartRow(&desk, 8) >= 0, "desk start: never on a machine that is not installed");
+    CHECK(Desk_StartRow(&desk, 5) != 4 && Desk_StartRow(&desk, 6) >= 0, "desk start: never on a machine that is not installed");
     static Desk none;
     memset(&none, 0, sizeof(none));
     Desk_BoardLine(&none, words, sizeof(words));
@@ -325,7 +325,7 @@ static void test_desk_load(void) {
     RemoveUnder("XDG_DATA_HOME", "skyraid/runs.log");
     RemoveUnder("XDG_DATA_HOME", "ghost-launcher/scores/brickburst.txt");
     RemoveUnder("XDG_DATA_HOME", "ghost-launcher/scores/global/brickburst.txt");
-    RemoveUnder("XDG_DATA_HOME", "ghost-launcher/scores/lanehop.txt");
+    RemoveUnder("XDG_DATA_HOME", "ghost-launcher/scores/crawlshot.txt");
 }
 
 static void FakeDesk(Desk *d, int rows, int notInstalled) {
@@ -340,7 +340,7 @@ static void FakeDesk(Desk *d, int rows, int notInstalled) {
 
 static void test_desk_screen(void) {
     static Desk d;
-    FakeDesk(&d, 7, 2);
+    FakeDesk(&d, 6, 2);
     KitScroll sc = {0, 0.0f};
     KitList l;
     Desk_Layout(&d, &sc, &l);
@@ -352,20 +352,20 @@ static void test_desk_screen(void) {
         KitRect r = l.items[i].r;
         if (r.x < DESK_X || r.x + r.w > DESK_RIGHT || r.y + r.h > DESK_NOTE_Y) inside = false;
     }
-    CHECK(rows == 7 && inside && l.nav == 0 && l.items[l.count - 1].id == WID_CLOSE && Kit_Get(&l, WID_BACK),
+    CHECK(rows == 6 && inside && l.nav == 0 && l.items[l.count - 1].id == WID_CLOSE && Kit_Get(&l, WID_BACK),
           "desk layout: a row each above the note, Back and the X on top; the desk moves its own keys");
-    static Desk eight;
-    FakeDesk(&eight, 8, -1);
-    KitList l8;
-    Desk_Layout(&eight, &sc, &l8);
-    int rows8 = 0;
-    bool inside8 = true;
-    for (int i = 0; i < l8.count; i++) {
-        if (Desk_RowOf(l8.items[i].id) < 0) continue;
-        rows8++;
-        if (l8.items[i].r.y + l8.items[i].r.h > DESK_NOTE_Y) inside8 = false;
+    static Desk all;
+    FakeDesk(&all, Desk_GameCount(), -1);
+    KitList lAll;
+    Desk_Layout(&all, &sc, &lAll);
+    int rowsAll = 0;
+    bool insideAll = true;
+    for (int i = 0; i < lAll.count; i++) {
+        if (Desk_RowOf(lAll.items[i].id) < 0) continue;
+        rowsAll++;
+        if (lAll.items[i].r.y + lAll.items[i].r.h > DESK_NOTE_Y) insideAll = false;
     }
-    CHECK(rows8 == 8 && inside8 && DESK_VISIBLE == 8, "desk layout: all eight daily games at once, above the note");
+    CHECK(rowsAll == Desk_GameCount() && insideAll && DESK_VISIBLE == Desk_GameCount(), "desk layout: every daily game at once, above the note");
     CHECK(Kit_Get(&l, WID_DESK_ROW + 2)->flags & KIT_DISABLED, "desk layout: not installed is faint");
     CHECK(Kit_FirstFocus(&l) == WID_DESK_ROW + 0 && Desk_RowOf(WID_DESK_ROW + 3) == 3 && Desk_RowOf(WID_CLOSE) == -1, "desk layout: ids");
 
@@ -374,25 +374,25 @@ static void test_desk_screen(void) {
     k.focus = WID_DESK_ROW + 1;
     Input down = Key(IK_DOWN), up = Key(IK_UP);
     CHECK(Desk_Navigate(&d, &sc, &k, &down, true) && k.focus == WID_DESK_ROW + 3, "desk keys: Down skips a faint row");
-    k.focus = WID_DESK_ROW + 6;
+    k.focus = WID_DESK_ROW + 5;
     CHECK(Desk_Navigate(&d, &sc, &k, &down, true) && k.focus == WID_DESK_ROW + 0, "desk keys: round from the last to the first");
-    CHECK(Desk_Navigate(&d, &sc, &k, &up, true) && k.focus == WID_DESK_ROW + 6, "desk keys: Up from the first to the last");
+    CHECK(Desk_Navigate(&d, &sc, &k, &up, true) && k.focus == WID_DESK_ROW + 5, "desk keys: Up from the first to the last");
     Input none = Blank();
     CHECK(!Desk_Navigate(&d, &sc, &k, &none, true), "desk keys: nothing pressed, nothing moves");
 
     static Desk many;
     FakeDesk(&many, 12, -1);
-    k.focus = WID_DESK_ROW + 7;
+    k.focus = WID_DESK_ROW + DESK_VISIBLE - 1;
     sc.top = 0;
-    CHECK(Desk_Navigate(&many, &sc, &k, &down, true) && k.focus == WID_DESK_ROW + 8 && sc.top == 1, "desk keys: past the last row shown, the list scrolls");
+    CHECK(Desk_Navigate(&many, &sc, &k, &down, true) && k.focus == WID_DESK_ROW + DESK_VISIBLE && sc.top == 1, "desk keys: past the last row shown, the list scrolls");
     Desk_Layout(&many, &sc, &l);
-    CHECK(Kit_Get(&l, WID_DESK_ROW + 8) && !Kit_Get(&l, WID_DESK_ROW + 0), "desk layout: only the rows in sight");
+    CHECK(Kit_Get(&l, WID_DESK_ROW + DESK_VISIBLE) && !Kit_Get(&l, WID_DESK_ROW + 0), "desk layout: only the rows in sight");
     k.focus = WID_DESK_ROW + 1;
     Input wheel = Wheel(400, 300, -3.0f);
     CHECK(Desk_Navigate(&many, &sc, &k, &wheel, true) && sc.top == 4 && k.focus == WID_DESK_ROW + 4, "desk wheel: scrolls, keys come along into sight");
     CHECK(!Desk_Navigate(&many, &sc, &k, &wheel, false), "desk wheel: not when a control has it");
     k.focus = WID_DESK_ROW + 11;
-    sc.top = 4;
+    sc.top = 6;
     CHECK(Desk_Navigate(&many, &sc, &k, &down, true) && k.focus == WID_DESK_ROW + 0 && sc.top == 0, "desk keys: round to the top scrolls back");
 
     char help[160], hint[160];

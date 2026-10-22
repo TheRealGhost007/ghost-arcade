@@ -1,6 +1,6 @@
 /* Tests for in-key typing, the mood change and fit to key (keymode.h): the
  * piano-row mapping over every key and octave, the scale change's round
- * trips on the twelve game themes, fit to key on stray and random notes, and
+ * trips on the built-in game themes, fit to key on stray and random notes, and
  * the editor actions' undo and status lines. Compiled by inclusion from
  * test_main.c. */
 #include <stdint.h>
@@ -293,7 +293,7 @@ static void keymode_test_change_scale(void) {
             else printf("  keymode: %s to scale %d and back is not exact\n", t->slug, to);
         }
     }
-    CHECK(pairs == 72 && exact == pairs, "keymode: ChangeScale there and back is byte-exact for 12 themes x 6 scales (72/72)");
+    CHECK(pairs == Music_ThemeCount() * 6 && exact == pairs, "keymode: ChangeScale there and back is byte-exact for every theme x 6 scales");
     CHECK(mask, "keymode: ChangeScale never changes the note/hold/none shape");
     CHECK(drums, "keymode: ChangeScale leaves the drums alone");
     CHECK(range, "keymode: ChangeScale keeps every note in NOTE_MIN..NOTE_MAX");

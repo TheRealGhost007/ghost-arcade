@@ -1,6 +1,6 @@
-/* Headless correctness tests for Brickburst's rules (game.c, levels.c) and
- * the Ghost Arcade data contract (ghostlink.c is covered in Coilrush's
- * suite; the copy here is identical). No raylib: builds and runs anywhere.
+/* Headless correctness tests for Brickburst's rules (game.c, levels.c), and
+ * through test_ghostlink.c the arcade's shared data contract (ghostlink.c).
+ * No raylib: builds and runs anywhere.
  * Physics is a fixed 120 Hz step, so every scenario is exact and repeatable. */
 #include <math.h>
 #include <stdio.h>
@@ -9,6 +9,8 @@
 
 static int gChecks = 0;
 static int gFailures = 0;
+
+void test_ghostlink_all(int *checks, int *failures); /* test_ghostlink.c */
 
 #define CHECK(cond, msg) do { \
     gChecks++; \
@@ -680,6 +682,8 @@ int main(void) {
     test_shield();
     test_combo();
     test_new_powerups();
+
+    test_ghostlink_all(&gChecks, &gFailures); /* last: it clobbers PATH and HOME */
 
     printf("%d checks, %d failures\n", gChecks, gFailures);
     return gFailures == 0 ? 0 : 1;

@@ -8,7 +8,7 @@
  *   D-pad or left stick  -> Left / Right / Up / Down arrows
  *   A (south)            -> Space and Enter  (confirm, fire, grapple, possess)
  *   B (east)             -> Escape           (back)
- *   X (west)             -> X                (jump in Girderclimb)
+ *   X (west)             -> X                (free for a game's own use)
  *   Y (north)            -> C                (hold in Blockfall)
  *   Start                -> P                (pause)
  *   Back / Select        -> R                (restart)

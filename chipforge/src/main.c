@@ -33,23 +33,21 @@
  * through ghost-common's song.c. */
 
 #define APP_SLUG "chipforge"
-#define GAME_COUNT 12 /* the eleven games, then the launcher's hall */
+#define GAME_COUNT 8 /* the seven games, then the launcher's hall */
 /* Open song and the menu's count read the library up to this many songs, far
  * past any real library; past it the list says it was cut. */
 #define MAX_SONGS 2048
 #define MAX_PRESETS 16
 #define RIGHT_LEN 48
 
-/* The eleven games in the launcher's catalog order, then the launcher, whose
+/* The seven games (Pond Kings last: it isn't in the launcher's default catalog yet), then the launcher, whose
  * hall plays the song given to "ghostarcade". Both the assign screen and the
  * menu stat line walk this list. */
 static const char *const kGameSlugs[GAME_COUNT] = {
-    "blockfall", "coilrush", "brickburst", "skyraid", "ghostmaze", "rockdrift",
-    "lanehop", "crawlshot", "moondrop", "gemdive", "girderclimb", "ghostarcade",
+    "blockfall", "brickburst", "skyraid", "rockdrift", "crawlshot", "moondrop", "pondkings", "ghostarcade",
 };
 static const char *const kGameNames[GAME_COUNT] = {
-    "Blockfall", "Coilrush", "Brickburst", "Skyraid", "Ghostmaze", "Rockdrift",
-    "Lanehop", "Crawlshot", "Moondrop", "Gemdive", "Girderclimb", "Ghost Arcade (launcher)",
+    "Blockfall", "Brickburst", "Skyraid", "Rockdrift", "Crawlshot", "Moondrop", "Pond Kings", "Ghost Arcade (launcher)",
 };
 
 static const char *const kNotes_1_0_0[] = {
@@ -63,6 +61,12 @@ static const char *const kNotes_1_0_0[] = {
     "Shares the arcade's music volume and fullscreen settings",
     NULL,
 };
+static const char *const kNotes_1_1_1[] = {
+    "Coilrush, Ghostmaze, Lanehop, Gemdive and Girderclimb left the arcade, so their themes and their Assign rows went too",
+    "Their chord progressions stay under new names: Chase loop, Open road, Going under and Climbing up",
+    "Pond Kings joins Game themes and the Assign list, and its swung jig adds a Pond jig progression",
+    NULL,
+};
 static const char *const kNotes_1_1_0[] = {
     "Make a song: pick a mood, a speed, a story and a beat, and a song plays while you change them; R in Game themes makes one like a theme",
     "Fill a track (Ctrl+F) with a named style: Left/Right to choose, R for a new take, Esc puts it back",
@@ -74,6 +78,7 @@ static const char *const kNotes_1_1_0[] = {
     NULL,
 };
 static const UiChangelogEntry kChangelog[] = {
+    {"1.1.1", "2026-10-21", kNotes_1_1_1},
     {"1.1.0", "2026-10-13", kNotes_1_1_0},
     {"1.0.0", "2026-10-12", kNotes_1_0_0},
 };

@@ -20,6 +20,8 @@ wait 3
 shot verify-p4-song-broken
 tap ESC
 wait 3
+# Chipforge is second from the end: Left goes round to Pond Kings, then to it.
+tap LEFT
 tap LEFT
 wait 30
 expect app lit Chipforge

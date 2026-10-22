@@ -424,8 +424,14 @@ static void DL(const DemoBox *b, float x0, float y0, float x1, float y1, Color c
 }
 static float Tri(float x) { x = fmodf(x, 2.0f); if (x < 0) x += 2.0f; return x < 1.0f ? x : 2.0f - x; }
 
+/* The machine's name starts with want, ignoring case and spaces ("Pond Kings" is pondkings). */
 static bool NameIs(const char *name, const char *want) {
-    for (; *want; name++, want++) { char c = *name; if (c >= 'A' && c <= 'Z') c = (char)(c + 32); if (c != *want) return false; }
+    for (; *want; name++, want++) {
+        while (*name == ' ') name++;
+        char c = *name;
+        if (c >= 'A' && c <= 'Z') c = (char)(c + 32);
+        if (c != *want) return false;
+    }
     return true;
 }
 
@@ -438,17 +444,6 @@ static bool DrawDemo(const char *name, const DemoBox *b, float t) {
         float f = t * 2.0f; int piece = (int)(f / 8.0f) % 4; float row = fmodf(f, 8.0f);
         static const int shp[4][4][2] = {{{0,0},{1,0},{2,0},{1,1}}, {{0,0},{0,1},{1,1},{2,1}}, {{0,0},{1,0},{0,1},{1,1}}, {{0,0},{1,0},{1,1},{2,1}}};
         for (int k = 0; k < 4; k++) DR(b, 10 + (3 + shp[piece][k][0] + piece) * 8, 6 + ((int)row + shp[piece][k][1]) * 8, 7, 7, cols[piece]);
-        return true;
-    }
-    if (NameIs(name, "coilrush")) {
-        DR(b, 8, 6, 84, 78, (Color){8, 14, 16, 255});
-        float L = 256.0f, head = fmodf(t * 34.0f, L);
-        for (int i = 0; i < 12; i++) {
-            float d = fmodf(head - (float)i * 5.0f + L, L), x, y;
-            if (d < 70) { x = 15 + d; y = 15; } else if (d < 128) { x = 85; y = 15 + d - 70; } else if (d < 198) { x = 85 - (d - 128); y = 73; } else { x = 15; y = 73 - (d - 198); }
-            DR(b, x - 2.5f, y - 2.5f, 5, 5, i == 0 ? (Color){200, 255, 210, 255} : kGreenC);
-        }
-        DR(b, 46, 40, 5, 5, fmodf(t, 0.6f) < 0.4f ? kPink : (Color){140, 40, 90, 255});
         return true;
     }
     if (NameIs(name, "brickburst")) {
@@ -469,18 +464,6 @@ static bool DrawDemo(const char *name, const DemoBox *b, float t) {
         for (int k = 0; k < 2; k++) DR(b, px - 1, 68 - fmodf(t * 70.0f + (float)k * 30.0f, 60.0f), 2, 5, kYellow);
         return true;
     }
-    if (NameIs(name, "ghostmaze")) {
-        DR(b, 0, 0, 100, 88, (Color){8, 6, 16, 255});
-        float hx = 20 + 60 * Tri(t * 0.25f);
-        BeginBlendMode(BLEND_ADDITIVE);
-        DrawTriangle((Vector2){b->sx + hx * b->sw / 100.0f, b->sy + 30 * b->sh / 88.0f}, (Vector2){b->sx + (hx - 30) * b->sw / 100.0f, b->sy + 84 * b->sh / 88.0f}, (Vector2){b->sx + (hx + 30) * b->sw / 100.0f, b->sy + 84 * b->sh / 88.0f}, Fade(kYellow, 0.22f * b->bright));
-        EndBlendMode();
-        DR(b, hx - 3, 24, 6, 8, (Color){255, 110, 190, 255}); DR(b, hx - 4, 28, 8, 5, (Color){255, 110, 190, 255});
-        float gx = 18 + 64 * Tri(t * 0.35f + 0.5f), gy = 50 + 10 * sinf(t * 2.0f);
-        DR(b, gx - 5, gy - 5, 10, 10, WHITE); DR(b, gx - 5, gy + 5, 3, 3, WHITE); DR(b, gx + 2, gy + 5, 3, 3, WHITE);
-        DR(b, gx - 3, gy - 2, 2, 2, (Color){21, 16, 43, 255}); DR(b, gx + 1, gy - 2, 2, 2, (Color){21, 16, 43, 255});
-        return true;
-    }
     if (NameIs(name, "rockdrift")) {
         DR(b, 0, 0, 100, 88, (Color){5, 8, 16, 255});
         Color lime = {180, 255, 100, 255};
@@ -492,16 +475,6 @@ static bool DrawDemo(const char *name, const DemoBox *b, float t) {
         }
         float a = t * 1.4f;
         for (int k = 0; k < 3; k++) { float ang[3] = {0, 2.5f, -2.5f}, rad[3] = {9, 6, 6}; float aa0 = a + ang[k], aa1 = a + ang[(k + 1) % 3]; float r0 = rad[k], r1 = rad[(k + 1) % 3]; DL(b, 50 + sinf(aa0) * r0, 44 - cosf(aa0) * r0, 50 + sinf(aa1) * r1, 44 - cosf(aa1) * r1, WHITE); }
-        return true;
-    }
-    if (NameIs(name, "lanehop")) {
-        DR(b, 0, 0, 100, 88, (Color){14, 34, 70, 255});
-        DR(b, 0, 30, 100, 40, (Color){38, 36, 50, 255});
-        Color cars[3] = {{255, 104, 96, 255}, kCyan, kYellow};
-        for (int l = 0; l < 3; l++) for (int k = 0; k < 2; k++) { float x = fmodf((float)k * 60 + t * (18 + (float)l * 9) * (l % 2 ? -1 : 1) + 200, 130) - 15; DR(b, x, 34 + (float)l * 11, 14, 8, cars[l]); }
-        for (int i = 0; i < 3; i++) DR(b, fmodf(t * 8 + (float)i * 40, 120) - 10, 10 + (float)i * 6, 22, 5, (Color){140, 88, 48, 255});
-        int hop = (int)(t * 2.0f) % 6;
-        DR(b, 46, 76 - (float)hop * 12, 8, 9, (Color){250, 240, 215, 255});
         return true;
     }
     if (NameIs(name, "crawlshot")) {
@@ -523,28 +496,39 @@ static bool DrawDemo(const char *name, const DemoBox *b, float t) {
         if (k < 0.92f) DL(b, x, y, x + (float)((int)(t * 30) % 3 - 1), y + 8, (Color){255, 150, 70, 255});
         return true;
     }
-    if (NameIs(name, "gemdelve") || NameIs(name, "gemdive")) {
-        DR(b, 0, 0, 100, 88, (Color){104, 68, 46, 255});
-        for (int i = 0; i < 22; i++) DR(b, (float)((i * 41) % 96), (float)((i * 23) % 84), 4, 2.5f, (i % 2) ? (Color){80, 50, 36, 255} : (Color){134, 90, 60, 255});
-        DR(b, 0, 40, 100, 12, (Color){12, 10, 24, 255});
-        Color gc[4] = {kCyan, kPink, kGreenC, kYellow};
-        for (int g = 0; g < 4; g++) { float gx = 14 + (float)g * 24; if (fmodf(t * 0.5f, 4.0f) < (float)g * 1.0f + 0.7f || fmodf(t + (float)g, 1.4f) < 1.0f) { DR(b, gx, 42, 8, 8, gc[g]); if (fmodf(t * 2.0f + (float)g, 1.0f) < 0.15f) DR(b, gx + 3, 40, 2, 12, WHITE); } }
-        float dx = 8 + 84 * Tri(t * 0.22f);
-        DR(b, dx - 3, 40, 7, 10, (Color){255, 208, 80, 255}); DR(b, dx - 2, 46, 5, 5, (Color){96, 150, 230, 255});
-        DR(b, 60, fmodf(t * 30.0f, 40.0f), 10, 10, (Color){150, 150, 172, 255});
-        return true;
-    }
-    if (NameIs(name, "girderclimb")) {
-        DR(b, 0, 0, 100, 88, (Color){10, 8, 24, 255});
-        float ax = 50 + 26 * sinf(t * 0.5f), ay = 14;
-        float ang = 0.8f * sinf(t * 1.6f), len = 44;
-        float px = ax + sinf(ang) * len, py = ay + cosf(ang) * len;
-        for (int r = 0; r < 12; r++) DR(b, ax + (px - ax) * (float)r / 12.0f - 0.5f, ay + (py - ay) * (float)r / 12.0f, 1.2f, 1.2f, (Color){236, 226, 200, 255});
-        DR(b, ax - 3, ay - 3, 6, 6, (Color){255, 214, 90, 255});
-        DR(b, px - 3, py, 6, 9, (Color){255, 208, 80, 255});
-        DR(b, px - 3, py + 4, 6, 6, (Color){88, 140, 235, 255});
-        DL(b, 4, 46, 30, 49, kPink); DL(b, 70, 40, 96, 37, kPink);
-        for (int i = 0; i < 20; i++) { float x = (float)i * 5.0f; float h = 8.0f + 6.0f * sinf(t * 5.0f + (float)i); DR(b, x, 88 - h - 2.0f * sinf(t * 3.0f), 5, h + 6, (Color){255, 120, 50, 255}); }
+    if (NameIs(name, "pondkings")) {
+        /* a night pond under the northern lights: the Rink Rats carry it up and score */
+        DR(b, 0, 0, 100, 88, (Color){10, 14, 38, 255});
+        for (int i = 0; i < 12; i++) DR(b, (float)((i * 37) % 100), (float)((i * 11) % 24), 1, 1, (Color){200, 210, 255, 255});
+        for (int i = 0; i < 6; i++) {
+            float x = (float)i * 18.0f;
+            DL(b, x, 12 + 4 * sinf(t * 0.7f + (float)i), x + 18, 12 + 4 * sinf(t * 0.7f + (float)i + 1.0f), (Color){110, 230, 170, 255});
+        }
+        Color bank = {240, 246, 255, 255}, ice = {206, 226, 246, 255}, netc = {214, 70, 70, 255};
+        DR(b, 3, 34, 94, 46, bank);
+        DR(b, 8, 30, 84, 54, bank);
+        DR(b, 6, 37, 88, 40, ice);
+        DR(b, 11, 34, 78, 46, ice);
+        DR(b, 8, 52, 3, 10, netc);
+        DR(b, 89, 52, 3, 10, netc);
+        float play = fmodf(t * 0.22f, 1.0f); /* one rush every four and a half seconds */
+        Color crew = {90, 160, 255, 255}, rivals = {236, 92, 92, 255}, toque = {250, 250, 250, 255};
+        float carrierX = 22 + 60 * play * play, carrierY = 56 + 6 * sinf(play * 9.0f);
+        for (int k = 0; k < 3; k++) {
+            float x = k == 0 ? carrierX : 26 + 18 * (float)k + 14 * play + 6 * sinf(t * 0.9f + (float)k * 2.1f);
+            float y = k == 0 ? carrierY : 42 + 16 * (float)(k - 1) + 4 * cosf(t * 1.1f + (float)k);
+            DR(b, x - 2, y - 4, 4, 5, crew);
+            DR(b, x - 2, y - 6, 4, 2, toque);
+        }
+        for (int k = 0; k < 3; k++) {
+            float x = 70 - 16 * (float)k + 6 * sinf(t * 0.8f + (float)k * 1.7f), y = 44 + 12 * (float)k + 4 * sinf(t * 1.3f + (float)k);
+            DR(b, x - 2, y - 4, 4, 5, rivals);
+            DR(b, x - 2, y - 6, 4, 2, (Color){40, 40, 60, 255});
+        }
+        float px = play < 0.8f ? carrierX + 3 : carrierX + 3 + (play - 0.8f) * 40.0f;
+        if (px > 90) px = 90;
+        DR(b, px, carrierY + 1, 2.5f, 1.5f, (Color){16, 18, 28, 255});
+        if (play > 0.86f) DR(b, 84, 48, 10, 18, Fade((Color){250, 206, 84, 255}, 0.6f * (1.0f - (play - 0.86f) / 0.14f)));
         return true;
     }
     return false;

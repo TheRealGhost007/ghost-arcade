@@ -868,22 +868,25 @@ bool Compose_ParseChordLine(const char *text, ComposeKey k, ComposeChords *out, 
 
 /* The six the recipe names, then the game themes' own (the ones not already
  * above), named after their games so the owner can ask for "the chords
- * Skyraid has". Numerals follow the mood each is written for. */
+ * Rockdrift has"; four more came from games that have left the arcade, and
+ * Pond Kings' jig keeps to its own world, so those are named for their mood.
+ * Numerals follow the mood each is written for. */
 static const ComposeProgression kProgressions[] = {
     {"Hero's anthem",    "I V vi IV",    {{0, 4, 5, 3}}},  /* also Brickburst */
     {"Last level",       "i VI VII i",   {{0, 5, 6, 0}}},
     {"Sad and racing",   "i VI III VII", {{0, 5, 2, 6}}},  /* also Blockfall */
-    {"Spooky stairs",    "i bII i vii",  {{0, 1, 0, 6}}},  /* also Ghostmaze */
+    {"Spooky stairs",    "i bII i vii",  {{0, 1, 0, 6}}},
     {"Lazy groove",      "i iv i iv",    {{0, 3, 0, 3}}},
     {"Royal road",       "IV V iii vi",  {{3, 4, 2, 5}}},
     {"Ghost arcade",     "i VI iv v",    {{0, 5, 3, 4}}},  /* also Skyraid */
-    {"Coilrush",         "i IV v IV",    {{0, 3, 4, 3}}},
+    {"Chase loop",       "i IV v IV",    {{0, 3, 4, 3}}},
     {"Rockdrift",        "i VII VI VII", {{0, 6, 5, 6}}},
-    {"Lanehop",          "I bVII IV I",  {{0, 6, 3, 0}}},
+    {"Open road",        "I bVII IV I",  {{0, 6, 3, 0}}},
     {"Crawlshot",        "i iv V i",     {{0, 3, 4, 0}}},
     {"Moondrop",         "i v ii v",     {{0, 4, 1, 4}}},
-    {"Gemdive",          "i III VI v",   {{0, 2, 5, 4}}},
-    {"Girderclimb",      "I IV bVII v",  {{0, 3, 6, 4}}},
+    {"Going under",      "i III VI v",   {{0, 2, 5, 4}}},
+    {"Climbing up",      "I IV bVII v",  {{0, 3, 6, 4}}},
+    {"Pond jig",         "I IV I V",     {{0, 3, 0, 4}}},  /* Pond Kings' own */
 };
 #define PROGRESSION_N ((int)(sizeof(kProgressions) / sizeof(kProgressions[0])))
 

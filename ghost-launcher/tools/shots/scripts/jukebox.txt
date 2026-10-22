@@ -6,6 +6,9 @@
 # line, as Chipforge's own assign screen writes it), or shows who plays
 # what.
 wait 30
+# Chipforge stands second from the end (Pond Kings is last): two to the
+# left of Blockfall, round the row.
+tap LEFT
 tap LEFT
 wait 40
 expect app lit Chipforge

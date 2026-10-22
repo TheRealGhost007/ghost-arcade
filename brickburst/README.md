@@ -2,7 +2,7 @@
 
 A lightweight, native brick-breaking game for Linux, built with
 [raylib](https://www.raylib.com) and plain C. Game #3 of the Ghost Arcade
-(after [Blockfall](../blockfall) and [Coilrush](../coilrush)).
+(after [Blockfall](../blockfall) and Coilrush, which has since left the arcade).
 
 All visuals and sound effects are original/procedurally generated. It's a
 homage to Breakout and Arkanoid in mechanics only -- no artwork, audio, or

@@ -102,7 +102,7 @@ pad tap DOWN
 pad tap DOWN
 pad tap DOWN
 wait 3
-expect app focusrow Lanehop
+expect app focusrow Chipforge
 expect app namestop 1
 pad tap A
 wait 5
@@ -112,4 +112,4 @@ shot name-board-low
 pad tap A
 pad tap MENU
 wait 5
-expect app name:Lanehop A
+expect app name:Chipforge A

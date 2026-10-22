@@ -62,11 +62,11 @@ the games it launches, so it stays small and fast.
   dots, and a row for each daily game on your row -- played today, your best
   today, the world's best today and your place on that board. One game is
   starred "Featured today", picked from the date alone so everyone sees the
-  same one (each daily game has a day in every round of eight, never two
-  in a row). Enter, A
+  same one (each of the seven daily games has a day in every round of
+  seven, never two in a row). Enter, A
   or a click on a row goes back to the hall and drops that machine's daily
   coin; a machine that is not installed is faint, with the reason. The
-  chalkboard reads, for example, "DAILY 2 of 8 today", with a chalk box per
+  chalkboard reads, for example, "DAILY 2 of 7 today", with a chalk box per
   game, filled once played. `D` on the hall still starts the lit machine's
   daily at once. It all comes from each game's `runs.log` and the daily
   score boards; nothing new is stored
@@ -267,8 +267,9 @@ scores, or the online leaderboard (see `online/SECURITY.md` for that).
   `place.<name>=N`, `played.<name>=<time>`); the ones shared with every game:
   `$XDG_CONFIG_HOME/ghost-arcade/prefs.ini`. The hall's song is the
   `ghostarcade=` line of `$XDG_CONFIG_HOME/ghost-arcade/music.ini`, which
-  Chipforge's assign screen and Chipforge's page in the launcher write. The time once played under Gemdive's old name, Gemdelve,
-  is added to Gemdive once (`migrated.gemdelve=1` marks it done)
+  Chipforge's assign screen and Chipforge's page in the launcher write. Coilrush, Ghostmaze, Lanehop, Gemdive and Girderclimb
+  left the arcade on 2026-10-21: their machines leave your games.txt once (`migrated.retired=1` marks it done), and their
+  scores, playtime and saves stay on disk
 - Scores the games write: `$XDG_DATA_HOME/ghost-launcher/scores/<game>.txt`;
   online boards downloaded by ghost-sync: `scores/global/<game>.txt`. ghost-sync
   asks for every regular board but only the daily boards of the last 14 days
@@ -314,12 +315,13 @@ hand-edit your catalog file directly — the launcher re-reads it on startup.
 
 ## Daily challenge
 
-Press **D** on Brickburst, Skyraid, Rockdrift, Lanehop, Crawlshot, Moondrop, Girderclimb or Blockfall to launch it with
+Press **D** on Brickburst, Skyraid, Rockdrift, Crawlshot, Moondrop, Blockfall or Pond Kings to launch it with
 `--daily`. Everyone gets the same seed for the local date, the version label shows `DAILY` (Blockfall opens on its Daily
-challenge screen instead: a two-minute score attack whose twist changes with the date), and scores go to a separate
+challenge screen instead: a two-minute score attack whose twist changes with the date; Pond Kings opens on its Daily
+pond: today's rivals and one twist), and scores go to a separate
 `daily-YYYYMMDD` table so they never mix with normal runs. Code: `ghost-common/daily.c`. The daily desk (**Shift+D**,
-the chalkboard, the Arcade menu) lists all eight with today's scores, the streak and the featured game (`src/desk.c`;
-each game is featured once in every round of eight days, never two days running).
+the chalkboard, the Arcade menu) lists all seven with today's scores, the streak and the featured game (`src/desk.c`;
+each game is featured once in every round of seven days, never two days running).
 
 ## Fullscreen and the F2 tuning panel
 
@@ -336,7 +338,7 @@ each game is featured once in every round of eight days, never two days running)
 ## How to play
 
 Every game has a **How to play** card (goal, controls, one tip): it shows the first time you start a game and is on each game's menu.
-The text for all eleven lives in one place, `ghost-common/howto.c`.
+The text for every game lives in one place, `ghost-common/howto.c`.
 
 ## Stats screen (L)
 

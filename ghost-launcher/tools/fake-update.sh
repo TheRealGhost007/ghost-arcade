@@ -23,7 +23,7 @@ say "Fetching the newest version"
 step
 [ "$fail" = local ] && die "Your copy has changes of its own (local edits or commits), so it was not updated."
 [ "$fail" = network ] && die "Could not download the newest version (no network, or GitHub did not answer)."
-say "Building the eleven games, Chipforge and Ghost Launcher (4 jobs)"
+say "Building the six games, Chipforge and Ghost Launcher (4 jobs)"
 step
 if [ "$fail" = build ]; then
     echo "src/main.c:12:5: error: expected ';' before 'return'" >&2

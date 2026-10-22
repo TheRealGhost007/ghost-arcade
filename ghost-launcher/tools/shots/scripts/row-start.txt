@@ -1,15 +1,17 @@
-#! env SHOTS_ADMIN=0 SHOTS_LAST_PLAYED=skyraid SHOTS_FAVS=lanehop SHOTS_HIDDEN=ghostmaze,coilrush
+#! env SHOTS_ADMIN=0 SHOTS_LAST_PLAYED=skyraid SHOTS_FAVS=crawlshot SHOTS_HIDDEN=rockdrift,brickburst SHOTS_EXTRA_GAMES=5
 # Phase 4: the launcher opens on the machine played last; hidden machines
 # are off the row (their scores stay); Settings > Player > Start on; and
 # Settings > Machines: Row order, then every machine in your order with
-# Favourite, Up, Down and Hide, all kept in launcher.ini.
+# Favourite, Up, Down and Hide, all kept in launcher.ini. Five extra
+# machines make the list longer than the seven rows it shows, so the wheel
+# has something to scroll.
 wait 30
 expect app lit Skyraid
-expect app row Lanehop,Blockfall,Brickburst,Skyraid,Rockdrift,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
-expect app place 3
+expect app row Crawlshot,Blockfall,Skyraid,Moondrop,Chipforge,Pond Kings,Extra 1,Extra 2,Extra 3,Extra 4,Extra 5
+expect app place 2
 expect app settled 1
-expect app hidden:Ghostmaze 1
-expect app fav:Lanehop 1
+expect app hidden:Rockdrift 1
+expect app fav:Crawlshot 1
 shot row-start-last
 
 # Start on: First machine is kept for the next start; the row stays put.
@@ -36,13 +38,13 @@ tap SHIFT TAB
 wait 3
 expect app tab Machines
 expect app focusrow Row order
-expect app mine Lanehop,Blockfall,Coilrush,Brickburst,Skyraid,Ghostmaze,Rockdrift,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app mine Crawlshot,Blockfall,Brickburst,Skyraid,Rockdrift,Moondrop,Chipforge,Pond Kings,Extra 1,Extra 2,Extra 3,Extra 4,Extra 5
 mouse 480 620
 wait 3
 shot settings-machines
 tap DOWN
 wait 2
-expect app focusrow Lanehop
+expect app focusrow Crawlshot
 expect app focus Unfavourite
 tap DOWN
 wait 2
@@ -54,11 +56,11 @@ shot settings-machines-focus
 tap ENTER
 wait 3
 expect app toast Saved
-expect app mine Lanehop,Coilrush,Blockfall,Brickburst,Skyraid,Ghostmaze,Rockdrift,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app mine Crawlshot,Brickburst,Blockfall,Skyraid,Rockdrift,Moondrop,Chipforge,Pond Kings,Extra 1,Extra 2,Extra 3,Extra 4,Extra 5
 expect app focusrow Blockfall
 expect app focus Down
 expect file .config/ghost-launcher/launcher.ini place.blockfall=2\n
-expect file .config/ghost-launcher/launcher.ini place.coilrush=1\n
+expect file .config/ghost-launcher/launcher.ini place.brickburst=1\n
 expect nofile .config/ghost-launcher/games.txt place
 # Hide Blockfall: off the row, the lit machine still lit.
 tap RIGHT
@@ -68,20 +70,21 @@ tap ENTER
 wait 3
 expect app hidden:Blockfall 1
 expect file .config/ghost-launcher/launcher.ini hide.blockfall=1\n
-expect app row Lanehop,Brickburst,Skyraid,Rockdrift,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app row Crawlshot,Skyraid,Moondrop,Chipforge,Pond Kings,Extra 1,Extra 2,Extra 3,Extra 4,Extra 5
 expect app lit Skyraid
 expect app focus Show
-# Show Coilrush with a click (the second machine in the list).
+# Show Brickburst with a click (the second machine in the list).
 click 632 314
 wait 3
-expect app hidden:Coilrush 0
-expect nofile .config/ghost-launcher/launcher.ini hide.coilrush
-expect app row Lanehop,Coilrush,Brickburst,Skyraid,Rockdrift,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
-# Favourite Brickburst with a click: it joins the favourites at the top.
-click 412 394
+expect app hidden:Brickburst 0
+expect nofile .config/ghost-launcher/launcher.ini hide.brickburst
+expect app row Crawlshot,Brickburst,Skyraid,Moondrop,Chipforge,Pond Kings,Extra 1,Extra 2,Extra 3,Extra 4,Extra 5
+# Favourite Moondrop with a click (the sixth machine in the list): it joins
+# the favourites at the top.
+click 412 474
 wait 3
-expect app fav:Brickburst 1
-expect app mine Lanehop,Brickburst,Coilrush,Blockfall,Skyraid,Ghostmaze,Rockdrift,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app fav:Moondrop 1
+expect app mine Crawlshot,Moondrop,Brickburst,Blockfall,Skyraid,Rockdrift,Chipforge,Pond Kings,Extra 1,Extra 2,Extra 3,Extra 4,Extra 5
 # Row order: the stepper's right arrow.
 click 792 202
 wait 3
@@ -99,6 +102,6 @@ tap ESC
 wait 3
 expect ui LIST
 expect app lit Skyraid
-expect app row Lanehop,Brickburst,Coilrush,Skyraid,Rockdrift,Crawlshot,Moondrop,Gemdive,Girderclimb,Chipforge
+expect app row Crawlshot,Moondrop,Brickburst,Skyraid,Chipforge,Pond Kings,Extra 1,Extra 2,Extra 3,Extra 4,Extra 5
 wait 30
 shot row-start-after

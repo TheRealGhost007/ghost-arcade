@@ -22,7 +22,7 @@ OBJECTS := $(SOURCES:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o) $(COMMON_MODULES:%=$(BUILD
 DEPS := $(OBJECTS:.o=.d)
 
 CORE_SOURCES := $(COMMON_DIR)/rng.c $(SRC_DIR)/game.c $(SRC_DIR)/levels.c
-TEST_SOURCES := $(TEST_DIR)/test_main.c $(CORE_SOURCES)
+TEST_SOURCES := $(TEST_DIR)/test_main.c $(TEST_DIR)/test_ghostlink.c $(CORE_SOURCES) $(COMMON_DIR)/ghostlink.c $(COMMON_DIR)/safefile.c
 
 PREFIX ?= $(HOME)/.local
 BIN_DIR := $(PREFIX)/bin
