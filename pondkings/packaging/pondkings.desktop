@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Pond Kings
+GenericName=Pond Hockey
+Comment=Three-on-three pond hockey with your friends, on one screen
+Exec=pondkings
+Icon=pondkings
+Terminal=false
+Categories=Game;SportsGame;
+Keywords=hockey;pond;winter;multiplayer;couch;
+StartupNotify=true
