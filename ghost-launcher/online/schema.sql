@@ -1,15 +1,19 @@
--- Ghost Arcade online leaderboard schema (Supabase / Postgres), version 2.
+-- Ghost Arcade online schema (Supabase / Postgres), version 3: the
+-- leaderboard, plus Pond Kings' online rooms and rival crews.
 --
 -- Paste this whole file into the Supabase dashboard: SQL Editor -> New query
--- -> Run. It is safe to run more than once, and it upgrades a version 1
+-- -> Run. It is safe to run more than once, and it upgrades a version 1 or 2
 -- database in place (no scores are lost).
 --
 -- SECURITY MODEL
 -- The games ship a PUBLISHABLE key, so anyone on the internet can call this
--- API. Version 2 therefore gives that key exactly two abilities:
+-- API. The key therefore gets exactly these abilities:
 --
 --   1. read  public.leaderboard   (a view over a function: game, mode, username, score, date)
 --   2. call  public.submit_scores (a function that validates and rate-limits)
+--   3. call  the pk_room_* and pk_crew_* functions (Pond Kings, version 3,
+--      at the end of this file): validated, rate limited, and they only ever
+--      hand back what the caller is entitled to
 --
 -- and nothing else. The key can no longer touch the scores table directly:
 -- no select (so install ids are never exposed), no insert, update or delete.
@@ -66,7 +70,7 @@ create table if not exists private.games (
 );
 insert into private.games (slug) values
     ('blockfall'), ('coilrush'), ('brickburst'), ('skyraid'), ('ghostmaze'), ('rockdrift'),
-    ('lanehop'), ('crawlshot'), ('moondrop'), ('gemdive'), ('girderclimb')
+    ('lanehop'), ('crawlshot'), ('moondrop'), ('gemdive'), ('girderclimb'), ('pondkings')
 on conflict do nothing;
 
 -- Fixed-window counters for rate limiting. `bucket` is a salted hash of the
@@ -276,6 +280,328 @@ from public.leaderboard_rows() r;
 
 revoke all on public.leaderboard from anon, authenticated, public;
 grant select on public.leaderboard to anon;
+
+-- =================================================== Pond Kings (version 3)
+--
+-- ONLINE ROOMS. A host opens a room with its two addresses (what its router
+-- shows the internet, and its LAN address) and a random relay key, and gets a
+-- six-letter code. A guest joins with the code and its own addresses and gets
+-- the host's; the host polls until a guest is there, then closes the room.
+-- The two games then talk to each other directly, or through the Realtime
+-- broadcast channel named after the relay key. Rooms vanish after 15 minutes
+-- and only ever hold addresses, a hashed secret and the relay key.
+--
+-- RIVAL CREWS. One crew per install, owned by a secret only that install
+-- knows (the server keeps its hash), shared by an eight-letter code. A crew
+-- is three kids' names, builds and signature moves plus four numbers for how
+-- its owner plays, in a strict format: nothing free-form can be stored.
+--
+-- Limits per caller IP, an hour: 30 rooms, 60 joins, 3600 polls, 120 closes,
+-- 20 crew saves, 240 crew lookups, 30 crew deletions. At most 2000 open rooms
+-- and 50000 crews. Codes avoid look-alike characters (no I, O, 0 or 1).
+
+-- The caller, as submit_scores sees it: a salted hash of the IP, never the IP.
+create or replace function private.caller_bucket()
+returns text
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+    v_headers jsonb;
+    v_ip text;
+begin
+    begin
+        v_headers := nullif(current_setting('request.headers', true), '')::jsonb;
+    exception when others then
+        v_headers := null;
+    end;
+    v_ip := nullif(btrim(coalesce(v_headers ->> 'cf-connecting-ip',
+                                  split_part(coalesce(v_headers ->> 'x-forwarded-for', ''), ',', 1))), '');
+    return encode(sha256(convert_to(coalesce(v_ip, 'unknown')
+             || coalesce((select s.value from private.secrets s where s.name = 'ip_salt'), ''), 'UTF8')), 'hex');
+end;
+$$;
+
+-- "a.b.c.d:port" with every part in range. Checked step by step, so nothing is
+-- cast before it is known to be digits.
+create or replace function private.pk_addr_ok(p text)
+returns boolean
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+    v_parts text[];
+begin
+    if p is null or p !~ '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}:[0-9]{1,5}$' then return false; end if;
+    v_parts := regexp_split_to_array(p, '[.:]');
+    if v_parts[1]::int > 255 or v_parts[2]::int > 255 or v_parts[3]::int > 255 or v_parts[4]::int > 255 then return false; end if;
+    return v_parts[5]::int between 1 and 65535;
+end;
+$$;
+
+-- A code of p_len (up to 12) characters from crypto-random bytes: the random
+-- bytes of a v4 UUID (6 to 9 carry its version and variant, so they're skipped).
+create or replace function private.pk_code(p_len int)
+returns text
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+    v_alphabet constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    v_bytes bytea := decode(replace(gen_random_uuid()::text, '-', ''), 'hex');
+    v_code text := '';
+begin
+    for i in 0 .. least(p_len, 12) - 1 loop
+        v_code := v_code || substr(v_alphabet, 1 + (get_byte(v_bytes, case when i < 6 then i else i + 4 end) % 32), 1);
+    end loop;
+    return v_code;
+end;
+$$;
+
+-- What a crew may say: 1;name,build,move;name,build,move;name,build,move;shoot,pass,check,side
+create or replace function private.pk_crew_ok(p text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+    select p is not null and char_length(p) <= 200 and p ~ '^[ -~]+$'
+       and p ~ '^1(;[^,;|=]{1,15},[0-2],[0-6]){3};-?[0-9]{1,3},-?[0-9]{1,3},-?[0-9]{1,3},-?[01]$';
+$$;
+
+create table if not exists private.pk_rooms (
+    code        text primary key check (code ~ '^[A-HJ-NP-Z2-9]{6}$'),
+    host_token  text not null check (host_token ~ '^[0-9a-f]{64}$'),
+    host_addr   text not null,
+    host_lan    text,
+    relay       text not null check (relay ~ '^[0-9a-f]{32}$'),
+    guest_addr  text,
+    guest_lan   text,
+    created_at  timestamptz not null default now(),
+    joined_at   timestamptz
+);
+
+create table if not exists private.pk_crews (
+    code        text primary key check (code ~ '^[A-HJ-NP-Z2-9]{8}$'),
+    owner_token text not null unique check (owner_token ~ '^[0-9a-f]{64}$'),
+    name        text not null check (char_length(name) between 1 and 23 and name ~ '^[ -~]+$' and name !~ '[,|=;]'),
+    crew        text not null check (private.pk_crew_ok(crew)),
+    updated_at  timestamptz not null default now()
+);
+
+alter table private.pk_rooms enable row level security;
+alter table private.pk_crews enable row level security;
+revoke all on all tables in schema private from anon, authenticated, public;
+revoke all on all functions in schema private from anon, authenticated, public;
+
+create or replace function public.pk_room_open(p_secret text, p_addr text, p_lan text, p_relay text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    v_bucket text;
+    v_code text;
+    v_try int := 0;
+begin
+    if p_secret is null or p_secret !~ '^[0-9a-f]{32,64}$' or not private.pk_addr_ok(p_addr)
+       or (coalesce(p_lan, '') <> '' and not private.pk_addr_ok(p_lan))
+       or p_relay is null or p_relay !~ '^[0-9a-f]{32}$' then
+        return jsonb_build_object('error', 'bad request');
+    end if;
+    v_bucket := private.caller_bucket();
+    delete from private.pk_rooms where created_at < now() - interval '15 minutes';
+    delete from private.rate_limit where window_start < now() - interval '2 days';
+    if private.bump('pkopen:' || v_bucket, date_trunc('hour', now()), 1) > 30 then
+        return jsonb_build_object('limited', true);
+    end if;
+    if (select count(*) from private.pk_rooms) >= 2000 then
+        return jsonb_build_object('limited', true);
+    end if;
+    loop
+        v_code := private.pk_code(6);
+        begin
+            insert into private.pk_rooms (code, host_token, host_addr, host_lan, relay)
+            values (v_code, encode(sha256(convert_to(p_secret, 'UTF8')), 'hex'), p_addr, nullif(p_lan, ''), p_relay);
+            exit;
+        exception when unique_violation then
+            v_try := v_try + 1;
+            if v_try > 8 then return jsonb_build_object('error', 'busy'); end if;
+        end;
+    end loop;
+    return jsonb_build_object('code', v_code);
+end;
+$$;
+
+create or replace function public.pk_room_join(p_code text, p_addr text, p_lan text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    v_room private.pk_rooms;
+begin
+    if p_code is null or upper(p_code) !~ '^[A-HJ-NP-Z2-9]{6}$' or not private.pk_addr_ok(p_addr)
+       or (coalesce(p_lan, '') <> '' and not private.pk_addr_ok(p_lan)) then
+        return jsonb_build_object('error', 'bad request');
+    end if;
+    if private.bump('pkjoin:' || private.caller_bucket(), date_trunc('hour', now()), 1) > 60 then
+        return jsonb_build_object('limited', true);
+    end if;
+    select * into v_room from private.pk_rooms r
+    where r.code = upper(p_code) and r.created_at > now() - interval '15 minutes'
+    for update;
+    if not found then return jsonb_build_object('error', 'no such room'); end if;
+    if v_room.guest_addr is not null then return jsonb_build_object('error', 'room full'); end if;
+    update private.pk_rooms set guest_addr = p_addr, guest_lan = nullif(p_lan, ''), joined_at = now()
+    where code = v_room.code;
+    return jsonb_build_object('host_addr', v_room.host_addr, 'host_lan', coalesce(v_room.host_lan, ''), 'relay', v_room.relay);
+end;
+$$;
+
+create or replace function public.pk_room_poll(p_code text, p_secret text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    v_room private.pk_rooms;
+begin
+    if p_code is null or upper(p_code) !~ '^[A-HJ-NP-Z2-9]{6}$' or p_secret is null or p_secret !~ '^[0-9a-f]{32,64}$' then
+        return jsonb_build_object('error', 'bad request');
+    end if;
+    if private.bump('pkpoll:' || private.caller_bucket(), date_trunc('hour', now()), 1) > 3600 then
+        return jsonb_build_object('limited', true);
+    end if;
+    select * into v_room from private.pk_rooms r
+    where r.code = upper(p_code) and r.host_token = encode(sha256(convert_to(p_secret, 'UTF8')), 'hex')
+      and r.created_at > now() - interval '15 minutes';
+    if not found then return jsonb_build_object('error', 'no such room'); end if;
+    if v_room.guest_addr is null then return jsonb_build_object('waiting', true); end if;
+    return jsonb_build_object('guest_addr', v_room.guest_addr, 'guest_lan', coalesce(v_room.guest_lan, ''));
+end;
+$$;
+
+create or replace function public.pk_room_close(p_code text, p_secret text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+    if p_code is null or upper(p_code) !~ '^[A-HJ-NP-Z2-9]{6}$' or p_secret is null or p_secret !~ '^[0-9a-f]{32,64}$' then
+        return jsonb_build_object('error', 'bad request');
+    end if;
+    if private.bump('pkclose:' || private.caller_bucket(), date_trunc('hour', now()), 1) > 120 then
+        return jsonb_build_object('limited', true);
+    end if;
+    delete from private.pk_rooms r
+    where r.code = upper(p_code) and r.host_token = encode(sha256(convert_to(p_secret, 'UTF8')), 'hex');
+    return jsonb_build_object('closed', true);
+end;
+$$;
+
+create or replace function public.pk_crew_save(p_secret text, p_name text, p_crew text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    v_token text;
+    v_code text;
+    v_try int := 0;
+begin
+    if p_secret is null or p_secret !~ '^[0-9a-f]{32,64}$'
+       or p_name is null or char_length(p_name) not between 1 and 23 or p_name !~ '^[ -~]+$' or p_name ~ '[,|=;]'
+       or not private.pk_crew_ok(p_crew) then
+        return jsonb_build_object('error', 'bad request');
+    end if;
+    if private.bump('pkcrew:' || private.caller_bucket(), date_trunc('hour', now()), 1) > 20 then
+        return jsonb_build_object('limited', true);
+    end if;
+    v_token := encode(sha256(convert_to(p_secret, 'UTF8')), 'hex');
+    update private.pk_crews set name = p_name, crew = p_crew, updated_at = now()
+    where owner_token = v_token
+    returning code into v_code;
+    if v_code is not null then return jsonb_build_object('code', v_code); end if;
+    if (select count(*) from private.pk_crews) >= 50000 then
+        return jsonb_build_object('limited', true);
+    end if;
+    loop
+        v_code := private.pk_code(8);
+        begin
+            insert into private.pk_crews (code, owner_token, name, crew) values (v_code, v_token, p_name, p_crew);
+            exit;
+        exception when unique_violation then
+            v_try := v_try + 1;
+            if v_try > 8 then return jsonb_build_object('error', 'busy'); end if;
+        end;
+    end loop;
+    return jsonb_build_object('code', v_code);
+end;
+$$;
+
+create or replace function public.pk_crew_get(p_code text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    v_crew private.pk_crews;
+begin
+    if p_code is null or upper(p_code) !~ '^[A-HJ-NP-Z2-9]{8}$' then
+        return jsonb_build_object('error', 'bad request');
+    end if;
+    if private.bump('pkcrewget:' || private.caller_bucket(), date_trunc('hour', now()), 1) > 240 then
+        return jsonb_build_object('limited', true);
+    end if;
+    select * into v_crew from private.pk_crews c where c.code = upper(p_code);
+    if not found then return jsonb_build_object('error', 'no such crew'); end if;
+    return jsonb_build_object('name', v_crew.name, 'crew', v_crew.crew);
+end;
+$$;
+
+create or replace function public.pk_crew_delete(p_secret text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+    if p_secret is null or p_secret !~ '^[0-9a-f]{32,64}$' then
+        return jsonb_build_object('error', 'bad request');
+    end if;
+    if private.bump('pkcrewdel:' || private.caller_bucket(), date_trunc('hour', now()), 1) > 30 then
+        return jsonb_build_object('limited', true);
+    end if;
+    delete from private.pk_crews c where c.owner_token = encode(sha256(convert_to(p_secret, 'UTF8')), 'hex');
+    return jsonb_build_object('deleted', true);
+end;
+$$;
+
+-- Only the anonymous API role, and only these.
+revoke all on function public.pk_room_open(text, text, text, text) from public, authenticated;
+revoke all on function public.pk_room_join(text, text, text) from public, authenticated;
+revoke all on function public.pk_room_poll(text, text) from public, authenticated;
+revoke all on function public.pk_room_close(text, text) from public, authenticated;
+revoke all on function public.pk_crew_save(text, text, text) from public, authenticated;
+revoke all on function public.pk_crew_get(text) from public, authenticated;
+revoke all on function public.pk_crew_delete(text) from public, authenticated;
+grant execute on function public.pk_room_open(text, text, text, text) to anon;
+grant execute on function public.pk_room_join(text, text, text) to anon;
+grant execute on function public.pk_room_poll(text, text) to anon;
+grant execute on function public.pk_room_close(text, text) to anon;
+grant execute on function public.pk_crew_save(text, text, text) to anon;
+grant execute on function public.pk_crew_get(text) to anon;
+grant execute on function public.pk_crew_delete(text) to anon;
 
 -- Supabase's own helper (installed by the dashboard's "Run and enable RLS"):
 -- an event trigger that switches RLS on for new public tables. Keep it, but
